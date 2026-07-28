@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tsibroker-postgres
+    environment:
+      POSTGRES_DB: tsibroker
+      POSTGRES_USER: tsibroker
+      POSTGRES_PASSWORD: devpassword123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tsibroker -d tsibroker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7.0
+    container_name: tsibroker-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: tsibroker
+      MONGO_INITDB_ROOT_PASSWORD: devpassword123
+      MONGO_INITDB_DATABASE: tsibroker
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  mongodb_data:

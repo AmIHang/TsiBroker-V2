@@ -1,0 +1,6 @@
+@TsiBroker.ApiService_HostAddress = http://localhost:5270
+
+GET {{TsiBroker.ApiService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

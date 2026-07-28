@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
+    <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
+    <Project Path="src/TsiBroker.Ui/TsiBroker.Ui.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+  </Folder>
+</Solution>
