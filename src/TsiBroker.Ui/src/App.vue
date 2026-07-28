@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 async function onLogout() {
   await auth.logout()
@@ -13,7 +14,7 @@ async function onLogout() {
 </script>
 
 <template>
-  <header>
+  <header v-if="!route.meta.public">
     <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
     <div class="wrapper">
