@@ -36,6 +36,18 @@
   --section-gap: 160px;
 }
 
+/*
+ * Brand/theme color. Swap only --color-primary (e.g. via the VITE_THEME_COLOR
+ * env var, see src/main.ts) to re-theme the app per environment (dev/qs/prod) —
+ * the hover/soft/contrast shades are derived from it automatically.
+ */
+:root {
+  --color-primary: #6f4295;
+  --color-primary-hover: color-mix(in srgb, var(--color-primary) 85%, black);
+  --color-primary-soft: color-mix(in srgb, var(--color-primary) 10%, white);
+  --color-on-primary: #ffffff;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --color-background: var(--vt-c-black);

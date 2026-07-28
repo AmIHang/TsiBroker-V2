@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { apiFetch, ApiError } from '@/lib/api'
+import { apiFetch } from '@/lib/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const username = ref<string | null>(null)
@@ -11,12 +11,10 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await apiFetch('/api/auth/me')
       const data = await response.json()
       username.value = data.username
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        username.value = null
-      } else {
-        throw error
-      }
+    } catch {
+      // Any failure (401, network error, malformed response, ...) means we can't
+      // confirm the session, so fail closed and treat the user as logged out.
+      username.value = null
     } finally {
       isChecked.value = true
     }
