@@ -42,6 +42,9 @@ dist-ssr/
 !.env.example
 coverage/
 
+## Runtime data
+src/TsiBroker.ApiService/App_Data/
+
 ## Docker / infrastructure
 infrastructure/**/*.log
 

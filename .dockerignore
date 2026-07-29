@@ -1,0 +1,12 @@
+.git/
+.vs/
+.vscode/
+.idea/
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/App_Data/
+*.user
+*.log

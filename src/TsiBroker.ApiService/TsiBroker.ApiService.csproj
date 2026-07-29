@@ -11,4 +11,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TsiBroker.Core\TsiBroker.Core.csproj" />
+  </ItemGroup>
+
 </Project>

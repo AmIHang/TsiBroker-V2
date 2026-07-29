@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TsiBroker.ApiService.Auth;
+using TsiBroker.ApiService.InfrastructureOperators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,11 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services
+    .AddOptions<InfrastructureOperatorStoreOptions>()
+    .Bind(builder.Configuration.GetSection(InfrastructureOperatorStoreOptions.SectionName));
+builder.Services.AddSingleton<InfrastructureOperatorStore>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -64,6 +70,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapAuthEndpoints();
+app.MapInfrastructureOperatorEndpoints();
 
 var summaries = new[]
 {

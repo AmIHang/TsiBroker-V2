@@ -9,6 +9,7 @@ const router = useRouter()
 
 const navItems = [
   { to: '/', label: 'Startseite', icon: 'home' },
+  { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
   { to: '/about', label: 'Über', icon: 'info' },
 ] as const
 
@@ -48,6 +49,11 @@ async function onLogout() {
             <rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
             <rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
             <rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+          </svg>
+          <svg v-else-if="item.icon === 'operators'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="4" y="10" width="7" height="10" rx="1" stroke="currentColor" stroke-width="1.8" />
+            <rect x="13" y="4" width="7" height="16" rx="1" stroke="currentColor" stroke-width="1.8" />
+            <path d="M7 13.5h1M7 16.5h1M16 7.5h1M16 10.5h1M16 13.5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
           <svg v-else-if="item.icon === 'info'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8" />

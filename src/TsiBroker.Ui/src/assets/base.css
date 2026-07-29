@@ -69,6 +69,8 @@
   --color-topbar-border: var(--vt-c-divider-light-2);
   --color-topbar-text: var(--vt-c-text-light-1);
 
+  --color-content-bg: #eaeaea;
+
   --sidebar-width-collapsed: 72px;
   --sidebar-width-expanded: 240px;
   --topbar-height: 64px;

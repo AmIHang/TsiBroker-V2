@@ -33,6 +33,12 @@ const router = createRouter({
       component: () => import('../views/AboutView.vue'),
       meta: { title: 'Über' },
     },
+    {
+      path: '/infrastructure-operators',
+      name: 'infrastructure-operators',
+      component: () => import('../views/InfrastructureOperatorsView.vue'),
+      meta: { title: 'Infrastrukturbetreiber' },
+    },
   ],
 })
 
