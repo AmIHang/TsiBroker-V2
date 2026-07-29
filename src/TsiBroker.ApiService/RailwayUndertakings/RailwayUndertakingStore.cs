@@ -40,7 +40,11 @@ public class RailwayUndertakingStore
         }
     }
 
-    public async Task<RailwayUndertaking> AddAsync(string name, List<string> ricsCodes, string systemUrl)
+    public async Task<RailwayUndertaking> AddAsync(
+        string name,
+        List<string> ricsCodes,
+        string systemUrl,
+        List<IsbAssignment> infrastructureOperatorAssignments)
     {
         await _lock.WaitAsync();
         try
@@ -54,6 +58,7 @@ public class RailwayUndertakingStore
                 SystemUrl = systemUrl,
                 ApiKeyEvuToBroker = GenerateApiKey(),
                 ApiKeyBrokerToEvu = GenerateApiKey(),
+                InfrastructureOperatorAssignments = infrastructureOperatorAssignments,
                 IsActive = true,
             };
             undertakings.Add(created);
@@ -72,7 +77,8 @@ public class RailwayUndertakingStore
         List<string> ricsCodes,
         string systemUrl,
         string apiKeyEvuToBroker,
-        string apiKeyBrokerToEvu)
+        string apiKeyBrokerToEvu,
+        List<IsbAssignment> infrastructureOperatorAssignments)
     {
         await _lock.WaitAsync();
         try
@@ -89,6 +95,7 @@ public class RailwayUndertakingStore
             target.SystemUrl = systemUrl;
             target.ApiKeyEvuToBroker = apiKeyEvuToBroker;
             target.ApiKeyBrokerToEvu = apiKeyBrokerToEvu;
+            target.InfrastructureOperatorAssignments = infrastructureOperatorAssignments;
             await WriteAsync(undertakings);
             return target;
         }

@@ -45,6 +45,12 @@ const router = createRouter({
       component: () => import('../views/RailwayUndertakingsView.vue'),
       meta: { title: 'Eisenbahnverkehrsunternehmen' },
     },
+    {
+      path: '/railway-undertakings/:id',
+      name: 'railway-undertaking-edit',
+      component: () => import('../views/RailwayUndertakingEditView.vue'),
+      meta: { title: 'Eisenbahnverkehrsunternehmen bearbeiten' },
+    },
   ],
 })
 

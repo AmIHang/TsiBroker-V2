@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSidebar } from '@/composables/useSidebar'
 
 const { collapsed, toggle: toggleCollapsed } = useSidebar()
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 const navItems = [
   { to: '/', label: 'Startseite', icon: 'home' },
@@ -13,6 +14,10 @@ const navItems = [
   { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
   { to: '/about', label: 'Über', icon: 'info' },
 ] as const
+
+function isNavItemActive(to: string) {
+  return to === '/' ? route.path === '/' : route.path === to || route.path.startsWith(`${to}/`)
+}
 
 async function onLogout() {
   await auth.logout()
@@ -42,6 +47,7 @@ async function onLogout() {
         :key="item.to"
         :to="item.to"
         class="nav-item"
+        :class="{ 'nav-item--active': isNavItemActive(item.to) }"
         :title="collapsed ? item.label : undefined"
       >
         <span class="nav-item__icon">
@@ -212,7 +218,7 @@ async function onLogout() {
   color: var(--color-sidebar-text-strong);
 }
 
-.nav-item.router-link-exact-active {
+.nav-item--active {
   background: var(--color-sidebar-active-bg);
   color: var(--color-sidebar-active-text);
 }
