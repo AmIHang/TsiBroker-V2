@@ -27,9 +27,10 @@ WORKDIR /app
 EXPOSE 8081
 EXPOSE 8082
 
-# Persistent data (e.g. infrastructure-operators.json) lives here — mount a volume
-# at this path so it survives container recreation.
+# Persistent data (e.g. infrastructure-operators.json, railway-undertakings.json) lives here —
+# mount a volume at this path so it survives container recreation.
 ENV InfrastructureOperators__DataDirectory=/app/data
+ENV RailwayUndertakings__DataDirectory=/app/data
 VOLUME ["/app/data"]
 
 COPY --from=publish /app/publish .

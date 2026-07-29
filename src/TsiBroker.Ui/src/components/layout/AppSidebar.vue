@@ -10,6 +10,7 @@ const router = useRouter()
 const navItems = [
   { to: '/', label: 'Startseite', icon: 'home' },
   { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
+  { to: '/railway-undertakings', label: 'Eisenbahnverkehrsunternehmen', icon: 'train' },
   { to: '/about', label: 'Über', icon: 'info' },
 ] as const
 
@@ -54,6 +55,13 @@ async function onLogout() {
             <rect x="4" y="10" width="7" height="10" rx="1" stroke="currentColor" stroke-width="1.8" />
             <rect x="13" y="4" width="7" height="16" rx="1" stroke="currentColor" stroke-width="1.8" />
             <path d="M7 13.5h1M7 16.5h1M16 7.5h1M16 10.5h1M16 13.5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <svg v-else-if="item.icon === 'train'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="6" y="3.5" width="12" height="12" rx="4" stroke="currentColor" stroke-width="1.8" />
+            <path d="M6 10.5h12" stroke="currentColor" stroke-width="1.8" />
+            <circle cx="9" cy="13" r="0.9" fill="currentColor" />
+            <circle cx="15" cy="13" r="0.9" fill="currentColor" />
+            <path d="M9 18.5l-2 2.2M15 18.5l2 2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
           <svg v-else-if="item.icon === 'info'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8" />

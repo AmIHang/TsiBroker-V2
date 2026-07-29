@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TsiBroker.ApiService.Auth;
 using TsiBroker.ApiService.InfrastructureOperators;
+using TsiBroker.ApiService.RailwayUndertakings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +56,11 @@ builder.Services
     .Bind(builder.Configuration.GetSection(InfrastructureOperatorStoreOptions.SectionName));
 builder.Services.AddSingleton<InfrastructureOperatorStore>();
 
+builder.Services
+    .AddOptions<RailwayUndertakingStoreOptions>()
+    .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
+builder.Services.AddSingleton<RailwayUndertakingStore>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -71,6 +77,7 @@ app.UseAuthorization();
 
 app.MapAuthEndpoints();
 app.MapInfrastructureOperatorEndpoints();
+app.MapRailwayUndertakingEndpoints();
 
 var summaries = new[]
 {

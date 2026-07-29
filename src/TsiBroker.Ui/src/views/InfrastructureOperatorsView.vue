@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { apiFetch } from '@/lib/api'
 
 interface InfrastructureOperator {
@@ -22,6 +22,8 @@ const name = ref('')
 const ricsCode = ref('')
 const systemUrl = ref('')
 const editingId = ref<string | null>(null)
+
+const editingOperator = computed(() => operators.value.find((o) => o.id === editingId.value) ?? null)
 
 watch(showForm, (value) => {
   if (value) {
@@ -100,7 +102,7 @@ async function toggleActive(op: InfrastructureOperator) {
     })
     op.isActive = nextActive
   } catch {
-    error.value = 'Status konnte nicht geändert werden.'
+    formError.value = 'Status konnte nicht geändert werden.'
   }
 }
 
@@ -112,8 +114,9 @@ async function deleteOperator(op: InfrastructureOperator) {
   try {
     await apiFetch(`/api/infrastructure-operators/${op.id}`, { method: 'DELETE' })
     operators.value = operators.value.filter((o) => o.id !== op.id)
+    showForm.value = false
   } catch {
-    error.value = 'Infrastrukturbetreiber konnte nicht gelöscht werden.'
+    formError.value = 'Infrastrukturbetreiber konnte nicht gelöscht werden.'
   }
 }
 
@@ -132,7 +135,50 @@ onMounted(loadOperators)
 
     <dialog ref="dialogRef" class="modal" @close="showForm = false" @cancel="showForm = false">
       <form class="modal__form" @submit.prevent="onSubmit">
-        <h2 class="modal__title">{{ editingId ? 'Infrastrukturbetreiber bearbeiten' : 'Neuer Infrastrukturbetreiber' }}</h2>
+        <div class="modal__header">
+          <h2 class="modal__title">{{ editingId ? 'Infrastrukturbetreiber bearbeiten' : 'Neuer Infrastrukturbetreiber' }}</h2>
+          <div class="modal__header-actions">
+            <template v-if="editingOperator">
+              <button
+                v-if="!editingOperator.isActive"
+                type="button"
+                class="icon-btn-header icon-btn-header--danger"
+                aria-label="Löschen"
+                title="Löschen"
+                @click="deleteOperator(editingOperator)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="icon-btn-header"
+                :class="editingOperator.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
+                :aria-label="editingOperator.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                :title="editingOperator.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                @click="toggleActive(editingOperator)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  <path d="M7 5.5a7 7 0 1 0 10 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </template>
+            <button type="button" class="modal__close" aria-label="Schließen" @click="showForm = false">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
         <label class="field">
           <span class="field__label">Name</span>
@@ -166,11 +212,17 @@ onMounted(loadOperators)
           <th>RicsCode</th>
           <th>SystemUrl</th>
           <th>Status</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="op in operators" :key="op.id" :class="{ 'operator-table__row--inactive': !op.isActive }">
+        <tr
+          v-for="op in operators"
+          :key="op.id"
+          class="operator-table__row"
+          :class="{ 'operator-table__row--inactive': !op.isActive }"
+          title="Doppelklick zum Bearbeiten"
+          @dblclick="openEditForm(op)"
+        >
           <td>{{ op.name }}</td>
           <td>{{ op.ricsCode }}</td>
           <td>{{ op.systemUrl }}</td>
@@ -178,17 +230,6 @@ onMounted(loadOperators)
             <span class="status" :class="op.isActive ? 'status--active' : 'status--inactive'">
               {{ op.isActive ? 'Aktiv' : 'Inaktiv' }}
             </span>
-          </td>
-          <td class="operator-table__actions">
-            <button type="button" class="btn btn--small" @click="openEditForm(op)">
-              Bearbeiten
-            </button>
-            <button type="button" class="btn btn--small" @click="toggleActive(op)">
-              {{ op.isActive ? 'Deaktivieren' : 'Aktivieren' }}
-            </button>
-            <button type="button" class="btn btn--small btn--danger" @click="deleteOperator(op)">
-              Löschen
-            </button>
           </td>
         </tr>
       </tbody>
@@ -247,20 +288,6 @@ onMounted(loadOperators)
   cursor: not-allowed;
 }
 
-.btn--small {
-  padding: 0.35rem 0.7rem;
-  font-size: 0.82rem;
-}
-
-.btn--danger {
-  color: #d33;
-  border-color: #d33;
-}
-
-.btn--danger:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
 .modal {
   margin: auto;
   padding: 0;
@@ -282,10 +309,100 @@ onMounted(loadOperators)
   padding: 1.75rem;
 }
 
+.modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.icon-btn-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.icon-btn-header:hover {
+  border-color: var(--color-border-hover);
+}
+
+.icon-btn-header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn-header--activate {
+  color: #2e9e5b;
+  border-color: #2e9e5b;
+}
+
+.icon-btn-header--activate:hover {
+  background: color-mix(in srgb, #2e9e5b 10%, transparent);
+}
+
+.icon-btn-header--deactivate {
+  color: #d33;
+  border-color: #d33;
+}
+
+.icon-btn-header--deactivate:hover {
+  background: color-mix(in srgb, #d33 10%, transparent);
+}
+
+.icon-btn-header--danger:hover {
+  border-color: #d33;
+  color: #d33;
+  background: color-mix(in srgb, #d33 10%, transparent);
+}
+
 .modal__title {
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--color-heading);
+}
+
+.modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.modal__close:hover {
+  opacity: 1;
+  background: var(--color-background-soft);
+}
+
+.modal__close svg {
+  width: 18px;
+  height: 18px;
 }
 
 .field {
@@ -339,14 +456,17 @@ onMounted(loadOperators)
   opacity: 0.75;
 }
 
-.operator-table__row--inactive {
-  opacity: 0.55;
+.operator-table__row {
+  cursor: pointer;
+  transition: background-color 0.15s;
 }
 
-.operator-table__actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
+.operator-table__row:hover {
+  background: var(--color-background-soft);
+}
+
+.operator-table__row--inactive {
+  opacity: 0.55;
 }
 
 .status {

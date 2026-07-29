@@ -39,6 +39,12 @@ const router = createRouter({
       component: () => import('../views/InfrastructureOperatorsView.vue'),
       meta: { title: 'Infrastrukturbetreiber' },
     },
+    {
+      path: '/railway-undertakings',
+      name: 'railway-undertakings',
+      component: () => import('../views/RailwayUndertakingsView.vue'),
+      meta: { title: 'Eisenbahnverkehrsunternehmen' },
+    },
   ],
 })
 
