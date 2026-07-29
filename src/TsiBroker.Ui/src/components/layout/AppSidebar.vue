@@ -9,8 +9,8 @@ const router = useRouter()
 
 const navItems = [
   { to: '/', label: 'Startseite', icon: 'home' },
-  { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
   { to: '/railway-undertakings', label: 'Eisenbahnverkehrsunternehmen', icon: 'train' },
+  { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
   { to: '/about', label: 'Über', icon: 'info' },
 ] as const
 
