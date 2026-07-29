@@ -48,6 +48,32 @@
   --color-on-primary: #ffffff;
 }
 
+/* App shell (sidebar + topbar) surface colors. Always light, matching the
+ * login page's tinted gradient/background (which also ignores dark mode),
+ * with --color-primary used for the active nav item. */
+:root {
+  --color-shell-gradient:
+    radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 40%),
+    radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 40%),
+    linear-gradient(135deg, #ece9f1 0%, #e7e4ee 100%);
+
+  --color-sidebar-bg: var(--color-shell-gradient);
+  --color-sidebar-border: var(--vt-c-divider-light-2);
+  --color-sidebar-text: var(--vt-c-text-light-2);
+  --color-sidebar-text-strong: var(--vt-c-text-light-1);
+  --color-sidebar-hover-bg: var(--color-primary-soft);
+  --color-sidebar-active-bg: var(--color-primary);
+  --color-sidebar-active-text: var(--color-on-primary);
+
+  --color-topbar-bg: var(--color-shell-gradient);
+  --color-topbar-border: var(--vt-c-divider-light-2);
+  --color-topbar-text: var(--vt-c-text-light-1);
+
+  --sidebar-width-collapsed: 72px;
+  --sidebar-width-expanded: 240px;
+  --topbar-height: 64px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --color-background: var(--vt-c-black);

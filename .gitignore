@@ -58,3 +58,5 @@ Thumbs.db
 *.pem
 appsettings.*.local.json
 secrets.json
+
+.claude/*

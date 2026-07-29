@@ -1,0 +1,233 @@
+<script setup lang="ts">
+import { RouterLink, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useSidebar } from '@/composables/useSidebar'
+
+const { collapsed, toggle: toggleCollapsed } = useSidebar()
+const auth = useAuthStore()
+const router = useRouter()
+
+const navItems = [
+  { to: '/', label: 'Startseite', icon: 'home' },
+  { to: '/about', label: 'Über', icon: 'info' },
+] as const
+
+async function onLogout() {
+  await auth.logout()
+  await router.push('/login')
+}
+</script>
+
+<template>
+  <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
+    <div class="sidebar__header">
+      <button
+        type="button"
+        class="icon-btn"
+        :aria-label="collapsed ? 'Menü ausklappen' : 'Menü einklappen'"
+        @click="toggleCollapsed"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      </button>
+      <span v-if="!collapsed" class="sidebar__brand">TSI-Broker</span>
+    </div>
+
+    <nav class="sidebar__nav">
+      <RouterLink
+        v-for="item in navItems"
+        :key="item.to"
+        :to="item.to"
+        class="nav-item"
+        :title="collapsed ? item.label : undefined"
+      >
+        <span class="nav-item__icon">
+          <svg v-if="item.icon === 'home'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+            <rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+            <rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+            <rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+          </svg>
+          <svg v-else-if="item.icon === 'info'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8" />
+            <path d="M12 11v5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <circle cx="12" cy="8" r="0.9" fill="currentColor" />
+          </svg>
+        </span>
+        <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>
+      </RouterLink>
+    </nav>
+
+    <div class="sidebar__footer">
+      <button
+        v-if="auth.username"
+        type="button"
+        class="nav-item nav-item--button"
+        :title="collapsed ? `Logout (${auth.username})` : undefined"
+        @click="onLogout"
+      >
+        <span class="nav-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M15 16l4-4-4-4M19 12H9"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </span>
+        <span v-if="!collapsed" class="nav-item__label">Logout ({{ auth.username }})</span>
+      </button>
+    </div>
+  </aside>
+</template>
+
+<style scoped>
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width-expanded);
+  background: var(--color-sidebar-bg);
+  background-attachment: fixed;
+  border-right: 1px solid var(--color-sidebar-border);
+  transition: width 0.18s ease;
+  overflow: hidden;
+}
+
+.sidebar--collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.sidebar__brand {
+  color: var(--color-sidebar-text-strong);
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-sidebar-text);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-sidebar-text-strong);
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar--collapsed .icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0 auto;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar__footer {
+  padding: 0.5rem;
+  border-top: 1px solid var(--color-sidebar-border);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 10px;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.nav-item--button {
+  font-family: inherit;
+  text-align: left;
+}
+
+.nav-item:hover {
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-sidebar-text-strong);
+}
+
+.nav-item.router-link-exact-active {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-active-text);
+}
+
+.sidebar--collapsed .nav-item {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.nav-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.nav-item__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nav-item__label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+</style>
