@@ -400,12 +400,20 @@ onUnmounted(() => {
                 <input :value="undertaking.apiKeyEvuToBroker" :type="showApiKeyEvuToBroker ? 'text' : 'password'" readonly />
                 <button
                   type="button"
-                  class="icon-btn-inline"
+                  class="toggle-password"
                   :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
                   :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
                   @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
                 >
-                  {{ showApiKeyEvuToBroker ? 'Verbergen' : 'Anzeigen' }}
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+                    <path v-if="!showApiKeyEvuToBroker" d="M4 4 L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
                 </button>
                 <button type="button" class="btn btn--small" @click="toggleRegenerateEvuToBroker">
                   {{ pendingRegenerateEvuToBroker ? 'Neugenerierung verwerfen' : 'Neu generieren' }}
@@ -422,12 +430,20 @@ onUnmounted(() => {
                 <input :value="undertaking.apiKeyBrokerToEvu" :type="showApiKeyBrokerToEvu ? 'text' : 'password'" readonly />
                 <button
                   type="button"
-                  class="icon-btn-inline"
+                  class="toggle-password"
                   :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
                   :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
                   @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
                 >
-                  {{ showApiKeyBrokerToEvu ? 'Verbergen' : 'Anzeigen' }}
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+                    <path v-if="!showApiKeyBrokerToEvu" d="M4 4 L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
                 </button>
                 <button type="button" class="btn btn--small" @click="toggleRegenerateBrokerToEvu">
                   {{ pendingRegenerateBrokerToEvu ? 'Neugenerierung verwerfen' : 'Neu generieren' }}
@@ -859,19 +875,29 @@ onUnmounted(() => {
   font-family: monospace;
 }
 
-.icon-btn-inline {
-  padding: 0.35rem 0.7rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
+.toggle-password {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--color-text);
-  font-size: 0.82rem;
+  opacity: 0.6;
   cursor: pointer;
-  white-space: nowrap;
+  transition: opacity 0.15s;
 }
 
-.icon-btn-inline:hover {
-  border-color: var(--color-border-hover);
+.toggle-password:hover {
+  opacity: 1;
+}
+
+.toggle-password svg {
+  width: 100%;
+  height: 100%;
 }
 
 .hint {
