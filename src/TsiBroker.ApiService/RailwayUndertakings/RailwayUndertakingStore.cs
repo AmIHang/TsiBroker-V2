@@ -191,6 +191,33 @@ public class RailwayUndertakingStore
         }
     }
 
+    public async Task RemoveInfrastructureOperatorAssignmentsAsync(Guid infrastructureOperatorId)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var undertakings = await ReadAsync();
+            var changed = false;
+            foreach (var undertaking in undertakings)
+            {
+                if (undertaking.InfrastructureOperatorAssignments.RemoveAll(
+                        a => a.InfrastructureOperatorId == infrastructureOperatorId) > 0)
+                {
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await WriteAsync(undertakings);
+            }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     private async Task<List<RailwayUndertaking>> ReadAsync()
     {
         if (!File.Exists(_filePath))

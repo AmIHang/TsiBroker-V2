@@ -1,3 +1,5 @@
+using TsiBroker.ApiService.RailwayUndertakings;
+
 namespace TsiBroker.ApiService.InfrastructureOperators;
 
 public record CreateInfrastructureOperatorRequest(string Name, string RicsCode, string SystemUrl);
@@ -44,7 +46,15 @@ public static class InfrastructureOperatorEndpoints
         group.MapPatch("/{id:guid}/status", async (Guid id, SetInfrastructureOperatorActiveRequest request, InfrastructureOperatorStore store) =>
             await store.SetActiveAsync(id, request.IsActive) ? Results.Ok() : Results.NotFound());
 
-        group.MapDelete("/{id:guid}", async (Guid id, InfrastructureOperatorStore store) =>
-            await store.DeleteAsync(id) ? Results.Ok() : Results.NotFound());
+        group.MapDelete("/{id:guid}", async (Guid id, InfrastructureOperatorStore store, RailwayUndertakingStore railwayUndertakingStore) =>
+        {
+            if (!await store.DeleteAsync(id))
+            {
+                return Results.NotFound();
+            }
+
+            await railwayUndertakingStore.RemoveInfrastructureOperatorAssignmentsAsync(id);
+            return Results.Ok();
+        });
     }
 }
