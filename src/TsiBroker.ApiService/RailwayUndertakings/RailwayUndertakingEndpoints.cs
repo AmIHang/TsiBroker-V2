@@ -84,17 +84,7 @@ public static class RailwayUndertakingEndpoints
         group.MapPatch("/{id:guid}/status", async (Guid id, SetRailwayUndertakingActiveRequest request, RailwayUndertakingStore store) =>
             await store.SetActiveAsync(id, request.IsActive) ? Results.Ok() : Results.NotFound());
 
-        group.MapPost("/{id:guid}/api-key-evu-to-broker/regenerate", async (Guid id, RailwayUndertakingStore store) =>
-        {
-            var updated = await store.RegenerateApiKeyEvuToBrokerAsync(id);
-            return updated is not null ? Results.Ok(updated) : Results.NotFound();
-        });
-
-        group.MapPost("/{id:guid}/api-key-broker-to-evu/regenerate", async (Guid id, RailwayUndertakingStore store) =>
-        {
-            var updated = await store.RegenerateApiKeyBrokerToEvuAsync(id);
-            return updated is not null ? Results.Ok(updated) : Results.NotFound();
-        });
+        group.MapGet("/generate-api-key", () => Results.Ok(new { apiKey = RailwayUndertakingStore.GenerateApiKey() }));
 
         group.MapDelete("/{id:guid}", async (Guid id, RailwayUndertakingStore store) =>
             await store.DeleteAsync(id) ? Results.Ok() : Results.NotFound());

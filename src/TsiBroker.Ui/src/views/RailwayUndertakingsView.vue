@@ -173,11 +173,22 @@ onMounted(() => {
             <input v-model="ricsCodes[index]" type="text" required />
             <button
               type="button"
-              class="btn btn--small btn--danger"
+              class="icon-btn-header icon-btn-header--danger"
               :disabled="ricsCodes.length === 1"
+              aria-label="Entfernen"
+              title="Entfernen"
               @click="removeRicsCodeField(index)"
             >
-              Entfernen
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
             </button>
           </div>
         </div>
@@ -305,6 +316,45 @@ onMounted(() => {
 }
 
 .btn--danger:hover {
+  background: color-mix(in srgb, #d33 10%, transparent);
+}
+
+.icon-btn-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(120, 120, 120, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.icon-btn-header:hover {
+  border-color: rgba(120, 120, 120, 0.65);
+}
+
+.icon-btn-header:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.icon-btn-header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn-header--danger {
+  color: #d33;
+  border-color: #d33;
+}
+
+.icon-btn-header--danger:hover {
   background: color-mix(in srgb, #d33 10%, transparent);
 }
 

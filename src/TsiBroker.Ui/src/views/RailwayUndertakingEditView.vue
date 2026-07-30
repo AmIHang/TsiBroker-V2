@@ -43,8 +43,8 @@ const ricsCodes = ref<string[]>([''])
 const systemUrl = ref('')
 const pendingIsActive = ref(false)
 const pendingAssignments = ref<IsbAssignment[]>([])
-const pendingRegenerateEvuToBroker = ref(false)
-const pendingRegenerateBrokerToEvu = ref(false)
+const pendingApiKeyEvuToBroker = ref<string | null>(null)
+const pendingApiKeyBrokerToEvu = ref<string | null>(null)
 
 const saveError = ref('')
 const isSaving = ref(false)
@@ -88,8 +88,8 @@ function resetLocalState(u: RailwayUndertaking) {
   systemUrl.value = u.systemUrl
   pendingIsActive.value = u.isActive
   pendingAssignments.value = u.infrastructureOperatorAssignments.map((a) => ({ ...a }))
-  pendingRegenerateEvuToBroker.value = false
-  pendingRegenerateBrokerToEvu.value = false
+  pendingApiKeyEvuToBroker.value = null
+  pendingApiKeyBrokerToEvu.value = null
 }
 
 async function load() {
@@ -166,8 +166,8 @@ async function saveAll() {
       name: name.value,
       ricsCodes: cleanedRicsCodes,
       systemUrl: systemUrl.value,
-      apiKeyEvuToBroker: undertaking.value.apiKeyEvuToBroker,
-      apiKeyBrokerToEvu: undertaking.value.apiKeyBrokerToEvu,
+      apiKeyEvuToBroker: pendingApiKeyEvuToBroker.value ?? undertaking.value.apiKeyEvuToBroker,
+      apiKeyBrokerToEvu: pendingApiKeyBrokerToEvu.value ?? undertaking.value.apiKeyBrokerToEvu,
       infrastructureOperatorAssignments: pendingAssignments.value,
     })
     const response = await apiFetch(`/api/railway-undertakings/${id}`, { method: 'PUT', body })
@@ -179,15 +179,6 @@ async function saveAll() {
         body: JSON.stringify({ isActive: pendingIsActive.value }),
       })
       updated = { ...updated, isActive: pendingIsActive.value }
-    }
-
-    if (pendingRegenerateEvuToBroker.value) {
-      const r = await apiFetch(`/api/railway-undertakings/${id}/api-key-evu-to-broker/regenerate`, { method: 'POST' })
-      updated = await r.json()
-    }
-    if (pendingRegenerateBrokerToEvu.value) {
-      const r = await apiFetch(`/api/railway-undertakings/${id}/api-key-broker-to-evu/regenerate`, { method: 'POST' })
-      updated = await r.json()
     }
 
     undertaking.value = updated
@@ -203,12 +194,20 @@ function toggleActive() {
   pendingIsActive.value = !pendingIsActive.value
 }
 
-function toggleRegenerateEvuToBroker() {
-  pendingRegenerateEvuToBroker.value = !pendingRegenerateEvuToBroker.value
+async function generateApiKey(): Promise<string> {
+  const response = await apiFetch('/api/railway-undertakings/generate-api-key')
+  const { apiKey } = await response.json()
+  return apiKey
 }
 
-function toggleRegenerateBrokerToEvu() {
-  pendingRegenerateBrokerToEvu.value = !pendingRegenerateBrokerToEvu.value
+async function regenerateEvuToBroker() {
+  pendingApiKeyEvuToBroker.value = await generateApiKey()
+  showApiKeyEvuToBroker.value = true
+}
+
+async function regenerateBrokerToEvu() {
+  pendingApiKeyBrokerToEvu.value = await generateApiKey()
+  showApiKeyBrokerToEvu.value = true
 }
 
 async function deleteUndertaking() {
@@ -375,11 +374,22 @@ onUnmounted(() => {
                   <input v-model="ricsCodes[index]" type="text" required />
                   <button
                     type="button"
-                    class="btn btn--small btn--danger"
+                    class="icon-btn-header icon-btn-header--danger"
                     :disabled="ricsCodes.length === 1"
+                    aria-label="Entfernen"
+                    title="Entfernen"
                     @click="removeRicsCodeField(index)"
                   >
-                    Entfernen
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -397,60 +407,104 @@ onUnmounted(() => {
             <div class="field">
               <span class="field__label">API-Key (EVU → Broker)</span>
               <div class="key-row">
-                <input :value="undertaking.apiKeyEvuToBroker" :type="showApiKeyEvuToBroker ? 'text' : 'password'" readonly />
+                <label class="key-input-wrap">
+                  <input
+                    :value="pendingApiKeyEvuToBroker ?? undertaking.apiKeyEvuToBroker"
+                    :type="showApiKeyEvuToBroker ? 'text' : 'password'"
+                    readonly
+                  />
+                  <button
+                    type="button"
+                    class="toggle-password"
+                    :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
+                    :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
+                    @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+                      <path v-if="!showApiKeyEvuToBroker" d="M4 4 L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                </label>
                 <button
                   type="button"
-                  class="toggle-password"
-                  :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
-                  :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
-                  @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
+                  class="icon-btn-header"
+                  aria-label="Neu generieren"
+                  title="Neu generieren"
+                  @click="regenerateEvuToBroker"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M23 4v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M1 20v-6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                     <path
-                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                      d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
                       stroke="currentColor"
                       stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
                     />
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
-                    <path v-if="!showApiKeyEvuToBroker" d="M4 4 L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                   </svg>
                 </button>
-                <button type="button" class="btn btn--small" @click="toggleRegenerateEvuToBroker">
-                  {{ pendingRegenerateEvuToBroker ? 'Neugenerierung verwerfen' : 'Neu generieren' }}
-                </button>
               </div>
-              <p v-if="pendingRegenerateEvuToBroker" class="hint hint--pending">
-                Wird beim Speichern neu generiert. Der bisherige Key wird dann ungültig.
+              <p v-if="pendingApiKeyEvuToBroker" class="hint hint--pending">
+                Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.
               </p>
             </div>
 
             <div class="field">
               <span class="field__label">API-Key (Broker → EVU)</span>
               <div class="key-row">
-                <input :value="undertaking.apiKeyBrokerToEvu" :type="showApiKeyBrokerToEvu ? 'text' : 'password'" readonly />
+                <label class="key-input-wrap">
+                  <input
+                    :value="pendingApiKeyBrokerToEvu ?? undertaking.apiKeyBrokerToEvu"
+                    :type="showApiKeyBrokerToEvu ? 'text' : 'password'"
+                    readonly
+                  />
+                  <button
+                    type="button"
+                    class="toggle-password"
+                    :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
+                    :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
+                    @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+                      <path v-if="!showApiKeyBrokerToEvu" d="M4 4 L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                </label>
                 <button
                   type="button"
-                  class="toggle-password"
-                  :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
-                  :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
-                  @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
+                  class="icon-btn-header"
+                  aria-label="Neu generieren"
+                  title="Neu generieren"
+                  @click="regenerateBrokerToEvu"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M23 4v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M1 20v-6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                     <path
-                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                      d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
                       stroke="currentColor"
                       stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
                     />
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
-                    <path v-if="!showApiKeyBrokerToEvu" d="M4 4 L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                   </svg>
                 </button>
-                <button type="button" class="btn btn--small" @click="toggleRegenerateBrokerToEvu">
-                  {{ pendingRegenerateBrokerToEvu ? 'Neugenerierung verwerfen' : 'Neu generieren' }}
-                </button>
               </div>
-              <p v-if="pendingRegenerateBrokerToEvu" class="hint hint--pending">
-                Wird beim Speichern neu generiert. Der bisherige Key wird dann ungültig.
+              <p v-if="pendingApiKeyBrokerToEvu" class="hint hint--pending">
+                Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.
               </p>
             </div>
           </section>
@@ -864,12 +918,30 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.key-row input {
+.key-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   flex: 1;
+  min-width: 0;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-background);
+  transition: border-color 0.2s;
+}
+
+.key-input-wrap:focus-within {
+  border-color: var(--color-primary);
+}
+
+.key-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 0;
+  background: transparent;
   color: var(--color-text);
   font-size: 0.9rem;
   font-family: monospace;

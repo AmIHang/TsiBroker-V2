@@ -105,50 +105,6 @@ public class RailwayUndertakingStore
         }
     }
 
-    public async Task<RailwayUndertaking?> RegenerateApiKeyEvuToBrokerAsync(Guid id)
-    {
-        await _lock.WaitAsync();
-        try
-        {
-            var undertakings = await ReadAsync();
-            var target = undertakings.FirstOrDefault(u => u.Id == id);
-            if (target is null)
-            {
-                return null;
-            }
-
-            target.ApiKeyEvuToBroker = GenerateApiKey();
-            await WriteAsync(undertakings);
-            return target;
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
-    public async Task<RailwayUndertaking?> RegenerateApiKeyBrokerToEvuAsync(Guid id)
-    {
-        await _lock.WaitAsync();
-        try
-        {
-            var undertakings = await ReadAsync();
-            var target = undertakings.FirstOrDefault(u => u.Id == id);
-            if (target is null)
-            {
-                return null;
-            }
-
-            target.ApiKeyBrokerToEvu = GenerateApiKey();
-            await WriteAsync(undertakings);
-            return target;
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
     public async Task<bool> SetActiveAsync(Guid id, bool isActive)
     {
         await _lock.WaitAsync();
@@ -245,5 +201,5 @@ public class RailwayUndertakingStore
         "0123456789" +
         "!#$%()*+,-./:;=?@[]^_{|}~";
 
-    private static string GenerateApiKey() => RandomNumberGenerator.GetString(ApiKeyAlphabet, 40);
+    public static string GenerateApiKey() => RandomNumberGenerator.GetString(ApiKeyAlphabet, 40);
 }
