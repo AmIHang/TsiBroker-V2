@@ -12,7 +12,6 @@ const navItems = [
   { to: '/', label: 'Startseite', icon: 'home' },
   { to: '/railway-undertakings', label: 'Eisenbahnverkehrsunternehmen', icon: 'train' },
   { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
-  { to: '/about', label: 'Über', icon: 'info' },
 ] as const
 
 function isNavItemActive(to: string) {
@@ -68,11 +67,6 @@ async function onLogout() {
             <circle cx="9" cy="13" r="0.9" fill="currentColor" />
             <circle cx="15" cy="13" r="0.9" fill="currentColor" />
             <path d="M9 18.5l-2 2.2M15 18.5l2 2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
-          <svg v-else-if="item.icon === 'info'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8" />
-            <path d="M12 11v5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <circle cx="12" cy="8" r="0.9" fill="currentColor" />
           </svg>
         </span>
         <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>
