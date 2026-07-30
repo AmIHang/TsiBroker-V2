@@ -41,18 +41,16 @@ const loadError = ref('')
 const name = ref('')
 const ricsCodes = ref<string[]>([''])
 const systemUrl = ref('')
-const stammdatenError = ref('')
-const isSavingStammdaten = ref(false)
+const pendingIsActive = ref(false)
+const pendingAssignments = ref<IsbAssignment[]>([])
+const pendingRegenerateEvuToBroker = ref(false)
+const pendingRegenerateBrokerToEvu = ref(false)
+
+const saveError = ref('')
+const isSaving = ref(false)
 
 const showApiKeyEvuToBroker = ref(false)
 const showApiKeyBrokerToEvu = ref(false)
-const isRegeneratingEvuToBroker = ref(false)
-const isRegeneratingBrokerToEvu = ref(false)
-const apiKeyError = ref('')
-
-const statusError = ref('')
-const assignmentError = ref('')
-const isSavingAssignment = ref(false)
 
 const showAssignmentDialog = ref(false)
 const assignmentDialogRef = ref<HTMLDialogElement | null>(null)
@@ -63,7 +61,7 @@ const dialogAllowedBrokerToEvu = ref('')
 const dialogError = ref('')
 
 const assignedIsbIds = computed(
-  () => new Set((undertaking.value?.infrastructureOperatorAssignments ?? []).map((a) => a.infrastructureOperatorId)),
+  () => new Set(pendingAssignments.value.map((a) => a.infrastructureOperatorId)),
 )
 const selectableIsbs = computed(() =>
   infrastructureOperators.value.filter((isb) => !assignedIsbIds.value.has(isb.id)),
@@ -84,10 +82,14 @@ watch(showAssignmentDialog, (value) => {
   }
 })
 
-function resetStammdatenFields(u: RailwayUndertaking) {
+function resetLocalState(u: RailwayUndertaking) {
   name.value = u.name
   ricsCodes.value = u.ricsCodes.length > 0 ? [...u.ricsCodes] : ['']
   systemUrl.value = u.systemUrl
+  pendingIsActive.value = u.isActive
+  pendingAssignments.value = u.infrastructureOperatorAssignments.map((a) => ({ ...a }))
+  pendingRegenerateEvuToBroker.value = false
+  pendingRegenerateBrokerToEvu.value = false
 }
 
 async function load() {
@@ -108,7 +110,7 @@ async function load() {
     }
 
     undertaking.value = found
-    resetStammdatenFields(found)
+    resetLocalState(found)
     hasTopbarOverride.value = true
   } catch {
     loadError.value = 'Eisenbahnverkehrsunternehmen konnte nicht geladen werden.'
@@ -139,32 +141,6 @@ function parseMessageTypes(input: string): string[] {
   return result
 }
 
-function buildPutBody(overrides: Partial<{
-  name: string
-  ricsCodes: string[]
-  systemUrl: string
-  apiKeyEvuToBroker: string
-  apiKeyBrokerToEvu: string
-  infrastructureOperatorAssignments: IsbAssignment[]
-}>) {
-  const current = undertaking.value!
-  return JSON.stringify({
-    name: current.name,
-    ricsCodes: current.ricsCodes,
-    systemUrl: current.systemUrl,
-    apiKeyEvuToBroker: current.apiKeyEvuToBroker,
-    apiKeyBrokerToEvu: current.apiKeyBrokerToEvu,
-    infrastructureOperatorAssignments: current.infrastructureOperatorAssignments,
-    ...overrides,
-  })
-}
-
-async function putAssignments(nextAssignments: IsbAssignment[]) {
-  const body = buildPutBody({ infrastructureOperatorAssignments: nextAssignments })
-  const response = await apiFetch(`/api/railway-undertakings/${undertaking.value!.id}`, { method: 'PUT', body })
-  undertaking.value = await response.json()
-}
-
 function addRicsCodeField() {
   ricsCodes.value.push('')
 }
@@ -176,83 +152,63 @@ function removeRicsCodeField(index: number) {
   }
 }
 
-async function saveStammdaten() {
+async function saveAll() {
   if (!undertaking.value) {
     return
   }
 
-  stammdatenError.value = ''
-  isSavingStammdaten.value = true
+  saveError.value = ''
+  isSaving.value = true
   try {
+    const id = undertaking.value.id
     const cleanedRicsCodes = ricsCodes.value.map((code) => code.trim()).filter((code) => code.length > 0)
-    const body = buildPutBody({ name: name.value, ricsCodes: cleanedRicsCodes, systemUrl: systemUrl.value })
-    const response = await apiFetch(`/api/railway-undertakings/${undertaking.value.id}`, { method: 'PUT', body })
-    const updated: RailwayUndertaking = await response.json()
+    const body = JSON.stringify({
+      name: name.value,
+      ricsCodes: cleanedRicsCodes,
+      systemUrl: systemUrl.value,
+      apiKeyEvuToBroker: undertaking.value.apiKeyEvuToBroker,
+      apiKeyBrokerToEvu: undertaking.value.apiKeyBrokerToEvu,
+      infrastructureOperatorAssignments: pendingAssignments.value,
+    })
+    const response = await apiFetch(`/api/railway-undertakings/${id}`, { method: 'PUT', body })
+    let updated: RailwayUndertaking = await response.json()
+
+    if (pendingIsActive.value !== updated.isActive) {
+      await apiFetch(`/api/railway-undertakings/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: pendingIsActive.value }),
+      })
+      updated = { ...updated, isActive: pendingIsActive.value }
+    }
+
+    if (pendingRegenerateEvuToBroker.value) {
+      const r = await apiFetch(`/api/railway-undertakings/${id}/api-key-evu-to-broker/regenerate`, { method: 'POST' })
+      updated = await r.json()
+    }
+    if (pendingRegenerateBrokerToEvu.value) {
+      const r = await apiFetch(`/api/railway-undertakings/${id}/api-key-broker-to-evu/regenerate`, { method: 'POST' })
+      updated = await r.json()
+    }
+
     undertaking.value = updated
-    resetStammdatenFields(updated)
+    resetLocalState(updated)
   } catch {
-    stammdatenError.value = 'Stammdaten konnten nicht gespeichert werden.'
+    saveError.value = 'Änderungen konnten nicht gespeichert werden.'
   } finally {
-    isSavingStammdaten.value = false
+    isSaving.value = false
   }
 }
 
-async function regenerateApiKeyEvuToBroker() {
-  if (!undertaking.value || !confirm('Neuen API-Key (EVU → Broker) generieren? Der bisherige Key wird ungültig.')) {
-    return
-  }
-
-  apiKeyError.value = ''
-  isRegeneratingEvuToBroker.value = true
-  try {
-    const response = await apiFetch(`/api/railway-undertakings/${undertaking.value.id}/api-key-evu-to-broker/regenerate`, {
-      method: 'POST',
-    })
-    undertaking.value = await response.json()
-    showApiKeyEvuToBroker.value = true
-  } catch {
-    apiKeyError.value = 'API-Key konnte nicht neu generiert werden.'
-  } finally {
-    isRegeneratingEvuToBroker.value = false
-  }
+function toggleActive() {
+  pendingIsActive.value = !pendingIsActive.value
 }
 
-async function regenerateApiKeyBrokerToEvu() {
-  if (!undertaking.value || !confirm('Neuen API-Key (Broker → EVU) generieren? Der bisherige Key wird ungültig.')) {
-    return
-  }
-
-  apiKeyError.value = ''
-  isRegeneratingBrokerToEvu.value = true
-  try {
-    const response = await apiFetch(`/api/railway-undertakings/${undertaking.value.id}/api-key-broker-to-evu/regenerate`, {
-      method: 'POST',
-    })
-    undertaking.value = await response.json()
-    showApiKeyBrokerToEvu.value = true
-  } catch {
-    apiKeyError.value = 'API-Key konnte nicht neu generiert werden.'
-  } finally {
-    isRegeneratingBrokerToEvu.value = false
-  }
+function toggleRegenerateEvuToBroker() {
+  pendingRegenerateEvuToBroker.value = !pendingRegenerateEvuToBroker.value
 }
 
-async function toggleActive() {
-  if (!undertaking.value) {
-    return
-  }
-
-  statusError.value = ''
-  const nextActive = !undertaking.value.isActive
-  try {
-    await apiFetch(`/api/railway-undertakings/${undertaking.value.id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isActive: nextActive }),
-    })
-    undertaking.value.isActive = nextActive
-  } catch {
-    statusError.value = 'Status konnte nicht geändert werden.'
-  }
+function toggleRegenerateBrokerToEvu() {
+  pendingRegenerateBrokerToEvu.value = !pendingRegenerateBrokerToEvu.value
 }
 
 async function deleteUndertaking() {
@@ -260,12 +216,12 @@ async function deleteUndertaking() {
     return
   }
 
-  statusError.value = ''
+  saveError.value = ''
   try {
     await apiFetch(`/api/railway-undertakings/${undertaking.value.id}`, { method: 'DELETE' })
     router.push({ name: 'railway-undertakings' })
   } catch {
-    statusError.value = 'Eisenbahnverkehrsunternehmen konnte nicht gelöscht werden.'
+    saveError.value = 'Eisenbahnverkehrsunternehmen konnte nicht gelöscht werden.'
   }
 }
 
@@ -287,11 +243,7 @@ function openEditAssignmentDialog(assignment: IsbAssignment) {
   showAssignmentDialog.value = true
 }
 
-async function saveAssignmentDialog() {
-  if (!undertaking.value) {
-    return
-  }
-
+function saveAssignmentDialog() {
   dialogError.value = ''
   if (!dialogIsbId.value) {
     dialogError.value = 'Bitte einen Infrastrukturbetreiber auswählen.'
@@ -305,14 +257,14 @@ async function saveAssignmentDialog() {
   const allowedEvuToBroker = parseMessageTypes(dialogAllowedEvuToBroker.value)
   const allowedBrokerToEvu = parseMessageTypes(dialogAllowedBrokerToEvu.value)
 
-  const nextAssignments = editingAssignmentId.value
-    ? undertaking.value.infrastructureOperatorAssignments.map((a) =>
+  pendingAssignments.value = editingAssignmentId.value
+    ? pendingAssignments.value.map((a) =>
         a.infrastructureOperatorId === editingAssignmentId.value
           ? { ...a, allowedMessageTypesEvuToBroker: allowedEvuToBroker, allowedMessageTypesBrokerToEvu: allowedBrokerToEvu }
           : a,
       )
     : [
-        ...undertaking.value.infrastructureOperatorAssignments,
+        ...pendingAssignments.value,
         {
           infrastructureOperatorId: dialogIsbId.value,
           allowedMessageTypesEvuToBroker: allowedEvuToBroker,
@@ -321,55 +273,23 @@ async function saveAssignmentDialog() {
         },
       ]
 
-  isSavingAssignment.value = true
-  try {
-    await putAssignments(nextAssignments)
-    showAssignmentDialog.value = false
-  } catch {
-    dialogError.value = 'Verknüpfung konnte nicht gespeichert werden.'
-  } finally {
-    isSavingAssignment.value = false
-  }
+  showAssignmentDialog.value = false
 }
 
-async function toggleAssignmentActive(assignment: IsbAssignment) {
-  if (!undertaking.value) {
-    return
-  }
-
-  assignmentError.value = ''
-  const nextAssignments = undertaking.value.infrastructureOperatorAssignments.map((a) =>
+function toggleAssignmentActive(assignment: IsbAssignment) {
+  pendingAssignments.value = pendingAssignments.value.map((a) =>
     a.infrastructureOperatorId === assignment.infrastructureOperatorId ? { ...a, isActive: !a.isActive } : a,
   )
-
-  isSavingAssignment.value = true
-  try {
-    await putAssignments(nextAssignments)
-  } catch {
-    assignmentError.value = 'Status der Verknüpfung konnte nicht geändert werden.'
-  } finally {
-    isSavingAssignment.value = false
-  }
 }
 
-async function deleteAssignment(infrastructureOperatorId: string) {
-  if (!undertaking.value || !confirm('Verknüpfung wirklich löschen?')) {
+function deleteAssignment(infrastructureOperatorId: string) {
+  if (!confirm('Verknüpfung wirklich löschen?')) {
     return
   }
 
-  assignmentError.value = ''
-  const nextAssignments = undertaking.value.infrastructureOperatorAssignments.filter(
+  pendingAssignments.value = pendingAssignments.value.filter(
     (a) => a.infrastructureOperatorId !== infrastructureOperatorId,
   )
-
-  isSavingAssignment.value = true
-  try {
-    await putAssignments(nextAssignments)
-  } catch {
-    assignmentError.value = 'Verknüpfung konnte nicht gelöscht werden.'
-  } finally {
-    isSavingAssignment.value = false
-  }
 }
 
 onMounted(load)
@@ -416,9 +336,9 @@ onUnmounted(() => {
         <button
           type="button"
           class="icon-btn-header topbar-icon-btn"
-          :class="undertaking.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-          :aria-label="undertaking.isActive ? 'Sperren' : 'Entsperren'"
-          :title="undertaking.isActive ? 'Sperren' : 'Entsperren'"
+          :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
+          :aria-label="pendingIsActive ? 'Sperren' : 'Entsperren'"
+          :title="pendingIsActive ? 'Sperren' : 'Entsperren'"
           @click="toggleActive"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -426,177 +346,178 @@ onUnmounted(() => {
             <path d="M7 5.5a7 7 0 1 0 10 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
-        <button type="submit" form="stammdaten-form" class="btn btn--primary" :disabled="isSavingStammdaten">
+        <button type="submit" form="stammdaten-form" class="btn btn--primary" :disabled="isSaving">
           Speichern
         </button>
       </Teleport>
 
-      <p v-if="statusError" class="error">{{ statusError }}</p>
+      <p v-if="saveError" class="error">{{ saveError }}</p>
+      <p v-if="pendingIsActive !== undertaking.isActive" class="hint hint--pending">
+        Status-Änderung ({{ pendingIsActive ? 'Entsperrt' : 'Gesperrt' }}) wird beim Speichern übernommen.
+      </p>
 
-      <section class="card">
-        <h3 class="card__title">Stammdaten</h3>
-        <form id="stammdaten-form" @submit.prevent="saveStammdaten">
-          <label class="field">
-            <span class="field__label">Name</span>
-            <input v-model="name" type="text" required />
-          </label>
+      <div class="columns">
+        <div class="column column--main">
+          <section class="card">
+            <h3 class="card__title">Stammdaten</h3>
+            <form id="stammdaten-form" @submit.prevent="saveAll">
+              <label class="field">
+                <span class="field__label">Name</span>
+                <input v-model="name" type="text" required />
+              </label>
 
-          <div class="field">
-            <span class="field__label">RicsCodes</span>
-            <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
-              <input v-model="ricsCodes[index]" type="text" required />
-              <button
-                type="button"
-                class="btn btn--small btn--danger"
-                :disabled="ricsCodes.length === 1"
-                @click="removeRicsCodeField(index)"
-              >
-                Entfernen
+              <div class="field">
+                <span class="field__label">RicsCodes</span>
+                <div class="card__toolbar">
+                  <button type="button" class="btn btn--primary" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
+                </div>
+                <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
+                  <input v-model="ricsCodes[index]" type="text" required />
+                  <button
+                    type="button"
+                    class="btn btn--small btn--danger"
+                    :disabled="ricsCodes.length === 1"
+                    @click="removeRicsCodeField(index)"
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              </div>
+
+              <label class="field">
+                <span class="field__label">SystemUrl</span>
+                <input v-model="systemUrl" type="url" required />
+              </label>
+            </form>
+          </section>
+
+          <section class="card">
+            <h3 class="card__title">API-Keys</h3>
+
+            <div class="field">
+              <span class="field__label">API-Key (EVU → Broker)</span>
+              <div class="key-row">
+                <input :value="undertaking.apiKeyEvuToBroker" :type="showApiKeyEvuToBroker ? 'text' : 'password'" readonly />
+                <button
+                  type="button"
+                  class="icon-btn-inline"
+                  :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
+                  :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
+                  @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
+                >
+                  {{ showApiKeyEvuToBroker ? 'Verbergen' : 'Anzeigen' }}
+                </button>
+                <button type="button" class="btn btn--small" @click="toggleRegenerateEvuToBroker">
+                  {{ pendingRegenerateEvuToBroker ? 'Neugenerierung verwerfen' : 'Neu generieren' }}
+                </button>
+              </div>
+              <p v-if="pendingRegenerateEvuToBroker" class="hint hint--pending">
+                Wird beim Speichern neu generiert. Der bisherige Key wird dann ungültig.
+              </p>
+            </div>
+
+            <div class="field">
+              <span class="field__label">API-Key (Broker → EVU)</span>
+              <div class="key-row">
+                <input :value="undertaking.apiKeyBrokerToEvu" :type="showApiKeyBrokerToEvu ? 'text' : 'password'" readonly />
+                <button
+                  type="button"
+                  class="icon-btn-inline"
+                  :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
+                  :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
+                  @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
+                >
+                  {{ showApiKeyBrokerToEvu ? 'Verbergen' : 'Anzeigen' }}
+                </button>
+                <button type="button" class="btn btn--small" @click="toggleRegenerateBrokerToEvu">
+                  {{ pendingRegenerateBrokerToEvu ? 'Neugenerierung verwerfen' : 'Neu generieren' }}
+                </button>
+              </div>
+              <p v-if="pendingRegenerateBrokerToEvu" class="hint hint--pending">
+                Wird beim Speichern neu generiert. Der bisherige Key wird dann ungültig.
+              </p>
+            </div>
+          </section>
+        </div>
+
+        <div class="column column--assignments">
+          <section class="card">
+            <h3 class="card__title">Verknüpfte Infrastrukturbetreiber</h3>
+
+            <div class="card__toolbar">
+              <button type="button" class="btn btn--primary" :disabled="isSaving" @click="openAddAssignmentDialog">
+                + Verknüpfung hinzufügen
               </button>
             </div>
-            <button type="button" class="btn btn--small" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
-          </div>
 
-          <label class="field">
-            <span class="field__label">SystemUrl</span>
-            <input v-model="systemUrl" type="url" required />
-          </label>
+            <p v-if="pendingAssignments.length === 0" class="empty-state">
+              Noch keine Verknüpfungen hinterlegt.
+            </p>
 
-          <p v-if="stammdatenError" class="error">{{ stammdatenError }}</p>
-        </form>
-      </section>
-
-      <section class="card">
-        <h3 class="card__title">API-Keys</h3>
-
-        <div class="field">
-          <span class="field__label">API-Key (EVU → Broker)</span>
-          <div class="key-row">
-            <input :value="undertaking.apiKeyEvuToBroker" :type="showApiKeyEvuToBroker ? 'text' : 'password'" readonly />
-            <button
-              type="button"
-              class="icon-btn-inline"
-              :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
-              :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
-              @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
-            >
-              {{ showApiKeyEvuToBroker ? 'Verbergen' : 'Anzeigen' }}
-            </button>
-            <button
-              type="button"
-              class="btn btn--small"
-              :disabled="isRegeneratingEvuToBroker"
-              @click="regenerateApiKeyEvuToBroker"
-            >
-              Neu generieren
-            </button>
-          </div>
-        </div>
-
-        <div class="field">
-          <span class="field__label">API-Key (Broker → EVU)</span>
-          <div class="key-row">
-            <input :value="undertaking.apiKeyBrokerToEvu" :type="showApiKeyBrokerToEvu ? 'text' : 'password'" readonly />
-            <button
-              type="button"
-              class="icon-btn-inline"
-              :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
-              :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
-              @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
-            >
-              {{ showApiKeyBrokerToEvu ? 'Verbergen' : 'Anzeigen' }}
-            </button>
-            <button
-              type="button"
-              class="btn btn--small"
-              :disabled="isRegeneratingBrokerToEvu"
-              @click="regenerateApiKeyBrokerToEvu"
-            >
-              Neu generieren
-            </button>
-          </div>
-        </div>
-
-        <p v-if="apiKeyError" class="error">{{ apiKeyError }}</p>
-      </section>
-
-      <section class="card">
-        <h3 class="card__title">Verknüpfte Infrastrukturbetreiber</h3>
-
-        <div class="card__toolbar">
-          <button type="button" class="btn btn--primary" @click="openAddAssignmentDialog">
-            + Verknüpfung hinzufügen
-          </button>
-        </div>
-
-        <p v-if="undertaking.infrastructureOperatorAssignments.length === 0" class="empty-state">
-          Noch keine Verknüpfungen hinterlegt.
-        </p>
-
-        <table v-else class="assignment-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>RicsCode</th>
-              <th>Nachrichten Senden</th>
-              <th>Nachrichten Empfangen</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="assignment in undertaking.infrastructureOperatorAssignments"
-              :key="assignment.infrastructureOperatorId"
-              class="assignment-table__row"
-              :class="{ 'assignment-table__row--inactive': !assignment.isActive }"
-              title="Doppelklick zum Bearbeiten"
-              @dblclick="openEditAssignmentDialog(assignment)"
-            >
-              <td>{{ isbFor(assignment.infrastructureOperatorId)?.name ?? '(unbekannter Infrastrukturbetreiber)' }}</td>
-              <td>{{ isbFor(assignment.infrastructureOperatorId)?.ricsCode }}</td>
-              <td>{{ assignment.allowedMessageTypesEvuToBroker.join(', ') }}</td>
-              <td>{{ assignment.allowedMessageTypesBrokerToEvu.join(', ') }}</td>
-              <td class="assignment-table__actions">
-                <button
-                  type="button"
-                  class="icon-btn-header"
-                  :class="assignment.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-                  :aria-label="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                  :title="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                  :disabled="isSavingAssignment"
-                  @click.stop="toggleAssignmentActive(assignment)"
+            <table v-else class="assignment-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>RicsCode</th>
+                  <th>Nachrichten Senden</th>
+                  <th>Nachrichten Empfangen</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="assignment in pendingAssignments"
+                  :key="assignment.infrastructureOperatorId"
+                  class="assignment-table__row"
+                  :class="{ 'assignment-table__row--inactive': !assignment.isActive }"
+                  title="Doppelklick zum Bearbeiten"
+                  @dblclick="openEditAssignmentDialog(assignment)"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M12 3v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                    <path d="M7 5.5a7 7 0 1 0 10 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn-header icon-btn-header--danger"
-                  :disabled="assignment.isActive || isSavingAssignment"
-                  aria-label="Löschen"
-                  title="Löschen"
-                  @click.stop="deleteAssignment(assignment.infrastructureOperatorId)"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                      d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                  </svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <p v-if="assignmentError" class="error">{{ assignmentError }}</p>
-      </section>
+                  <td>{{ isbFor(assignment.infrastructureOperatorId)?.name ?? '(unbekannter Infrastrukturbetreiber)' }}</td>
+                  <td>{{ isbFor(assignment.infrastructureOperatorId)?.ricsCode }}</td>
+                  <td>{{ assignment.allowedMessageTypesEvuToBroker.join(', ') }}</td>
+                  <td>{{ assignment.allowedMessageTypesBrokerToEvu.join(', ') }}</td>
+                  <td class="assignment-table__actions">
+                    <button
+                      type="button"
+                      class="icon-btn-header"
+                      :class="assignment.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
+                      :aria-label="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                      :title="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                      :disabled="isSaving"
+                      @click.stop="toggleAssignmentActive(assignment)"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 3v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                        <path d="M7 5.5a7 7 0 1 0 10 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-btn-header icon-btn-header--danger"
+                      :disabled="assignment.isActive || isSaving"
+                      aria-label="Löschen"
+                      title="Löschen"
+                      @click.stop="deleteAssignment(assignment.infrastructureOperatorId)"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </div>
 
       <dialog
         ref="assignmentDialogRef"
@@ -644,7 +565,7 @@ onUnmounted(() => {
 
             <div class="modal__actions">
               <button type="button" class="btn" @click="showAssignmentDialog = false">Abbrechen</button>
-              <button type="submit" class="btn btn--primary" :disabled="isSavingAssignment">
+              <button type="submit" class="btn btn--primary" :disabled="isSaving">
                 {{ editingAssignmentId ? 'Speichern' : 'Verknüpfung hinzufügen' }}
               </button>
             </div>
@@ -660,7 +581,32 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  max-width: 56rem;
+  max-width: 80rem;
+}
+
+.columns {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.column--main,
+.column--assignments {
+  flex: 1 1 0;
+}
+
+@media (min-width: 64rem) {
+  .columns {
+    flex-direction: row;
+    align-items: flex-start;
+  }
 }
 
 .empty-state {
@@ -931,6 +877,11 @@ onUnmounted(() => {
 .hint {
   font-size: 0.82rem;
   opacity: 0.7;
+}
+
+.hint--pending {
+  opacity: 1;
+  color: #b8860b;
 }
 
 .assignment-table {

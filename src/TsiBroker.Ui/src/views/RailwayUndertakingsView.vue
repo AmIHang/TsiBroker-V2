@@ -166,6 +166,9 @@ onMounted(() => {
 
         <div class="field">
           <span class="field__label">RicsCodes</span>
+          <div class="card__toolbar">
+            <button type="button" class="btn btn--primary" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
+          </div>
           <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
             <input v-model="ricsCodes[index]" type="text" required />
             <button
@@ -177,7 +180,6 @@ onMounted(() => {
               Entfernen
             </button>
           </div>
-          <button type="button" class="btn btn--small" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
         </div>
 
         <label class="field">
@@ -250,6 +252,11 @@ onMounted(() => {
 .error {
   font-size: 0.85rem;
   color: #d33;
+}
+
+.card__toolbar {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .btn {

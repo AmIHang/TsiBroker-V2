@@ -22,6 +22,7 @@ const name = ref('')
 const ricsCode = ref('')
 const systemUrl = ref('')
 const editingId = ref<string | null>(null)
+const pendingIsActive = ref(false)
 
 const editingOperator = computed(() => operators.value.find((o) => o.id === editingId.value) ?? null)
 
@@ -51,6 +52,7 @@ function openCreateForm() {
   name.value = ''
   ricsCode.value = ''
   systemUrl.value = ''
+  pendingIsActive.value = true
   formError.value = ''
   showForm.value = true
 }
@@ -60,6 +62,7 @@ function openEditForm(op: InfrastructureOperator) {
   name.value = op.name
   ricsCode.value = op.ricsCode
   systemUrl.value = op.systemUrl
+  pendingIsActive.value = op.isActive
   formError.value = ''
   showForm.value = true
 }
@@ -72,7 +75,16 @@ async function onSubmit() {
 
     if (editingId.value) {
       const response = await apiFetch(`/api/infrastructure-operators/${editingId.value}`, { method: 'PUT', body })
-      const updated = await response.json()
+      let updated = await response.json()
+
+      if (pendingIsActive.value !== updated.isActive) {
+        await apiFetch(`/api/infrastructure-operators/${editingId.value}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ isActive: pendingIsActive.value }),
+        })
+        updated = { ...updated, isActive: pendingIsActive.value }
+      }
+
       const index = operators.value.findIndex((o) => o.id === editingId.value)
       if (index !== -1) {
         operators.value[index] = updated
@@ -93,17 +105,8 @@ async function onSubmit() {
   }
 }
 
-async function toggleActive(op: InfrastructureOperator) {
-  const nextActive = !op.isActive
-  try {
-    await apiFetch(`/api/infrastructure-operators/${op.id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isActive: nextActive }),
-    })
-    op.isActive = nextActive
-  } catch {
-    formError.value = 'Status konnte nicht geändert werden.'
-  }
+function toggleActive() {
+  pendingIsActive.value = !pendingIsActive.value
 }
 
 async function deleteOperator(op: InfrastructureOperator) {
@@ -161,10 +164,10 @@ onMounted(loadOperators)
               <button
                 type="button"
                 class="icon-btn-header"
-                :class="editingOperator.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-                :aria-label="editingOperator.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                :title="editingOperator.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                @click="toggleActive(editingOperator)"
+                :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
+                :aria-label="pendingIsActive ? 'Deaktivieren' : 'Aktivieren'"
+                :title="pendingIsActive ? 'Deaktivieren' : 'Aktivieren'"
+                @click="toggleActive"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 3v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
@@ -192,6 +195,10 @@ onMounted(loadOperators)
           <span class="field__label">SystemUrl</span>
           <input v-model="systemUrl" type="url" required />
         </label>
+
+        <p v-if="editingOperator && pendingIsActive !== editingOperator.isActive" class="hint hint--pending">
+          Status-Änderung ({{ pendingIsActive ? 'Aktiv' : 'Inaktiv' }}) wird beim Speichern übernommen.
+        </p>
 
         <p v-if="formError" class="error">{{ formError }}</p>
 
@@ -436,6 +443,16 @@ onMounted(loadOperators)
   justify-content: flex-end;
   gap: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.hint {
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.hint--pending {
+  opacity: 1;
+  color: #b8860b;
 }
 
 .operator-table {
