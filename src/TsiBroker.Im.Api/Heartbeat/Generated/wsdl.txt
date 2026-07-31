@@ -1,0 +1,1 @@
+dotnet tool run dotnet-svcutil .\heartbeat.wsdl --namespace "*,TsiBroker.Core.Heartbeat" --outputDir .\ --outputFile Heartbeat.cs

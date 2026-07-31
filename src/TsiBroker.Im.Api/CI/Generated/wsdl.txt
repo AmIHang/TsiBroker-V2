@@ -1,0 +1,1 @@
+dotnet tool run dotnet-svcutil .\ci.wsdl --namespace "*,TsiBroker.Im.Api.CI.Generated" --outputDir .\ --outputFile CommonInterface.cs

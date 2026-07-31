@@ -3,6 +3,7 @@
     <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
     <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
     <Project Path="src/TsiBroker.Core/TsiBroker.Core.csproj" />
+    <Project Path="src/TsiBroker.Im.Api/TsiBroker.Im.Api.csproj" />
     <Project Path="src/TsiBroker.Ui/TsiBroker.Ui.esproj">
       <Build />
       <Deploy />

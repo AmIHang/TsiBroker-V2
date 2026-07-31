@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TsiBroker.ApiService\TsiBroker.ApiService.csproj" />
+    <ProjectReference Include="..\TsiBroker.Im.Api\TsiBroker.Im.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

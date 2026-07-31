@@ -1,0 +1,83 @@
+{
+  "info": {
+    "name": "TsiBroker.Im.Api",
+    "description": "SOAP-Endpunkte fuer die ISB-Kommunikation (Heartbeat / Common Interface).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:7262"
+    }
+  ],
+  "item": [
+    {
+      "name": "Heartbeat WSDL",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/heartbeat?wsdl",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "heartbeat" ],
+          "query": [ { "key": "wsdl", "value": null } ]
+        }
+      }
+    },
+    {
+      "name": "Heartbeat",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "text/xml; charset=utf-8" },
+          { "key": "SOAPAction", "value": "\"\"" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <soap:Body>\n    <i:UICHBMessage xmlns:i=\"http://uic.cc.org/UICMessage\">\n      <message xmlns=\"\"><Ping>PING</Ping></message>\n      <properties xmlns=\"\"><Foo>bar</Foo></properties>\n    </i:UICHBMessage>\n  </soap:Body>\n</soap:Envelope>",
+          "options": {
+            "raw": { "language": "xml" }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/heartbeat",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "heartbeat" ]
+        }
+      }
+    },
+    {
+      "name": "CI WSDL",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/ci?wsdl",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "ci" ],
+          "query": [ { "key": "wsdl", "value": null } ]
+        }
+      }
+    },
+    {
+      "name": "CI",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "text/xml; charset=utf-8" },
+          { "key": "SOAPAction", "value": "\"\"" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:h=\"http://uic.cc.org/UICMessage/Header\">\n  <soap:Header>\n    <h:messageIdentifier>MSG-123</h:messageIdentifier>\n    <h:messageLiHost>PARTNER-LI</h:messageLiHost>\n  </soap:Header>\n  <soap:Body>\n    <UICMessage xmlns=\"http://uic.cc.org/UICMessage\">\n      <message><Payload>hello</Payload></message>\n      <signature/>\n      <senderAlias>EVU1</senderAlias>\n      <encoding>UTF-8</encoding>\n    </UICMessage>\n  </soap:Body>\n</soap:Envelope>",
+          "options": {
+            "raw": { "language": "xml" }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ci",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "ci" ]
+        }
+      }
+    }
+  ]
+}
