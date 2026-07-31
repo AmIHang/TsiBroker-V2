@@ -1,1 +1,1 @@
-podman compose --env-file .env.dev up -d --build
+podman compose --env-file .env.example up -d --build

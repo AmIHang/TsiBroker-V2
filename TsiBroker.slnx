@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/infra/">
+    <File Path="infrastructure/.env.example" />
+    <File Path="infrastructure/compose.md" />
+    <File Path="infrastructure/docker-compose.yml" />
+    <File Path="infrastructure/Dockerfile" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
     <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
