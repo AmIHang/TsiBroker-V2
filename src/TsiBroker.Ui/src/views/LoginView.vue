@@ -76,8 +76,8 @@ async function onSubmit() {
       <h1>TSI-Broker</h1>
       <div class="divider"><span class="dot"></span></div>
 
-      <label class="field">
-        <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <label class="login-field">
+        <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8" />
           <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
         </svg>
@@ -90,8 +90,8 @@ async function onSubmit() {
         />
       </label>
 
-      <label class="field">
-        <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <label class="login-field">
+        <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <rect x="5" y="10.5" width="14" height="9.5" rx="2" stroke="currentColor" stroke-width="1.8" />
           <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" />
         </svg>
@@ -104,7 +104,7 @@ async function onSubmit() {
         />
         <button
           type="button"
-          class="toggle-password"
+          class="login-toggle-password"
           :aria-label="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
           @click="showPassword = !showPassword"
         >
@@ -127,7 +127,11 @@ async function onSubmit() {
   </main>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+// This view keeps its own `.login-field`/`.login-toggle-password` instead of
+// the shared `.field`/`.toggle-password` components (see src/assets/styles):
+// the login card is a standalone, always-light surface with its own input
+// styling (icon-prefixed, larger radius), not the app-shell form look.
 .login {
   position: fixed;
   inset: 0;
@@ -181,20 +185,20 @@ h1 {
     color-mix(in srgb, var(--color-primary) 45%, transparent),
     transparent
   );
+
+  .dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    transform: translate(-50%, -50%);
+  }
 }
 
-.divider .dot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  transform: translate(-50%, -50%);
-}
-
-.field {
+.login-field {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -203,34 +207,34 @@ h1 {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: var(--color-primary);
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: #8a8a94;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    font-size: 0.95rem;
+    color: #2b2b33;
+    background: transparent;
+
+    &::placeholder {
+      color: #9a9aa4;
+    }
+  }
 }
 
-.field:focus-within {
-  border-color: var(--color-primary);
-}
-
-.field-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  color: #8a8a94;
-}
-
-.field input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  font-size: 0.95rem;
-  color: #2b2b33;
-  background: transparent;
-}
-
-.field input::placeholder {
-  color: #9a9aa4;
-}
-
-.toggle-password {
+.login-toggle-password {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,17 +246,17 @@ h1 {
   background: transparent;
   color: #8a8a94;
   cursor: pointer;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
 }
 
-.toggle-password svg {
-  width: 100%;
-  height: 100%;
-}
-
+// Supplements the shared global `.error` (same color/font-size) with the
+// alignment needed inside this centered flex column.
 .error {
   align-self: flex-start;
-  font-size: 0.85rem;
-  color: #d33;
 }
 
 .submit {
@@ -267,14 +271,14 @@ h1 {
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
-}
 
-.submit:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
+  &:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
 
-.submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 </style>

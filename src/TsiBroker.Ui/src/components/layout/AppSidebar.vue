@@ -105,7 +105,7 @@ async function onLogout() {
   </aside>
 </template>
 
-<style scoped>
+<style scoped lang="less">
 .sidebar {
   position: fixed;
   top: 0;
@@ -120,25 +120,54 @@ async function onLogout() {
   border-right: 1px solid var(--color-sidebar-border);
   transition: width 0.18s ease;
   overflow: hidden;
-}
 
-.sidebar--collapsed {
-  width: var(--sidebar-width-collapsed);
-}
+  &--collapsed {
+    width: var(--sidebar-width-collapsed);
 
-.sidebar__header {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.75rem 0.5rem;
-  flex-shrink: 0;
-}
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      margin: 0 auto;
+    }
 
-.sidebar__brand {
-  color: var(--color-sidebar-text-strong);
-  font-weight: 700;
-  font-size: 0.95rem;
-  white-space: nowrap;
+    .nav-item {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      justify-content: center;
+      margin: 0 auto;
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__brand {
+    color: var(--color-sidebar-text-strong);
+    font-weight: 700;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+
+  &__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  &__footer {
+    padding: 0.5rem;
+    border-top: 1px solid var(--color-sidebar-border);
+  }
 }
 
 .icon-btn {
@@ -153,37 +182,16 @@ async function onLogout() {
   color: var(--color-sidebar-text);
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
-}
 
-.icon-btn:hover {
-  background: var(--color-sidebar-hover-bg);
-  color: var(--color-sidebar-text-strong);
-}
+  &:hover {
+    background: var(--color-sidebar-hover-bg);
+    color: var(--color-sidebar-text-strong);
+  }
 
-.icon-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.sidebar--collapsed .icon-btn {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  margin: 0 auto;
-}
-
-.sidebar__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.5rem;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sidebar__footer {
-  padding: 0.5rem;
-  border-top: 1px solid var(--color-sidebar-border);
+  svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .nav-item {
@@ -200,48 +208,40 @@ async function onLogout() {
   background: transparent;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
-}
 
-.nav-item--button {
-  font-family: inherit;
-  text-align: left;
-}
+  &--button {
+    font-family: inherit;
+    text-align: left;
+  }
 
-.nav-item:hover {
-  background: var(--color-sidebar-hover-bg);
-  color: var(--color-sidebar-text-strong);
-}
+  &:hover {
+    background: var(--color-sidebar-hover-bg);
+    color: var(--color-sidebar-text-strong);
+  }
 
-.nav-item--active {
-  background: var(--color-sidebar-active-bg);
-  color: var(--color-sidebar-active-text);
-}
+  &--active {
+    background: var(--color-sidebar-active-bg);
+    color: var(--color-sidebar-active-text);
+  }
 
-.sidebar--collapsed .nav-item {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  justify-content: center;
-  margin: 0 auto;
-}
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
 
-.nav-item__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-}
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
 
-.nav-item__icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.nav-item__label {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  &__label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
 }
 </style>

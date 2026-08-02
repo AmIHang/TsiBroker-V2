@@ -316,7 +316,7 @@ onUnmounted(() => {
         <button
           v-if="!undertaking.isActive"
           type="button"
-          class="icon-btn-header icon-btn-header--danger topbar-icon-btn"
+          class="icon-btn-header icon-btn-header--danger icon-btn-header--lg"
           aria-label="Löschen"
           title="Löschen"
           @click="deleteUndertaking"
@@ -334,7 +334,7 @@ onUnmounted(() => {
         </button>
         <button
           type="button"
-          class="icon-btn-header topbar-icon-btn"
+          class="icon-btn-header icon-btn-header--lg"
           :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
           :aria-label="pendingIsActive ? 'Sperren' : 'Entsperren'"
           :title="pendingIsActive ? 'Sperren' : 'Entsperren'"
@@ -367,7 +367,7 @@ onUnmounted(() => {
 
               <div class="field">
                 <span class="field__label">RicsCodes</span>
-                <div class="card__toolbar">
+                <div class="toolbar">
                   <button type="button" class="btn btn--primary" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
                 </div>
                 <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
@@ -514,7 +514,7 @@ onUnmounted(() => {
           <section class="card">
             <h3 class="card__title">Verknüpfte Infrastrukturbetreiber</h3>
 
-            <div class="card__toolbar">
+            <div class="toolbar">
               <button type="button" class="btn btn--primary" :disabled="isSaving" @click="openAddAssignmentDialog">
                 + Verknüpfung hinzufügen
               </button>
@@ -524,7 +524,7 @@ onUnmounted(() => {
               Noch keine Verknüpfungen hinterlegt.
             </p>
 
-            <table v-else class="assignment-table">
+            <table v-else class="data-table data-table--compact">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -538,8 +538,8 @@ onUnmounted(() => {
                 <tr
                   v-for="assignment in pendingAssignments"
                   :key="assignment.infrastructureOperatorId"
-                  class="assignment-table__row"
-                  :class="{ 'assignment-table__row--inactive': !assignment.isActive }"
+                  class="data-table__row"
+                  :class="{ 'data-table__row--inactive': !assignment.isActive }"
                   title="Doppelklick zum Bearbeiten"
                   @dblclick="openEditAssignmentDialog(assignment)"
                 >
@@ -547,7 +547,7 @@ onUnmounted(() => {
                   <td>{{ isbFor(assignment.infrastructureOperatorId)?.ricsCode }}</td>
                   <td>{{ assignment.allowedMessageTypesEvuToBroker.join(', ') }}</td>
                   <td>{{ assignment.allowedMessageTypesBrokerToEvu.join(', ') }}</td>
-                  <td class="assignment-table__actions">
+                  <td class="data-table__actions">
                     <button
                       type="button"
                       class="icon-btn-header"
@@ -595,7 +595,7 @@ onUnmounted(() => {
         @close="showAssignmentDialog = false"
         @cancel="showAssignmentDialog = false"
       >
-        <form class="modal__form" @submit.prevent="saveAssignmentDialog">
+        <form class="modal__form modal__form--lg" @submit.prevent="saveAssignmentDialog">
           <div class="modal__header">
             <h2 class="modal__title">{{ editingAssignmentId ? 'Verknüpfung bearbeiten' : 'Verknüpfung hinzufügen' }}</h2>
             <button type="button" class="modal__close" aria-label="Schließen" @click="showAssignmentDialog = false">
@@ -646,7 +646,11 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+// Shared building blocks (.btn, .field, .modal*, .icon-btn-header*, .card*,
+// .data-table*, .hint*, .error, .empty-state, .toolbar, .rics-row,
+// .key-row/.key-input-wrap/.toggle-password) come from src/assets/styles —
+// only this view's own layout lives here.
 .edit-page {
   display: flex;
   flex-direction: column;
@@ -679,412 +683,6 @@ onUnmounted(() => {
   }
 }
 
-.empty-state {
-  text-align: center;
-}
-
-.error {
-  font-size: 0.85rem;
-  color: #d33;
-}
-
-.topbar-title-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.topbar__title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-topbar-text);
-}
-
-.topbar-breadcrumb {
-  font-size: 0.8rem;
-  color: var(--color-topbar-text);
-  opacity: 0.7;
-  text-decoration: none;
-  background: transparent;
-}
-
-.topbar-breadcrumb:hover {
-  text-decoration: underline;
-  background: transparent;
-}
-
-.icon-btn-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid rgba(120, 120, 120, 0.4);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
-}
-
-.icon-btn-header:hover {
-  border-color: rgba(120, 120, 120, 0.65);
-}
-
-.icon-btn-header:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.icon-btn-header svg {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-btn-header--activate {
-  color: #2e9e5b;
-  border-color: #2e9e5b;
-}
-
-.icon-btn-header--activate:hover {
-  background: color-mix(in srgb, #2e9e5b 10%, transparent);
-}
-
-.icon-btn-header--deactivate {
-  color: #d33;
-  border-color: #d33;
-}
-
-.icon-btn-header--deactivate:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.icon-btn-header--danger {
-  color: #d33;
-  border-color: #d33;
-}
-
-.icon-btn-header--danger:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.topbar-icon-btn {
-  width: 37px;
-  height: 37px;
-  border-radius: 8px;
-}
-
-.topbar-icon-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: var(--color-background);
-}
-
-.card form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.card__toolbar {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.card__title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.btn {
-  padding: 0.6rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.btn:hover {
-  border-color: var(--color-border-hover);
-}
-
-.btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.btn--primary:hover {
-  background: var(--color-primary-hover);
-}
-
-.btn--primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn--small {
-  padding: 0.35rem 0.7rem;
-  font-size: 0.82rem;
-}
-
-.btn--small:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn--danger {
-  color: #d33;
-  border-color: #d33;
-}
-
-.btn--danger:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.field__label {
-  font-size: 0.8rem;
-  color: var(--color-text);
-  opacity: 0.75;
-}
-
-.field input,
-.field select {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.field input:focus,
-.field select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.field select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.rics-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.rics-row input {
-  flex: 1;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.rics-row input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.key-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.key-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex: 1;
-  min-width: 0;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  transition: border-color 0.2s;
-}
-
-.key-input-wrap:focus-within {
-  border-color: var(--color-primary);
-}
-
-.key-input-wrap input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  padding: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  font-family: monospace;
-}
-
-.toggle-password {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.toggle-password:hover {
-  opacity: 1;
-}
-
-.toggle-password svg {
-  width: 100%;
-  height: 100%;
-}
-
-.hint {
-  font-size: 0.82rem;
-  opacity: 0.7;
-}
-
-.hint--pending {
-  opacity: 1;
-  color: #b8860b;
-}
-
-.assignment-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.assignment-table th,
-.assignment-table td {
-  padding: 0.6rem 0.7rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.85rem;
-}
-
-.assignment-table th {
-  font-weight: 600;
-  opacity: 0.75;
-}
-
-.assignment-table__row {
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.assignment-table__row:hover {
-  background: var(--color-background-soft);
-}
-
-.assignment-table__row--inactive {
-  opacity: 0.55;
-}
-
-.assignment-table__actions {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.modal {
-  margin: auto;
-  padding: 0;
-  border: none;
-  border-radius: 14px;
-  background: var(--color-background);
-  box-shadow: 0 20px 45px rgba(30, 20, 45, 0.18);
-}
-
-.modal::backdrop {
-  background: rgba(20, 15, 30, 0.45);
-}
-
-.modal__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: min(460px, 90vw);
-  max-height: 85vh;
-  overflow-y: auto;
-  padding: 1.75rem;
-}
-
-.modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.modal__title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.modal__close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--color-text);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
-}
-
-.modal__close:hover {
-  opacity: 1;
-  background: var(--color-background-soft);
-}
-
-.modal__close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
+// .topbar-title-block / .topbar__title / .topbar-breadcrumb come from the
+// shared styles/topbar.less (used here via Teleport into AppTopbar).
 </style>

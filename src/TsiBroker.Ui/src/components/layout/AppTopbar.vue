@@ -14,7 +14,7 @@ defineProps<{
   </header>
 </template>
 
-<style scoped>
+<style scoped lang="less">
 .topbar {
   position: sticky;
   top: 0;
@@ -28,24 +28,19 @@ defineProps<{
   background: var(--color-topbar-bg);
   background-attachment: fixed;
   border-bottom: 1px solid var(--color-topbar-border);
-}
 
-.topbar__title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-topbar-text);
-}
+  // &__title comes from the shared styles/topbar.less (see comment there)
 
-.topbar__custom-title:empty {
-  display: none;
-}
+  &__custom-title:empty {
+    display: none;
+  }
 
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  margin-left: auto;
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
 }
 </style>

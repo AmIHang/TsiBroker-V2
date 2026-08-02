@@ -128,7 +128,7 @@ onMounted(loadOperators)
 
 <template>
   <div class="operators">
-    <div class="operators__toolbar">
+    <div class="toolbar">
       <button type="button" class="btn btn--primary" @click="openCreateForm">
         + Neuer Infrastrukturbetreiber
       </button>
@@ -212,7 +212,7 @@ onMounted(loadOperators)
     <p v-if="isLoading" class="empty-state">Lädt…</p>
     <p v-else-if="operators.length === 0" class="empty-state">Keine Infrastrukturbetreiber vorhanden.</p>
 
-    <table v-else class="operator-table">
+    <table v-else class="data-table">
       <thead>
         <tr>
           <th>Name</th>
@@ -225,8 +225,8 @@ onMounted(loadOperators)
         <tr
           v-for="op in operators"
           :key="op.id"
-          class="operator-table__row"
-          :class="{ 'operator-table__row--inactive': !op.isActive }"
+          class="data-table__row"
+          :class="{ 'data-table__row--inactive': !op.isActive }"
           title="Doppelklick zum Bearbeiten"
           @dblclick="openEditForm(op)"
         >
@@ -244,262 +244,13 @@ onMounted(loadOperators)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+// Shared building blocks (.btn, .field, .modal*, .icon-btn-header*,
+// .data-table*, .status*, .hint*, .error, .empty-state, .toolbar) come from
+// src/assets/styles — only this view's own layout lives here.
 .operators {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-
-.operators__toolbar {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.empty-state {
-  text-align: center;
-}
-
-.error {
-  font-size: 0.85rem;
-  color: #d33;
-}
-
-.btn {
-  padding: 0.6rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.btn:hover {
-  border-color: var(--color-border-hover);
-}
-
-.btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.btn--primary:hover {
-  background: var(--color-primary-hover);
-}
-
-.btn--primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.modal {
-  margin: auto;
-  padding: 0;
-  border: none;
-  border-radius: 14px;
-  background: var(--color-background);
-  box-shadow: 0 20px 45px rgba(30, 20, 45, 0.18);
-}
-
-.modal::backdrop {
-  background: rgba(20, 15, 30, 0.45);
-}
-
-.modal__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: min(420px, 90vw);
-  padding: 1.75rem;
-}
-
-.modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.modal__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-}
-
-.icon-btn-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-background);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
-}
-
-.icon-btn-header:hover {
-  border-color: var(--color-border-hover);
-}
-
-.icon-btn-header svg {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-btn-header--activate {
-  color: #2e9e5b;
-  border-color: #2e9e5b;
-}
-
-.icon-btn-header--activate:hover {
-  background: color-mix(in srgb, #2e9e5b 10%, transparent);
-}
-
-.icon-btn-header--deactivate {
-  color: #d33;
-  border-color: #d33;
-}
-
-.icon-btn-header--deactivate:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.icon-btn-header--danger:hover {
-  border-color: #d33;
-  color: #d33;
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.modal__title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.modal__close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--color-text);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
-}
-
-.modal__close:hover {
-  opacity: 1;
-  background: var(--color-background-soft);
-}
-
-.modal__close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.field__label {
-  font-size: 0.8rem;
-  color: var(--color-text);
-  opacity: 0.75;
-}
-
-.field input {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.field input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.hint {
-  font-size: 0.82rem;
-  opacity: 0.7;
-}
-
-.hint--pending {
-  opacity: 1;
-  color: #b8860b;
-}
-
-.operator-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.operator-table th,
-.operator-table td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.9rem;
-}
-
-.operator-table th {
-  font-weight: 600;
-  opacity: 0.75;
-}
-
-.operator-table__row {
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.operator-table__row:hover {
-  background: var(--color-background-soft);
-}
-
-.operator-table__row--inactive {
-  opacity: 0.55;
-}
-
-.status {
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.status--active {
-  background: color-mix(in srgb, #2e9e5b 15%, transparent);
-  color: #2e9e5b;
-}
-
-.status--inactive {
-  background: color-mix(in srgb, #999 15%, transparent);
-  color: #777;
 }
 </style>
