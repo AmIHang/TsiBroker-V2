@@ -1,22 +1,51 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useSidebar } from '@/composables/useSidebar'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 
 const { collapsed, toggle: toggleCollapsed } = useSidebar()
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
-const navItems = [
-  { to: '/', label: 'Startseite', icon: 'home' },
-  { to: '/railway-undertakings', label: 'Eisenbahnverkehrsunternehmen', icon: 'train' },
-  { to: '/infrastructure-operators', label: 'Infrastrukturbetreiber', icon: 'operators' },
-] as const
+const navItems = computed(
+  () =>
+    [
+      { to: '/', label: t('sidebar.home'), icon: 'home' },
+      { to: '/railway-undertakings', label: t('sidebar.railwayUndertakings'), icon: 'train' },
+      { to: '/infrastructure-operators', label: t('sidebar.infrastructureOperators'), icon: 'operators' },
+    ] as const,
+)
 
 function isNavItemActive(to: string) {
   return to === '/' ? route.path === '/' : route.path === to || route.path.startsWith(`${to}/`)
 }
+
+const showAccountMenu = ref(false)
+const accountMenuRef = ref<HTMLElement | null>(null)
+const accountPanelRef = ref<HTMLElement | null>(null)
+
+function toggleAccountMenu() {
+  showAccountMenu.value = !showAccountMenu.value
+}
+
+function onDocumentClick(event: MouseEvent) {
+  const target = event.target as Node
+  if (
+    showAccountMenu.value &&
+    !accountMenuRef.value?.contains(target) &&
+    !accountPanelRef.value?.contains(target)
+  ) {
+    showAccountMenu.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', onDocumentClick))
+onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 
 async function onLogout() {
   await auth.logout()
@@ -30,7 +59,7 @@ async function onLogout() {
       <button
         type="button"
         class="icon-btn"
-        :aria-label="collapsed ? 'Menü ausklappen' : 'Menü einklappen'"
+        :aria-label="collapsed ? t('sidebar.expandMenu') : t('sidebar.collapseMenu')"
         @click="toggleCollapsed"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -73,34 +102,58 @@ async function onLogout() {
       </RouterLink>
     </nav>
 
-    <div class="sidebar__footer">
+    <div v-if="auth.username" class="sidebar__footer" ref="accountMenuRef">
       <button
-        v-if="auth.username"
         type="button"
         class="nav-item nav-item--button"
-        :title="collapsed ? `Logout (${auth.username})` : undefined"
-        @click="onLogout"
+        :class="{ 'nav-item--active': showAccountMenu }"
+        :aria-expanded="showAccountMenu"
+        :title="collapsed ? t('sidebar.account', { user: auth.username }) : undefined"
+        @click="toggleAccountMenu"
       >
         <span class="nav-item__icon">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M15 16l4-4-4-4M19 12H9"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
+            <circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8" />
+            <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
         </span>
-        <span v-if="!collapsed" class="nav-item__label">Logout ({{ auth.username }})</span>
+        <span v-if="!collapsed" class="nav-item__label">{{ auth.username }}</span>
+        <svg v-if="!collapsed" class="nav-item__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </button>
+
+      <Teleport to="body">
+        <div
+          v-if="showAccountMenu"
+          ref="accountPanelRef"
+          class="account-flyout"
+          :class="{ 'account-flyout--collapsed': collapsed }"
+        >
+          <LanguageSwitcher class="sidebar__language" />
+          <button type="button" class="nav-item nav-item--button" @click="onLogout">
+            <span class="nav-item__icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M15 16l4-4-4-4M19 12H9"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="nav-item__label">{{ t('sidebar.logout', { user: auth.username }) }}</span>
+          </button>
+        </div>
+      </Teleport>
     </div>
   </aside>
 </template>
@@ -167,6 +220,35 @@ async function onLogout() {
   &__footer {
     padding: 0.5rem;
     border-top: 1px solid var(--color-sidebar-border);
+  }
+
+  &__language {
+    color: var(--color-sidebar-text);
+    width: 100%;
+  }
+}
+
+// Teleported to <body> so it isn't clipped by .sidebar's `overflow: hidden`
+// (needed for the collapse-width transition). Positioned as a viewport-fixed
+// flyout anchored just to the right of the sidebar.
+.account-flyout {
+  position: fixed;
+  left: calc(var(--sidebar-width-expanded) + 0.5rem);
+  bottom: 0.5rem;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 220px;
+  padding: 0.5rem;
+  background: var(--color-sidebar-bg);
+  border: 1px solid var(--color-sidebar-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  color: var(--color-sidebar-text);
+
+  &--collapsed {
+    left: calc(var(--sidebar-width-collapsed) + 0.5rem);
   }
 }
 
@@ -242,6 +324,13 @@ async function onLogout() {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  &__chevron {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-left: auto;
   }
 }
 </style>

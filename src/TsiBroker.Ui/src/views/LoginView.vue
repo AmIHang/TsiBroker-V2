@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ApiError } from '@/lib/api'
 
@@ -13,6 +14,7 @@ const isSubmitting = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 async function onSubmit() {
   error.value = ''
@@ -22,7 +24,7 @@ async function onSubmit() {
     const redirect = (route.query.redirect as string) || '/'
     await router.push(redirect)
   } catch (e) {
-    error.value = e instanceof ApiError && e.status === 401 ? 'Benutzername oder Passwort ist falsch.' : 'Login fehlgeschlagen.'
+    error.value = e instanceof ApiError && e.status === 401 ? t('login.invalidCredentials') : t('login.failed')
   } finally {
     isSubmitting.value = false
   }
@@ -84,7 +86,7 @@ async function onSubmit() {
         <input
           v-model="username"
           type="text"
-          placeholder="Username"
+          :placeholder="t('login.username')"
           autocomplete="username"
           required
         />
@@ -98,14 +100,14 @@ async function onSubmit() {
         <input
           v-model="password"
           :type="showPassword ? 'text' : 'password'"
-          placeholder="Password"
+          :placeholder="t('login.password')"
           autocomplete="current-password"
           required
         />
         <button
           type="button"
           class="login-toggle-password"
-          :aria-label="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
+          :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')"
           @click="showPassword = !showPassword"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -122,7 +124,7 @@ async function onSubmit() {
 
       <p v-if="error" class="error">{{ error }}</p>
 
-      <button type="submit" class="submit" :disabled="isSubmitting">Login</button>
+      <button type="submit" class="submit" :disabled="isSubmitting">{{ t('login.submit') }}</button>
     </form>
   </main>
 </template>

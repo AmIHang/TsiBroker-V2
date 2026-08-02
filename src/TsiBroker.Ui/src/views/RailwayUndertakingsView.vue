@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '@/lib/api'
 
 interface IsbAssignment {
@@ -29,6 +30,7 @@ interface InfrastructureOperator {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 
 const undertakings = ref<RailwayUndertaking[]>([])
 const isLoading = ref(true)
@@ -59,7 +61,7 @@ async function loadUndertakings() {
     const response = await apiFetch('/api/railway-undertakings')
     undertakings.value = await response.json()
   } catch {
-    error.value = 'Eisenbahnverkehrsunternehmen konnten nicht geladen werden.'
+    error.value = t('railwayUndertakings.loadError')
   } finally {
     isLoading.value = false
   }
@@ -120,7 +122,7 @@ async function onSubmit() {
     showForm.value = false
     router.push({ name: 'railway-undertaking-edit', params: { id: created.id } })
   } catch {
-    formError.value = 'Eisenbahnverkehrsunternehmen konnte nicht angelegt werden.'
+    formError.value = t('railwayUndertakings.createError')
   } finally {
     isSubmitting.value = false
   }
@@ -140,7 +142,7 @@ onMounted(() => {
   <div class="undertakings">
     <div class="toolbar">
       <button type="button" class="btn btn--primary" @click="openCreateForm">
-        + Neues Eisenbahnverkehrsunternehmen
+        {{ t('railwayUndertakings.new') }}
       </button>
     </div>
 
@@ -149,25 +151,25 @@ onMounted(() => {
     <dialog ref="dialogRef" class="modal" @close="showForm = false" @cancel="showForm = false">
       <form class="modal__form modal__form--lg" @submit.prevent="onSubmit">
         <div class="modal__header">
-          <h2 class="modal__title">Neues Eisenbahnverkehrsunternehmen</h2>
-          <button type="button" class="modal__close" aria-label="Schließen" @click="showForm = false">
+          <h2 class="modal__title">{{ t('railwayUndertakings.createTitle') }}</h2>
+          <button type="button" class="modal__close" :aria-label="t('common.close')" @click="showForm = false">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
             </svg>
           </button>
         </div>
 
-        <h3 class="modal__section-title">Stammdaten</h3>
+        <h3 class="modal__section-title">{{ t('common.masterData') }}</h3>
 
         <label class="field">
-          <span class="field__label">Name</span>
+          <span class="field__label">{{ t('common.name') }}</span>
           <input v-model="name" type="text" required />
         </label>
 
         <div class="field">
-          <span class="field__label">RicsCodes</span>
+          <span class="field__label">{{ t('common.ricsCodes') }}</span>
           <div class="toolbar">
-            <button type="button" class="btn btn--primary" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
+            <button type="button" class="btn btn--primary" @click="addRicsCodeField">{{ t('common.addRicsCode') }}</button>
           </div>
           <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
             <input v-model="ricsCodes[index]" type="text" required />
@@ -175,8 +177,8 @@ onMounted(() => {
               type="button"
               class="icon-btn-header icon-btn-header--danger"
               :disabled="ricsCodes.length === 1"
-              aria-label="Entfernen"
-              title="Entfernen"
+              :aria-label="t('common.remove')"
+              :title="t('common.remove')"
               @click="removeRicsCodeField(index)"
             >
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -194,30 +196,30 @@ onMounted(() => {
         </div>
 
         <label class="field">
-          <span class="field__label">SystemUrl</span>
+          <span class="field__label">{{ t('common.systemUrl') }}</span>
           <input v-model="systemUrl" type="url" required />
         </label>
 
         <p v-if="formError" class="error">{{ formError }}</p>
 
         <div class="modal__actions">
-          <button type="button" class="btn" @click="showForm = false">Abbrechen</button>
-          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">Speichern</button>
+          <button type="button" class="btn" @click="showForm = false">{{ t('common.cancel') }}</button>
+          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">{{ t('common.save') }}</button>
         </div>
       </form>
     </dialog>
 
-    <p v-if="isLoading" class="empty-state">Lädt…</p>
-    <p v-else-if="undertakings.length === 0" class="empty-state">Keine Eisenbahnverkehrsunternehmen vorhanden.</p>
+    <p v-if="isLoading" class="empty-state">{{ t('common.loading') }}</p>
+    <p v-else-if="undertakings.length === 0" class="empty-state">{{ t('railwayUndertakings.empty') }}</p>
 
     <table v-else class="data-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>RicsCodes</th>
-          <th>SystemUrl</th>
-          <th>ISBs</th>
-          <th>Status</th>
+          <th>{{ t('common.name') }}</th>
+          <th>{{ t('common.ricsCodes') }}</th>
+          <th>{{ t('common.systemUrl') }}</th>
+          <th>{{ t('railwayUndertakings.columns.isbs') }}</th>
+          <th>{{ t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -226,7 +228,7 @@ onMounted(() => {
           :key="u.id"
           class="data-table__row"
           :class="{ 'data-table__row--inactive': !u.isActive }"
-          title="Doppelklick zum Bearbeiten"
+          :title="t('common.doubleClickToEdit')"
           @dblclick="goToEdit(u)"
         >
           <td>{{ u.name }}</td>
@@ -235,7 +237,7 @@ onMounted(() => {
           <td>{{ assignedIsbNames(u) }}</td>
           <td>
             <span class="status" :class="u.isActive ? 'status--active' : 'status--inactive'">
-              {{ u.isActive ? 'Aktiv' : 'Inaktiv' }}
+              {{ u.isActive ? t('common.active') : t('common.inactive') }}
             </span>
           </td>
         </tr>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '@/lib/api'
 import { hasTopbarOverride } from '@/composables/useTopbarOverride'
 
@@ -32,6 +33,7 @@ interface InfrastructureOperator {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const undertaking = ref<RailwayUndertaking | null>(null)
 const infrastructureOperators = ref<InfrastructureOperator[]>([])
@@ -105,7 +107,7 @@ async function load() {
 
     const found = undertakings.find((u) => u.id === route.params.id)
     if (!found) {
-      loadError.value = 'Eisenbahnverkehrsunternehmen wurde nicht gefunden.'
+      loadError.value = t('railwayUndertakingEdit.notFound')
       return
     }
 
@@ -113,7 +115,7 @@ async function load() {
     resetLocalState(found)
     hasTopbarOverride.value = true
   } catch {
-    loadError.value = 'Eisenbahnverkehrsunternehmen konnte nicht geladen werden.'
+    loadError.value = t('railwayUndertakingEdit.loadError')
   } finally {
     isLoading.value = false
   }
@@ -184,7 +186,7 @@ async function saveAll() {
     undertaking.value = updated
     resetLocalState(updated)
   } catch {
-    saveError.value = 'Änderungen konnten nicht gespeichert werden.'
+    saveError.value = t('railwayUndertakingEdit.saveError')
   } finally {
     isSaving.value = false
   }
@@ -211,7 +213,7 @@ async function regenerateBrokerToEvu() {
 }
 
 async function deleteUndertaking() {
-  if (!undertaking.value || !confirm(`"${undertaking.value.name}" wirklich löschen?`)) {
+  if (!undertaking.value || !confirm(t('railwayUndertakingEdit.confirmDelete', { name: undertaking.value.name }))) {
     return
   }
 
@@ -220,7 +222,7 @@ async function deleteUndertaking() {
     await apiFetch(`/api/railway-undertakings/${undertaking.value.id}`, { method: 'DELETE' })
     router.push({ name: 'railway-undertakings' })
   } catch {
-    saveError.value = 'Eisenbahnverkehrsunternehmen konnte nicht gelöscht werden.'
+    saveError.value = t('railwayUndertakingEdit.deleteError')
   }
 }
 
@@ -245,11 +247,11 @@ function openEditAssignmentDialog(assignment: IsbAssignment) {
 function saveAssignmentDialog() {
   dialogError.value = ''
   if (!dialogIsbId.value) {
-    dialogError.value = 'Bitte einen Infrastrukturbetreiber auswählen.'
+    dialogError.value = t('railwayUndertakingEdit.assignmentDialog.selectIsbError')
     return
   }
   if (!editingAssignmentId.value && assignedIsbIds.value.has(dialogIsbId.value)) {
-    dialogError.value = 'Dieser Infrastrukturbetreiber ist bereits verknüpft.'
+    dialogError.value = t('railwayUndertakingEdit.assignmentDialog.alreadyLinkedError')
     return
   }
 
@@ -282,7 +284,7 @@ function toggleAssignmentActive(assignment: IsbAssignment) {
 }
 
 function deleteAssignment(infrastructureOperatorId: string) {
-  if (!confirm('Verknüpfung wirklich löschen?')) {
+  if (!confirm(t('railwayUndertakingEdit.confirmDeleteAssignment'))) {
     return
   }
 
@@ -299,7 +301,7 @@ onUnmounted(() => {
 
 <template>
   <div class="edit-page">
-    <p v-if="isLoading" class="empty-state">Lädt…</p>
+    <p v-if="isLoading" class="empty-state">{{ t('common.loading') }}</p>
     <p v-else-if="loadError" class="error">{{ loadError }}</p>
 
     <template v-else-if="undertaking">
@@ -307,7 +309,7 @@ onUnmounted(() => {
         <div class="topbar-title-block">
           <h1 class="topbar__title">{{ undertaking.name }}</h1>
           <RouterLink class="topbar-breadcrumb" :to="{ name: 'railway-undertakings' }">
-            &larr; Eisenbahnverkehrsunternehmen
+            {{ t('railwayUndertakingEdit.breadcrumbBack') }}
           </RouterLink>
         </div>
       </Teleport>
@@ -317,8 +319,8 @@ onUnmounted(() => {
           v-if="!undertaking.isActive"
           type="button"
           class="icon-btn-header icon-btn-header--danger icon-btn-header--lg"
-          aria-label="Löschen"
-          title="Löschen"
+          :aria-label="t('common.delete')"
+          :title="t('common.delete')"
           @click="deleteUndertaking"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -336,8 +338,8 @@ onUnmounted(() => {
           type="button"
           class="icon-btn-header icon-btn-header--lg"
           :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-          :aria-label="pendingIsActive ? 'Sperren' : 'Entsperren'"
-          :title="pendingIsActive ? 'Sperren' : 'Entsperren'"
+          :aria-label="pendingIsActive ? t('railwayUndertakingEdit.lock') : t('railwayUndertakingEdit.unlock')"
+          :title="pendingIsActive ? t('railwayUndertakingEdit.lock') : t('railwayUndertakingEdit.unlock')"
           @click="toggleActive"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -346,29 +348,29 @@ onUnmounted(() => {
           </svg>
         </button>
         <button type="submit" form="stammdaten-form" class="btn btn--primary" :disabled="isSaving">
-          Speichern
+          {{ t('common.save') }}
         </button>
       </Teleport>
 
       <p v-if="saveError" class="error">{{ saveError }}</p>
       <p v-if="pendingIsActive !== undertaking.isActive" class="hint hint--pending">
-        Status-Änderung ({{ pendingIsActive ? 'Entsperrt' : 'Gesperrt' }}) wird beim Speichern übernommen.
+        {{ t('railwayUndertakingEdit.statusChangeHint', { status: pendingIsActive ? t('railwayUndertakingEdit.statusUnlocked') : t('railwayUndertakingEdit.statusLocked') }) }}
       </p>
 
       <div class="columns">
         <div class="column column--main">
           <section class="card">
-            <h3 class="card__title">Stammdaten</h3>
+            <h3 class="card__title">{{ t('common.masterData') }}</h3>
             <form id="stammdaten-form" @submit.prevent="saveAll">
               <label class="field">
-                <span class="field__label">Name</span>
+                <span class="field__label">{{ t('common.name') }}</span>
                 <input v-model="name" type="text" required />
               </label>
 
               <div class="field">
-                <span class="field__label">RicsCodes</span>
+                <span class="field__label">{{ t('common.ricsCodes') }}</span>
                 <div class="toolbar">
-                  <button type="button" class="btn btn--primary" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
+                  <button type="button" class="btn btn--primary" @click="addRicsCodeField">{{ t('common.addRicsCode') }}</button>
                 </div>
                 <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
                   <input v-model="ricsCodes[index]" type="text" required />
@@ -376,8 +378,8 @@ onUnmounted(() => {
                     type="button"
                     class="icon-btn-header icon-btn-header--danger"
                     :disabled="ricsCodes.length === 1"
-                    aria-label="Entfernen"
-                    title="Entfernen"
+                    :aria-label="t('common.remove')"
+                    :title="t('common.remove')"
                     @click="removeRicsCodeField(index)"
                   >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -395,17 +397,17 @@ onUnmounted(() => {
               </div>
 
               <label class="field">
-                <span class="field__label">SystemUrl</span>
+                <span class="field__label">{{ t('common.systemUrl') }}</span>
                 <input v-model="systemUrl" type="url" required />
               </label>
             </form>
           </section>
 
           <section class="card">
-            <h3 class="card__title">API-Keys</h3>
+            <h3 class="card__title">{{ t('railwayUndertakingEdit.apiKeys') }}</h3>
 
             <div class="field">
-              <span class="field__label">API-Key (EVU → Broker)</span>
+              <span class="field__label">{{ t('railwayUndertakingEdit.apiKeyEvuToBroker') }}</span>
               <div class="key-row">
                 <label class="key-input-wrap">
                   <input
@@ -416,8 +418,8 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="toggle-password"
-                    :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
-                    :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
+                    :aria-label="showApiKeyEvuToBroker ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
+                    :title="showApiKeyEvuToBroker ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
                     @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
                   >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -434,8 +436,8 @@ onUnmounted(() => {
                 <button
                   type="button"
                   class="icon-btn-header"
-                  aria-label="Neu generieren"
-                  title="Neu generieren"
+                  :aria-label="t('common.regenerate')"
+                  :title="t('common.regenerate')"
                   @click="regenerateEvuToBroker"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -452,12 +454,12 @@ onUnmounted(() => {
                 </button>
               </div>
               <p v-if="pendingApiKeyEvuToBroker" class="hint hint--pending">
-                Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.
+                {{ t('railwayUndertakingEdit.apiKeyPendingHint') }}
               </p>
             </div>
 
             <div class="field">
-              <span class="field__label">API-Key (Broker → EVU)</span>
+              <span class="field__label">{{ t('railwayUndertakingEdit.apiKeyBrokerToEvu') }}</span>
               <div class="key-row">
                 <label class="key-input-wrap">
                   <input
@@ -468,8 +470,8 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="toggle-password"
-                    :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
-                    :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
+                    :aria-label="showApiKeyBrokerToEvu ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
+                    :title="showApiKeyBrokerToEvu ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
                     @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
                   >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -486,8 +488,8 @@ onUnmounted(() => {
                 <button
                   type="button"
                   class="icon-btn-header"
-                  aria-label="Neu generieren"
-                  title="Neu generieren"
+                  :aria-label="t('common.regenerate')"
+                  :title="t('common.regenerate')"
                   @click="regenerateBrokerToEvu"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -504,7 +506,7 @@ onUnmounted(() => {
                 </button>
               </div>
               <p v-if="pendingApiKeyBrokerToEvu" class="hint hint--pending">
-                Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.
+                {{ t('railwayUndertakingEdit.apiKeyPendingHint') }}
               </p>
             </div>
           </section>
@@ -512,25 +514,25 @@ onUnmounted(() => {
 
         <div class="column column--assignments">
           <section class="card">
-            <h3 class="card__title">Verknüpfte Infrastrukturbetreiber</h3>
+            <h3 class="card__title">{{ t('railwayUndertakingEdit.linkedOperators') }}</h3>
 
             <div class="toolbar">
               <button type="button" class="btn btn--primary" :disabled="isSaving" @click="openAddAssignmentDialog">
-                + Verknüpfung hinzufügen
+                {{ t('railwayUndertakingEdit.addAssignment') }}
               </button>
             </div>
 
             <p v-if="pendingAssignments.length === 0" class="empty-state">
-              Noch keine Verknüpfungen hinterlegt.
+              {{ t('railwayUndertakingEdit.noAssignments') }}
             </p>
 
             <table v-else class="data-table data-table--compact">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>RicsCode</th>
-                  <th>Nachrichten Senden</th>
-                  <th>Nachrichten Empfangen</th>
+                  <th>{{ t('common.name') }}</th>
+                  <th>{{ t('common.ricsCode') }}</th>
+                  <th>{{ t('railwayUndertakingEdit.columns.messagesSend') }}</th>
+                  <th>{{ t('railwayUndertakingEdit.columns.messagesReceive') }}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -540,10 +542,10 @@ onUnmounted(() => {
                   :key="assignment.infrastructureOperatorId"
                   class="data-table__row"
                   :class="{ 'data-table__row--inactive': !assignment.isActive }"
-                  title="Doppelklick zum Bearbeiten"
+                  :title="t('common.doubleClickToEdit')"
                   @dblclick="openEditAssignmentDialog(assignment)"
                 >
-                  <td>{{ isbFor(assignment.infrastructureOperatorId)?.name ?? '(unbekannter Infrastrukturbetreiber)' }}</td>
+                  <td>{{ isbFor(assignment.infrastructureOperatorId)?.name ?? t('railwayUndertakingEdit.unknownOperator') }}</td>
                   <td>{{ isbFor(assignment.infrastructureOperatorId)?.ricsCode }}</td>
                   <td>{{ assignment.allowedMessageTypesEvuToBroker.join(', ') }}</td>
                   <td>{{ assignment.allowedMessageTypesBrokerToEvu.join(', ') }}</td>
@@ -552,8 +554,8 @@ onUnmounted(() => {
                       type="button"
                       class="icon-btn-header"
                       :class="assignment.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-                      :aria-label="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                      :title="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                      :aria-label="assignment.isActive ? t('common.deactivate') : t('common.activate')"
+                      :title="assignment.isActive ? t('common.deactivate') : t('common.activate')"
                       :disabled="isSaving"
                       @click.stop="toggleAssignmentActive(assignment)"
                     >
@@ -566,8 +568,8 @@ onUnmounted(() => {
                       type="button"
                       class="icon-btn-header icon-btn-header--danger"
                       :disabled="assignment.isActive || isSaving"
-                      aria-label="Löschen"
-                      title="Löschen"
+                      :aria-label="t('common.delete')"
+                      :title="t('common.delete')"
                       @click.stop="deleteAssignment(assignment.infrastructureOperatorId)"
                     >
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -597,8 +599,8 @@ onUnmounted(() => {
       >
         <form class="modal__form modal__form--lg" @submit.prevent="saveAssignmentDialog">
           <div class="modal__header">
-            <h2 class="modal__title">{{ editingAssignmentId ? 'Verknüpfung bearbeiten' : 'Verknüpfung hinzufügen' }}</h2>
-            <button type="button" class="modal__close" aria-label="Schließen" @click="showAssignmentDialog = false">
+            <h2 class="modal__title">{{ editingAssignmentId ? t('railwayUndertakingEdit.assignmentDialog.editTitle') : t('railwayUndertakingEdit.assignmentDialog.createTitle') }}</h2>
+            <button type="button" class="modal__close" :aria-label="t('common.close')" @click="showAssignmentDialog = false">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
               </svg>
@@ -606,37 +608,40 @@ onUnmounted(() => {
           </div>
 
           <p v-if="!editingAssignmentId && infrastructureOperators.length === 0" class="hint">
-            Noch keine Infrastrukturbetreiber im System angelegt.
+            {{ t('railwayUndertakingEdit.assignmentDialog.noOperatorsYet') }}
           </p>
           <p v-else-if="!editingAssignmentId && selectableIsbs.length === 0" class="hint">
-            Alle im System gepflegten Infrastrukturbetreiber sind bereits verknüpft.
+            {{ t('railwayUndertakingEdit.assignmentDialog.allLinked') }}
           </p>
           <template v-else>
             <label class="field">
-              <span class="field__label">Infrastrukturbetreiber</span>
+              <span class="field__label">{{ t('railwayUndertakingEdit.assignmentDialog.selectOperator') }}</span>
               <select v-model="dialogIsbId" :disabled="!!editingAssignmentId">
-                <option value="">-- ISB wählen --</option>
+                <option value="">{{ t('railwayUndertakingEdit.assignmentDialog.selectPlaceholder') }}</option>
                 <option v-for="isb in dialogSelectableIsbs" :key="isb.id" :value="isb.id">{{ isbLabel(isb) }}</option>
               </select>
             </label>
 
             <label class="field">
-              <span class="field__label">Nachrichten Senden (EVU &rarr; Broker)</span>
-              <input v-model="dialogAllowedEvuToBroker" type="text" placeholder="z.B. 3003 oder *" />
+              <span class="field__label">{{ t('railwayUndertakingEdit.assignmentDialog.messagesSendLabel') }}</span>
+              <input v-model="dialogAllowedEvuToBroker" type="text" :placeholder="t('railwayUndertakingEdit.assignmentDialog.messagesPlaceholder')" />
             </label>
 
             <label class="field">
-              <span class="field__label">Nachrichten Empfangen (Broker &rarr; EVU)</span>
-              <input v-model="dialogAllowedBrokerToEvu" type="text" placeholder="z.B. 3003 oder *" />
+              <span class="field__label">{{ t('railwayUndertakingEdit.assignmentDialog.messagesReceiveLabel') }}</span>
+              <input v-model="dialogAllowedBrokerToEvu" type="text" :placeholder="t('railwayUndertakingEdit.assignmentDialog.messagesPlaceholder')" />
             </label>
-            <p class="hint">Mehrere Werte kommagetrennt. <code>*</code> bedeutet: alle erlaubt.</p>
+            <p class="hint">
+              {{ t('railwayUndertakingEdit.assignmentDialog.multipleValuesHintPre') }} <code>*</code>
+              {{ t('railwayUndertakingEdit.assignmentDialog.multipleValuesHintPost') }}
+            </p>
 
             <p v-if="dialogError" class="error">{{ dialogError }}</p>
 
             <div class="modal__actions">
-              <button type="button" class="btn" @click="showAssignmentDialog = false">Abbrechen</button>
+              <button type="button" class="btn" @click="showAssignmentDialog = false">{{ t('common.cancel') }}</button>
               <button type="submit" class="btn btn--primary" :disabled="isSaving">
-                {{ editingAssignmentId ? 'Speichern' : 'Verknüpfung hinzufügen' }}
+                {{ editingAssignmentId ? t('common.save') : t('railwayUndertakingEdit.assignmentDialog.save') }}
               </button>
             </div>
           </template>

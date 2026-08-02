@@ -1,0 +1,121 @@
+{
+  "language": {
+    "label": "Language",
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "remove": "Remove",
+    "loading": "Loading…",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "name": "Name",
+    "systemUrl": "SystemUrl",
+    "ricsCode": "RicsCode",
+    "ricsCodes": "RicsCodes",
+    "addRicsCode": "+ Add RicsCode",
+    "doubleClickToEdit": "Double-click to edit",
+    "regenerate": "Regenerate",
+    "status": "Status",
+    "masterData": "Master data"
+  },
+  "sidebar": {
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu",
+    "home": "Home",
+    "railwayUndertakings": "Railway Undertakings",
+    "infrastructureOperators": "Infrastructure Operators",
+    "account": "Account ({user})",
+    "logout": "Logout ({user})"
+  },
+  "routeTitles": {
+    "home": "Home",
+    "infrastructureOperators": "Infrastructure Operators",
+    "railwayUndertakings": "Railway Undertakings",
+    "railwayUndertakingEdit": "Edit Railway Undertaking"
+  },
+  "home": {
+    "welcome": "Welcome to TSI-Broker"
+  },
+  "login": {
+    "invalidCredentials": "Username or password is incorrect.",
+    "failed": "Login failed.",
+    "username": "Username",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "submit": "Login"
+  },
+  "infrastructureOperators": {
+    "loadError": "Infrastructure operators could not be loaded.",
+    "new": "+ New infrastructure operator",
+    "editTitle": "Edit infrastructure operator",
+    "createTitle": "New infrastructure operator",
+    "createError": "Infrastructure operator could not be created.",
+    "saveError": "Infrastructure operator could not be saved.",
+    "deleteError": "Infrastructure operator could not be deleted.",
+    "confirmDelete": "Really delete \"{name}\"?",
+    "empty": "No infrastructure operators available.",
+    "statusChangeHint": "Status change ({status}) will be applied on save."
+  },
+  "railwayUndertakings": {
+    "loadError": "Railway undertakings could not be loaded.",
+    "new": "+ New railway undertaking",
+    "createTitle": "New railway undertaking",
+    "createError": "Railway undertaking could not be created.",
+    "empty": "No railway undertakings available.",
+    "columns": {
+      "isbs": "IMs"
+    }
+  },
+  "railwayUndertakingEdit": {
+    "notFound": "Railway undertaking was not found.",
+    "loadError": "Railway undertaking could not be loaded.",
+    "saveError": "Changes could not be saved.",
+    "deleteError": "Railway undertaking could not be deleted.",
+    "confirmDelete": "Really delete \"{name}\"?",
+    "breadcrumbBack": "← Railway undertakings",
+    "statusChangeHint": "Status change ({status}) will be applied on save.",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "statusLocked": "Locked",
+    "statusUnlocked": "Unlocked",
+    "apiKeys": "API keys",
+    "apiKeyEvuToBroker": "API key (RU → Broker)",
+    "apiKeyBrokerToEvu": "API key (Broker → RU)",
+    "showKey": "Show key",
+    "hideKey": "Hide key",
+    "apiKeyPendingHint": "Will be applied on save. The previous key will then be invalid.",
+    "linkedOperators": "Linked infrastructure operators",
+    "addAssignment": "+ Add link",
+    "noAssignments": "No links added yet.",
+    "unknownOperator": "(unknown infrastructure operator)",
+    "confirmDeleteAssignment": "Really delete this link?",
+    "columns": {
+      "messagesSend": "Messages sent",
+      "messagesReceive": "Messages received"
+    },
+    "assignmentDialog": {
+      "editTitle": "Edit link",
+      "createTitle": "Add link",
+      "noOperatorsYet": "No infrastructure operators created in the system yet.",
+      "allLinked": "All infrastructure operators in the system are already linked.",
+      "selectOperator": "Infrastructure operator",
+      "selectPlaceholder": "-- select IM --",
+      "messagesSendLabel": "Messages sent (RU → Broker)",
+      "messagesReceiveLabel": "Messages received (Broker → RU)",
+      "messagesPlaceholder": "e.g. 3003 or *",
+      "multipleValuesHintPre": "Multiple values comma-separated.",
+      "multipleValuesHintPost": "means: all allowed.",
+      "selectIsbError": "Please select an infrastructure operator.",
+      "alreadyLinkedError": "This infrastructure operator is already linked.",
+      "save": "Add link"
+    }
+  }
+}

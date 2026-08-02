@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '@/lib/api'
 
 interface InfrastructureOperator {
@@ -9,6 +10,8 @@ interface InfrastructureOperator {
   systemUrl: string
   isActive: boolean
 }
+
+const { t } = useI18n()
 
 const operators = ref<InfrastructureOperator[]>([])
 const isLoading = ref(true)
@@ -41,7 +44,7 @@ async function loadOperators() {
     const response = await apiFetch('/api/infrastructure-operators')
     operators.value = await response.json()
   } catch {
-    error.value = 'Infrastrukturbetreiber konnten nicht geladen werden.'
+    error.value = t('infrastructureOperators.loadError')
   } finally {
     isLoading.value = false
   }
@@ -98,8 +101,8 @@ async function onSubmit() {
     showForm.value = false
   } catch {
     formError.value = editingId.value
-      ? 'Infrastrukturbetreiber konnte nicht gespeichert werden.'
-      : 'Infrastrukturbetreiber konnte nicht angelegt werden.'
+      ? t('infrastructureOperators.saveError')
+      : t('infrastructureOperators.createError')
   } finally {
     isSubmitting.value = false
   }
@@ -110,7 +113,7 @@ function toggleActive() {
 }
 
 async function deleteOperator(op: InfrastructureOperator) {
-  if (!confirm(`"${op.name}" wirklich löschen?`)) {
+  if (!confirm(t('infrastructureOperators.confirmDelete', { name: op.name }))) {
     return
   }
 
@@ -119,7 +122,7 @@ async function deleteOperator(op: InfrastructureOperator) {
     operators.value = operators.value.filter((o) => o.id !== op.id)
     showForm.value = false
   } catch {
-    formError.value = 'Infrastrukturbetreiber konnte nicht gelöscht werden.'
+    formError.value = t('infrastructureOperators.deleteError')
   }
 }
 
@@ -130,7 +133,7 @@ onMounted(loadOperators)
   <div class="operators">
     <div class="toolbar">
       <button type="button" class="btn btn--primary" @click="openCreateForm">
-        + Neuer Infrastrukturbetreiber
+        {{ t('infrastructureOperators.new') }}
       </button>
     </div>
 
@@ -139,15 +142,15 @@ onMounted(loadOperators)
     <dialog ref="dialogRef" class="modal" @close="showForm = false" @cancel="showForm = false">
       <form class="modal__form" @submit.prevent="onSubmit">
         <div class="modal__header">
-          <h2 class="modal__title">{{ editingId ? 'Infrastrukturbetreiber bearbeiten' : 'Neuer Infrastrukturbetreiber' }}</h2>
+          <h2 class="modal__title">{{ editingId ? t('infrastructureOperators.editTitle') : t('infrastructureOperators.createTitle') }}</h2>
           <div class="modal__header-actions">
             <template v-if="editingOperator">
               <button
                 v-if="!editingOperator.isActive"
                 type="button"
                 class="icon-btn-header icon-btn-header--danger"
-                aria-label="Löschen"
-                title="Löschen"
+                :aria-label="t('common.delete')"
+                :title="t('common.delete')"
                 @click="deleteOperator(editingOperator)"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -165,8 +168,8 @@ onMounted(loadOperators)
                 type="button"
                 class="icon-btn-header"
                 :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-                :aria-label="pendingIsActive ? 'Deaktivieren' : 'Aktivieren'"
-                :title="pendingIsActive ? 'Deaktivieren' : 'Aktivieren'"
+                :aria-label="pendingIsActive ? t('common.deactivate') : t('common.activate')"
+                :title="pendingIsActive ? t('common.deactivate') : t('common.activate')"
                 @click="toggleActive"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -175,7 +178,7 @@ onMounted(loadOperators)
                 </svg>
               </button>
             </template>
-            <button type="button" class="modal__close" aria-label="Schließen" @click="showForm = false">
+            <button type="button" class="modal__close" :aria-label="t('common.close')" @click="showForm = false">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
               </svg>
@@ -184,41 +187,41 @@ onMounted(loadOperators)
         </div>
 
         <label class="field">
-          <span class="field__label">Name</span>
+          <span class="field__label">{{ t('common.name') }}</span>
           <input v-model="name" type="text" required />
         </label>
         <label class="field">
-          <span class="field__label">RicsCode</span>
+          <span class="field__label">{{ t('common.ricsCode') }}</span>
           <input v-model="ricsCode" type="text" required />
         </label>
         <label class="field">
-          <span class="field__label">SystemUrl</span>
+          <span class="field__label">{{ t('common.systemUrl') }}</span>
           <input v-model="systemUrl" type="url" required />
         </label>
 
         <p v-if="editingOperator && pendingIsActive !== editingOperator.isActive" class="hint hint--pending">
-          Status-Änderung ({{ pendingIsActive ? 'Aktiv' : 'Inaktiv' }}) wird beim Speichern übernommen.
+          {{ t('infrastructureOperators.statusChangeHint', { status: pendingIsActive ? t('common.active') : t('common.inactive') }) }}
         </p>
 
         <p v-if="formError" class="error">{{ formError }}</p>
 
         <div class="modal__actions">
-          <button type="button" class="btn" @click="showForm = false">Abbrechen</button>
-          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">Speichern</button>
+          <button type="button" class="btn" @click="showForm = false">{{ t('common.cancel') }}</button>
+          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">{{ t('common.save') }}</button>
         </div>
       </form>
     </dialog>
 
-    <p v-if="isLoading" class="empty-state">Lädt…</p>
-    <p v-else-if="operators.length === 0" class="empty-state">Keine Infrastrukturbetreiber vorhanden.</p>
+    <p v-if="isLoading" class="empty-state">{{ t('common.loading') }}</p>
+    <p v-else-if="operators.length === 0" class="empty-state">{{ t('infrastructureOperators.empty') }}</p>
 
     <table v-else class="data-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>RicsCode</th>
-          <th>SystemUrl</th>
-          <th>Status</th>
+          <th>{{ t('common.name') }}</th>
+          <th>{{ t('common.ricsCode') }}</th>
+          <th>{{ t('common.systemUrl') }}</th>
+          <th>{{ t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -227,7 +230,7 @@ onMounted(loadOperators)
           :key="op.id"
           class="data-table__row"
           :class="{ 'data-table__row--inactive': !op.isActive }"
-          title="Doppelklick zum Bearbeiten"
+          :title="t('common.doubleClickToEdit')"
           @dblclick="openEditForm(op)"
         >
           <td>{{ op.name }}</td>
@@ -235,7 +238,7 @@ onMounted(loadOperators)
           <td>{{ op.systemUrl }}</td>
           <td>
             <span class="status" :class="op.isActive ? 'status--active' : 'status--inactive'">
-              {{ op.isActive ? 'Aktiv' : 'Inaktiv' }}
+              {{ op.isActive ? t('common.active') : t('common.inactive') }}
             </span>
           </td>
         </tr>
