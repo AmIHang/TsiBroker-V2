@@ -47,14 +47,14 @@ public static class WhoAmIEndpoints
     {
         Name = "<unknown>",
         RicsCodes = [],
-        InfrastructureOperators = [],
+        Permissions = [],
     };
 
     private static WhoAmIResponse BuildResponse(
         RailwayUndertaking railwayUndertaking,
         List<InfrastructureOperator> infrastructureOperators)
     {
-        var assignedOperators = railwayUndertaking.InfrastructureOperatorAssignments
+        var permissions = railwayUndertaking.InfrastructureOperatorAssignments
             .Where(assignment => assignment.IsActive)
             .Select(assignment =>
             {
@@ -63,21 +63,44 @@ public static class WhoAmIEndpoints
                 return (assignment, infrastructureOperator);
             })
             .Where(x => x.infrastructureOperator is not null)
-            .Select(x => new WhoAmIInfrastructureOperator
-            {
-                Name = x.infrastructureOperator!.Name,
-                RicsCode = x.infrastructureOperator.RicsCode,
-                AllowedMessageTypesEvuToBroker = x.assignment.AllowedMessageTypesEvuToBroker,
-                AllowedMessageTypesBrokerToEvu = x.assignment.AllowedMessageTypesBrokerToEvu,
-            })
+            .SelectMany(x => BuildPermissions(railwayUndertaking.RicsCodes, x.infrastructureOperator!.RicsCode, x.assignment))
             .ToList();
 
         return new WhoAmIResponse
         {
             Name = railwayUndertaking.Name,
             RicsCodes = railwayUndertaking.RicsCodes,
-            InfrastructureOperators = assignedOperators,
+            Permissions = permissions,
         };
+    }
+
+    private static IEnumerable<WhoAmIPermission> BuildPermissions(
+        List<string> railwayUndertakingRicsCodes,
+        string infrastructureOperatorRicsCode,
+        IsbAssignment assignment)
+    {
+        foreach (var ruRicsCode in railwayUndertakingRicsCodes)
+        {
+            foreach (var messageType in assignment.AllowedMessageTypesEvuToBroker)
+            {
+                yield return new WhoAmIPermission
+                {
+                    Sender = ruRicsCode,
+                    Receiver = infrastructureOperatorRicsCode,
+                    MessageType = messageType,
+                };
+            }
+
+            foreach (var messageType in assignment.AllowedMessageTypesBrokerToEvu)
+            {
+                yield return new WhoAmIPermission
+                {
+                    Sender = infrastructureOperatorRicsCode,
+                    Receiver = ruRicsCode,
+                    MessageType = messageType,
+                };
+            }
+        }
     }
 
     private static string SerializeToXml(WhoAmIResponse response)

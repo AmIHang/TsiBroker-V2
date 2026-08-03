@@ -12,24 +12,19 @@ public class WhoAmIResponse
     [XmlArrayItem("RicsCode")]
     public List<string> RicsCodes { get; set; } = [];
 
-    [XmlArray("InfrastructureOperators")]
-    [XmlArrayItem("InfrastructureOperator")]
-    public List<WhoAmIInfrastructureOperator> InfrastructureOperators { get; set; } = [];
+    [XmlArray("Permissions")]
+    [XmlArrayItem("Permission")]
+    public List<WhoAmIPermission> Permissions { get; set; } = [];
 }
 
-public class WhoAmIInfrastructureOperator
+public class WhoAmIPermission
 {
-    [XmlElement("Name")]
-    public string Name { get; set; } = string.Empty;
+    [XmlAttribute("Sender")]
+    public string Sender { get; set; } = string.Empty;
 
-    [XmlElement("RicsCode")]
-    public string RicsCode { get; set; } = string.Empty;
+    [XmlAttribute("Receiver")]
+    public string Receiver { get; set; } = string.Empty;
 
-    [XmlArray("AllowedMessageTypesEvuToBroker")]
-    [XmlArrayItem("MessageType")]
-    public List<string> AllowedMessageTypesEvuToBroker { get; set; } = [];
-
-    [XmlArray("AllowedMessageTypesBrokerToEvu")]
-    [XmlArrayItem("MessageType")]
-    public List<string> AllowedMessageTypesBrokerToEvu { get; set; } = [];
+    [XmlAttribute("MessageType")]
+    public string MessageType { get; set; } = string.Empty;
 }
