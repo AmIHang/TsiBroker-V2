@@ -22,6 +22,8 @@
     "addRicsCode": "+ Add RicsCode",
     "doubleClickToEdit": "Double-click to edit",
     "regenerate": "Regenerate",
+    "copy": "Copy to clipboard",
+    "copied": "Copied!",
     "status": "Status",
     "masterData": "Master data"
   },

@@ -53,6 +53,8 @@ const isSaving = ref(false)
 
 const showApiKeyEvuToBroker = ref(false)
 const showApiKeyBrokerToEvu = ref(false)
+const copiedApiKeyEvuToBroker = ref(false)
+const copiedApiKeyBrokerToEvu = ref(false)
 
 const showAssignmentDialog = ref(false)
 const assignmentDialogRef = ref<HTMLDialogElement | null>(null)
@@ -210,6 +212,26 @@ async function regenerateEvuToBroker() {
 async function regenerateBrokerToEvu() {
   pendingApiKeyBrokerToEvu.value = await generateApiKey()
   showApiKeyBrokerToEvu.value = true
+}
+
+async function copyApiKeyEvuToBroker() {
+  const key = pendingApiKeyEvuToBroker.value ?? undertaking.value?.apiKeyEvuToBroker
+  if (!key) {
+    return
+  }
+  await navigator.clipboard.writeText(key)
+  copiedApiKeyEvuToBroker.value = true
+  setTimeout(() => (copiedApiKeyEvuToBroker.value = false), 1500)
+}
+
+async function copyApiKeyBrokerToEvu() {
+  const key = pendingApiKeyBrokerToEvu.value ?? undertaking.value?.apiKeyBrokerToEvu
+  if (!key) {
+    return
+  }
+  await navigator.clipboard.writeText(key)
+  copiedApiKeyBrokerToEvu.value = true
+  setTimeout(() => (copiedApiKeyBrokerToEvu.value = false), 1500)
 }
 
 async function deleteUndertaking() {
@@ -436,6 +458,21 @@ onUnmounted(() => {
                 <button
                   type="button"
                   class="icon-btn-header"
+                  :aria-label="copiedApiKeyEvuToBroker ? t('common.copied') : t('common.copy')"
+                  :title="copiedApiKeyEvuToBroker ? t('common.copied') : t('common.copy')"
+                  @click="copyApiKeyEvuToBroker"
+                >
+                  <svg v-if="!copiedApiKeyEvuToBroker" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="9" y="9" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+                    <path d="M6 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V6" stroke="currentColor" stroke-width="1.8" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 12.5l5 5L20 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn-header"
                   :aria-label="t('common.regenerate')"
                   :title="t('common.regenerate')"
                   @click="regenerateEvuToBroker"
@@ -485,6 +522,21 @@ onUnmounted(() => {
                     </svg>
                   </button>
                 </label>
+                <button
+                  type="button"
+                  class="icon-btn-header"
+                  :aria-label="copiedApiKeyBrokerToEvu ? t('common.copied') : t('common.copy')"
+                  :title="copiedApiKeyBrokerToEvu ? t('common.copied') : t('common.copy')"
+                  @click="copyApiKeyBrokerToEvu"
+                >
+                  <svg v-if="!copiedApiKeyBrokerToEvu" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="9" y="9" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+                    <path d="M6 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V6" stroke="currentColor" stroke-width="1.8" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 12.5l5 5L20 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
                 <button
                   type="button"
                   class="icon-btn-header"
