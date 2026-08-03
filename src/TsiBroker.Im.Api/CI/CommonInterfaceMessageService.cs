@@ -1,7 +1,7 @@
 using CoreWCF;
 using System.Xml;
+using TsiBroker.Core.Messaging;
 using TsiBroker.Im.Api.CI.Contracts;
-using TsiBroker.Im.Api.Messaging;
 
 namespace TsiBroker.Im.Api.CI;
 

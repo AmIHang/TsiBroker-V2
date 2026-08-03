@@ -1,4 +1,4 @@
-namespace TsiBroker.Im.Api.Messaging;
+namespace TsiBroker.Core.Messaging;
 
 public interface IMessagePublisher
 {

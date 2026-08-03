@@ -2,9 +2,9 @@ using CoreWCF;
 using CoreWCF.Channels;
 using CoreWCF.Configuration;
 using CoreWCF.Description;
+using TsiBroker.Core.Messaging;
 using TsiBroker.Im.Api.CI;
 using TsiBroker.Im.Api.Heartbeat;
-using TsiBroker.Im.Api.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 

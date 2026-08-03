@@ -1,4 +1,4 @@
-using TsiBroker.ApiService.InfrastructureOperators;
+using TsiBroker.Core.InfrastructureOperators;
 using TsiBroker.Core.RailwayUndertakings;
 
 namespace TsiBroker.ApiService.RailwayUndertakings;

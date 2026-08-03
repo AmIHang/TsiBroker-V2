@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace TsiBroker.Im.Api.Messaging;
+namespace TsiBroker.Core.Messaging;
 
 public class DebugMessagePublisher(ILogger<DebugMessagePublisher> logger) : IMessagePublisher
 {

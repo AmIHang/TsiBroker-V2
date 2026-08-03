@@ -1,0 +1,109 @@
+{
+  "info": {
+    "name": "TsiBroker.Ru.Api",
+    "description": "REST-Endpunkte fuer die EVU-Kommunikation (TSI-Nachrichten / API-Key-Pruefung).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:7263"
+    },
+    {
+      "key": "apiKey",
+      "value": "REPLACE-WITH-EVU-API-KEY"
+    }
+  ],
+  "item": [
+    {
+      "name": "Message - Valid",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/xml" },
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\"?>\n<TrainCompositionMessage xmlns=\"http://www.era.europa.eu/schemes/TAFTSI/3.4\">\n  <MessageHeader>\n    <MessageReference>\n      <MessageType>3003</MessageType>\n      <MessageTypeVersion>3.4</MessageTypeVersion>\n      <MessageIdentifier>MSG-1</MessageIdentifier>\n      <MessageDateTime>2026-07-31T10:00:00</MessageDateTime>\n    </MessageReference>\n    <Sender>1181</Sender>\n    <Recipient>1184</Recipient>\n  </MessageHeader>\n</TrainCompositionMessage>",
+          "options": {
+            "raw": { "language": "xml" }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/message",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "message" ]
+        }
+      }
+    },
+    {
+      "name": "Message - Missing API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/xml" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\"?>\n<TrainCompositionMessage xmlns=\"http://www.era.europa.eu/schemes/TAFTSI/3.4\">\n  <MessageHeader>\n    <MessageReference>\n      <MessageType>3003</MessageType>\n      <MessageTypeVersion>3.4</MessageTypeVersion>\n      <MessageIdentifier>MSG-1</MessageIdentifier>\n      <MessageDateTime>2026-07-31T10:00:00</MessageDateTime>\n    </MessageReference>\n    <Sender>1181</Sender>\n    <Recipient>1184</Recipient>\n  </MessageHeader>\n</TrainCompositionMessage>",
+          "options": {
+            "raw": { "language": "xml" }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/message",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "message" ]
+        }
+      }
+    },
+    {
+      "name": "Message - Not Authorized (unbekannter/nicht zugeordneter MessageType oder Empfaenger)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/xml" },
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\"?>\n<TrainCompositionMessage xmlns=\"http://www.era.europa.eu/schemes/TAFTSI/3.4\">\n  <MessageHeader>\n    <MessageReference>\n      <MessageType>9999</MessageType>\n      <MessageTypeVersion>3.4</MessageTypeVersion>\n      <MessageIdentifier>MSG-2</MessageIdentifier>\n      <MessageDateTime>2026-07-31T10:00:00</MessageDateTime>\n    </MessageReference>\n    <Sender>1181</Sender>\n    <Recipient>1184</Recipient>\n  </MessageHeader>\n</TrainCompositionMessage>",
+          "options": {
+            "raw": { "language": "xml" }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/message",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "message" ]
+        }
+      }
+    },
+    {
+      "name": "WhoAmI",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/whoami",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "whoami" ]
+        }
+      }
+    },
+    {
+      "name": "WhoAmI - Missing API Key",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/whoami",
+          "host": [ "{{baseUrl}}" ],
+          "path": [ "whoami" ]
+        }
+      }
+    }
+  ]
+}

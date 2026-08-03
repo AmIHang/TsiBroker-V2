@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using TsiBroker.Core.RailwayUndertakings;
 
-namespace TsiBroker.ApiService.RailwayUndertakings;
+namespace TsiBroker.Core.RailwayUndertakings;
 
 public class RailwayUndertakingStoreOptions
 {
@@ -19,7 +19,7 @@ public class RailwayUndertakingStore
     private readonly string _filePath;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public RailwayUndertakingStore(IWebHostEnvironment env, IOptions<RailwayUndertakingStoreOptions> options)
+    public RailwayUndertakingStore(IHostEnvironment env, IOptions<RailwayUndertakingStoreOptions> options)
     {
         var dataDirectory = string.IsNullOrWhiteSpace(options.Value.DataDirectory)
             ? Path.Combine(env.ContentRootPath, "App_Data")
@@ -38,6 +38,13 @@ public class RailwayUndertakingStore
         {
             _lock.Release();
         }
+    }
+
+    public async Task<RailwayUndertaking?> FindByApiKeyEvuToBrokerAsync(string apiKey)
+    {
+        var undertakings = await GetAllAsync();
+        return undertakings.FirstOrDefault(u =>
+            string.Equals(u.ApiKeyEvuToBroker, apiKey, StringComparison.Ordinal));
     }
 
     public async Task<RailwayUndertaking> AddAsync(

@@ -9,6 +9,17 @@ builder
     .AddProject<Projects.TsiBroker_Im_Api>("InfrastructureManagement-api")
     .WithExternalHttpEndpoints();
 
+var ruApi = builder
+    .AddProject<Projects.TsiBroker_Ru_Api>("RailwayUndertaking-api")
+    .WithExternalHttpEndpoints();
+
+// ApiService (admin UI backend) and Ru.Api (EVU-facing) both read/write the same
+// flat-file store, so they need to agree on where it lives on disk.
+var sharedDataDirectory = Path.Combine(builder.AppHostDirectory, "..", "TsiBroker.ApiService", "App_Data");
+apiService.WithEnvironment("RailwayUndertakings__DataDirectory", sharedDataDirectory);
+apiService.WithEnvironment("InfrastructureOperators__DataDirectory", sharedDataDirectory);
+ruApi.WithEnvironment("RailwayUndertakings__DataDirectory", sharedDataDirectory);
+ruApi.WithEnvironment("InfrastructureOperators__DataDirectory", sharedDataDirectory);
 
 var ui = builder
     .AddViteApp("ui", "../TsiBroker.Ui")

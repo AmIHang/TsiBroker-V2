@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using TsiBroker.ApiService.Auth;
 using TsiBroker.ApiService.InfrastructureOperators;
 using TsiBroker.ApiService.RailwayUndertakings;
+using TsiBroker.Core.InfrastructureOperators;
+using TsiBroker.Core.RailwayUndertakings;
 
 var builder = WebApplication.CreateBuilder(args);
 

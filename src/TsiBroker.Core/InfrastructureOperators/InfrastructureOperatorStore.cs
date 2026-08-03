@@ -1,8 +1,8 @@
 using System.Text.Json;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using TsiBroker.Core.InfrastructureOperators;
 
-namespace TsiBroker.ApiService.InfrastructureOperators;
+namespace TsiBroker.Core.InfrastructureOperators;
 
 public class InfrastructureOperatorStoreOptions
 {
@@ -18,7 +18,7 @@ public class InfrastructureOperatorStore
     private readonly string _filePath;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public InfrastructureOperatorStore(IWebHostEnvironment env, IOptions<InfrastructureOperatorStoreOptions> options)
+    public InfrastructureOperatorStore(IHostEnvironment env, IOptions<InfrastructureOperatorStoreOptions> options)
     {
         var dataDirectory = string.IsNullOrWhiteSpace(options.Value.DataDirectory)
             ? Path.Combine(env.ContentRootPath, "App_Data")
@@ -37,6 +37,13 @@ public class InfrastructureOperatorStore
         {
             _lock.Release();
         }
+    }
+
+    public async Task<InfrastructureOperator?> FindByRicsCodeAsync(string ricsCode)
+    {
+        var operators = await GetAllAsync();
+        return operators.FirstOrDefault(o =>
+            string.Equals(o.RicsCode, ricsCode, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task<InfrastructureOperator> AddAsync(string name, string ricsCode, string systemUrl)
