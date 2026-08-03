@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '@/lib/api'
 
 interface InfrastructureOperator {
@@ -9,6 +10,8 @@ interface InfrastructureOperator {
   systemUrl: string
   isActive: boolean
 }
+
+const { t } = useI18n()
 
 const operators = ref<InfrastructureOperator[]>([])
 const isLoading = ref(true)
@@ -41,7 +44,7 @@ async function loadOperators() {
     const response = await apiFetch('/api/infrastructure-operators')
     operators.value = await response.json()
   } catch {
-    error.value = 'Infrastrukturbetreiber konnten nicht geladen werden.'
+    error.value = t('infrastructureOperators.loadError')
   } finally {
     isLoading.value = false
   }
@@ -98,8 +101,8 @@ async function onSubmit() {
     showForm.value = false
   } catch {
     formError.value = editingId.value
-      ? 'Infrastrukturbetreiber konnte nicht gespeichert werden.'
-      : 'Infrastrukturbetreiber konnte nicht angelegt werden.'
+      ? t('infrastructureOperators.saveError')
+      : t('infrastructureOperators.createError')
   } finally {
     isSubmitting.value = false
   }
@@ -110,7 +113,7 @@ function toggleActive() {
 }
 
 async function deleteOperator(op: InfrastructureOperator) {
-  if (!confirm(`"${op.name}" wirklich löschen?`)) {
+  if (!confirm(t('infrastructureOperators.confirmDelete', { name: op.name }))) {
     return
   }
 
@@ -119,7 +122,7 @@ async function deleteOperator(op: InfrastructureOperator) {
     operators.value = operators.value.filter((o) => o.id !== op.id)
     showForm.value = false
   } catch {
-    formError.value = 'Infrastrukturbetreiber konnte nicht gelöscht werden.'
+    formError.value = t('infrastructureOperators.deleteError')
   }
 }
 
@@ -128,9 +131,9 @@ onMounted(loadOperators)
 
 <template>
   <div class="operators">
-    <div class="operators__toolbar">
+    <div class="toolbar">
       <button type="button" class="btn btn--primary" @click="openCreateForm">
-        + Neuer Infrastrukturbetreiber
+        {{ t('infrastructureOperators.new') }}
       </button>
     </div>
 
@@ -139,15 +142,15 @@ onMounted(loadOperators)
     <dialog ref="dialogRef" class="modal" @close="showForm = false" @cancel="showForm = false">
       <form class="modal__form" @submit.prevent="onSubmit">
         <div class="modal__header">
-          <h2 class="modal__title">{{ editingId ? 'Infrastrukturbetreiber bearbeiten' : 'Neuer Infrastrukturbetreiber' }}</h2>
+          <h2 class="modal__title">{{ editingId ? t('infrastructureOperators.editTitle') : t('infrastructureOperators.createTitle') }}</h2>
           <div class="modal__header-actions">
             <template v-if="editingOperator">
               <button
                 v-if="!editingOperator.isActive"
                 type="button"
                 class="icon-btn-header icon-btn-header--danger"
-                aria-label="Löschen"
-                title="Löschen"
+                :aria-label="t('common.delete')"
+                :title="t('common.delete')"
                 @click="deleteOperator(editingOperator)"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -165,8 +168,8 @@ onMounted(loadOperators)
                 type="button"
                 class="icon-btn-header"
                 :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-                :aria-label="pendingIsActive ? 'Deaktivieren' : 'Aktivieren'"
-                :title="pendingIsActive ? 'Deaktivieren' : 'Aktivieren'"
+                :aria-label="pendingIsActive ? t('common.deactivate') : t('common.activate')"
+                :title="pendingIsActive ? t('common.deactivate') : t('common.activate')"
                 @click="toggleActive"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -175,7 +178,7 @@ onMounted(loadOperators)
                 </svg>
               </button>
             </template>
-            <button type="button" class="modal__close" aria-label="Schließen" @click="showForm = false">
+            <button type="button" class="modal__close" :aria-label="t('common.close')" @click="showForm = false">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
               </svg>
@@ -184,50 +187,50 @@ onMounted(loadOperators)
         </div>
 
         <label class="field">
-          <span class="field__label">Name</span>
+          <span class="field__label">{{ t('common.name') }}</span>
           <input v-model="name" type="text" required />
         </label>
         <label class="field">
-          <span class="field__label">RicsCode</span>
+          <span class="field__label">{{ t('common.ricsCode') }}</span>
           <input v-model="ricsCode" type="text" required />
         </label>
         <label class="field">
-          <span class="field__label">SystemUrl</span>
+          <span class="field__label">{{ t('common.systemUrl') }}</span>
           <input v-model="systemUrl" type="url" required />
         </label>
 
         <p v-if="editingOperator && pendingIsActive !== editingOperator.isActive" class="hint hint--pending">
-          Status-Änderung ({{ pendingIsActive ? 'Aktiv' : 'Inaktiv' }}) wird beim Speichern übernommen.
+          {{ t('infrastructureOperators.statusChangeHint', { status: pendingIsActive ? t('common.active') : t('common.inactive') }) }}
         </p>
 
         <p v-if="formError" class="error">{{ formError }}</p>
 
         <div class="modal__actions">
-          <button type="button" class="btn" @click="showForm = false">Abbrechen</button>
-          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">Speichern</button>
+          <button type="button" class="btn" @click="showForm = false">{{ t('common.cancel') }}</button>
+          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">{{ t('common.save') }}</button>
         </div>
       </form>
     </dialog>
 
-    <p v-if="isLoading" class="empty-state">Lädt…</p>
-    <p v-else-if="operators.length === 0" class="empty-state">Keine Infrastrukturbetreiber vorhanden.</p>
+    <p v-if="isLoading" class="empty-state">{{ t('common.loading') }}</p>
+    <p v-else-if="operators.length === 0" class="empty-state">{{ t('infrastructureOperators.empty') }}</p>
 
-    <table v-else class="operator-table">
+    <table v-else class="data-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>RicsCode</th>
-          <th>SystemUrl</th>
-          <th>Status</th>
+          <th>{{ t('common.name') }}</th>
+          <th>{{ t('common.ricsCode') }}</th>
+          <th>{{ t('common.systemUrl') }}</th>
+          <th>{{ t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
         <tr
           v-for="op in operators"
           :key="op.id"
-          class="operator-table__row"
-          :class="{ 'operator-table__row--inactive': !op.isActive }"
-          title="Doppelklick zum Bearbeiten"
+          class="data-table__row"
+          :class="{ 'data-table__row--inactive': !op.isActive }"
+          :title="t('common.doubleClickToEdit')"
           @dblclick="openEditForm(op)"
         >
           <td>{{ op.name }}</td>
@@ -235,7 +238,7 @@ onMounted(loadOperators)
           <td>{{ op.systemUrl }}</td>
           <td>
             <span class="status" :class="op.isActive ? 'status--active' : 'status--inactive'">
-              {{ op.isActive ? 'Aktiv' : 'Inaktiv' }}
+              {{ op.isActive ? t('common.active') : t('common.inactive') }}
             </span>
           </td>
         </tr>
@@ -244,262 +247,13 @@ onMounted(loadOperators)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+// Shared building blocks (.btn, .field, .modal*, .icon-btn-header*,
+// .data-table*, .status*, .hint*, .error, .empty-state, .toolbar) come from
+// src/assets/styles — only this view's own layout lives here.
 .operators {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-
-.operators__toolbar {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.empty-state {
-  text-align: center;
-}
-
-.error {
-  font-size: 0.85rem;
-  color: #d33;
-}
-
-.btn {
-  padding: 0.6rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.btn:hover {
-  border-color: var(--color-border-hover);
-}
-
-.btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.btn--primary:hover {
-  background: var(--color-primary-hover);
-}
-
-.btn--primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.modal {
-  margin: auto;
-  padding: 0;
-  border: none;
-  border-radius: 14px;
-  background: var(--color-background);
-  box-shadow: 0 20px 45px rgba(30, 20, 45, 0.18);
-}
-
-.modal::backdrop {
-  background: rgba(20, 15, 30, 0.45);
-}
-
-.modal__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: min(420px, 90vw);
-  padding: 1.75rem;
-}
-
-.modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.modal__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-}
-
-.icon-btn-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-background);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
-}
-
-.icon-btn-header:hover {
-  border-color: var(--color-border-hover);
-}
-
-.icon-btn-header svg {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-btn-header--activate {
-  color: #2e9e5b;
-  border-color: #2e9e5b;
-}
-
-.icon-btn-header--activate:hover {
-  background: color-mix(in srgb, #2e9e5b 10%, transparent);
-}
-
-.icon-btn-header--deactivate {
-  color: #d33;
-  border-color: #d33;
-}
-
-.icon-btn-header--deactivate:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.icon-btn-header--danger:hover {
-  border-color: #d33;
-  color: #d33;
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.modal__title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.modal__close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--color-text);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
-}
-
-.modal__close:hover {
-  opacity: 1;
-  background: var(--color-background-soft);
-}
-
-.modal__close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.field__label {
-  font-size: 0.8rem;
-  color: var(--color-text);
-  opacity: 0.75;
-}
-
-.field input {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.field input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.hint {
-  font-size: 0.82rem;
-  opacity: 0.7;
-}
-
-.hint--pending {
-  opacity: 1;
-  color: #b8860b;
-}
-
-.operator-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.operator-table th,
-.operator-table td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.9rem;
-}
-
-.operator-table th {
-  font-weight: 600;
-  opacity: 0.75;
-}
-
-.operator-table__row {
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.operator-table__row:hover {
-  background: var(--color-background-soft);
-}
-
-.operator-table__row--inactive {
-  opacity: 0.55;
-}
-
-.status {
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.status--active {
-  background: color-mix(in srgb, #2e9e5b 15%, transparent);
-  color: #2e9e5b;
-}
-
-.status--inactive {
-  background: color-mix(in srgb, #999 15%, transparent);
-  color: #777;
 }
 </style>

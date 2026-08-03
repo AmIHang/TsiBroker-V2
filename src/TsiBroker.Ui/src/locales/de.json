@@ -1,0 +1,121 @@
+{
+  "language": {
+    "label": "Sprache",
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "delete": "Löschen",
+    "remove": "Entfernen",
+    "loading": "Lädt…",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "activate": "Aktivieren",
+    "deactivate": "Deaktivieren",
+    "name": "Name",
+    "systemUrl": "SystemUrl",
+    "ricsCode": "RicsCode",
+    "ricsCodes": "RicsCodes",
+    "addRicsCode": "+ RicsCode hinzufügen",
+    "doubleClickToEdit": "Doppelklick zum Bearbeiten",
+    "regenerate": "Neu generieren",
+    "status": "Status",
+    "masterData": "Stammdaten"
+  },
+  "sidebar": {
+    "expandMenu": "Menü ausklappen",
+    "collapseMenu": "Menü einklappen",
+    "home": "Startseite",
+    "railwayUndertakings": "Eisenbahnverkehrsunternehmen",
+    "infrastructureOperators": "Infrastrukturbetreiber",
+    "account": "Konto ({user})",
+    "logout": "Logout ({user})"
+  },
+  "routeTitles": {
+    "home": "Startseite",
+    "infrastructureOperators": "Infrastrukturbetreiber",
+    "railwayUndertakings": "Eisenbahnverkehrsunternehmen",
+    "railwayUndertakingEdit": "Eisenbahnverkehrsunternehmen bearbeiten"
+  },
+  "home": {
+    "welcome": "Willkommen beim TSI-Broker"
+  },
+  "login": {
+    "invalidCredentials": "Benutzername oder Passwort ist falsch.",
+    "failed": "Login fehlgeschlagen.",
+    "username": "Username",
+    "password": "Password",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen",
+    "submit": "Login"
+  },
+  "infrastructureOperators": {
+    "loadError": "Infrastrukturbetreiber konnten nicht geladen werden.",
+    "new": "+ Neuer Infrastrukturbetreiber",
+    "editTitle": "Infrastrukturbetreiber bearbeiten",
+    "createTitle": "Neuer Infrastrukturbetreiber",
+    "createError": "Infrastrukturbetreiber konnte nicht angelegt werden.",
+    "saveError": "Infrastrukturbetreiber konnte nicht gespeichert werden.",
+    "deleteError": "Infrastrukturbetreiber konnte nicht gelöscht werden.",
+    "confirmDelete": "\"{name}\" wirklich löschen?",
+    "empty": "Keine Infrastrukturbetreiber vorhanden.",
+    "statusChangeHint": "Status-Änderung ({status}) wird beim Speichern übernommen."
+  },
+  "railwayUndertakings": {
+    "loadError": "Eisenbahnverkehrsunternehmen konnten nicht geladen werden.",
+    "new": "+ Neues Eisenbahnverkehrsunternehmen",
+    "createTitle": "Neues Eisenbahnverkehrsunternehmen",
+    "createError": "Eisenbahnverkehrsunternehmen konnte nicht angelegt werden.",
+    "empty": "Keine Eisenbahnverkehrsunternehmen vorhanden.",
+    "columns": {
+      "isbs": "ISBs"
+    }
+  },
+  "railwayUndertakingEdit": {
+    "notFound": "Eisenbahnverkehrsunternehmen wurde nicht gefunden.",
+    "loadError": "Eisenbahnverkehrsunternehmen konnte nicht geladen werden.",
+    "saveError": "Änderungen konnten nicht gespeichert werden.",
+    "deleteError": "Eisenbahnverkehrsunternehmen konnte nicht gelöscht werden.",
+    "confirmDelete": "\"{name}\" wirklich löschen?",
+    "breadcrumbBack": "← Eisenbahnverkehrsunternehmen",
+    "statusChangeHint": "Status-Änderung ({status}) wird beim Speichern übernommen.",
+    "lock": "Sperren",
+    "unlock": "Entsperren",
+    "statusLocked": "Gesperrt",
+    "statusUnlocked": "Entsperrt",
+    "apiKeys": "API-Keys",
+    "apiKeyEvuToBroker": "API-Key (EVU → Broker)",
+    "apiKeyBrokerToEvu": "API-Key (Broker → EVU)",
+    "showKey": "Key anzeigen",
+    "hideKey": "Key verbergen",
+    "apiKeyPendingHint": "Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.",
+    "linkedOperators": "Verknüpfte Infrastrukturbetreiber",
+    "addAssignment": "+ Verknüpfung hinzufügen",
+    "noAssignments": "Noch keine Verknüpfungen hinterlegt.",
+    "unknownOperator": "(unbekannter Infrastrukturbetreiber)",
+    "confirmDeleteAssignment": "Verknüpfung wirklich löschen?",
+    "columns": {
+      "messagesSend": "Nachrichten Senden",
+      "messagesReceive": "Nachrichten Empfangen"
+    },
+    "assignmentDialog": {
+      "editTitle": "Verknüpfung bearbeiten",
+      "createTitle": "Verknüpfung hinzufügen",
+      "noOperatorsYet": "Noch keine Infrastrukturbetreiber im System angelegt.",
+      "allLinked": "Alle im System gepflegten Infrastrukturbetreiber sind bereits verknüpft.",
+      "selectOperator": "Infrastrukturbetreiber",
+      "selectPlaceholder": "-- ISB wählen --",
+      "messagesSendLabel": "Nachrichten Senden (EVU → Broker)",
+      "messagesReceiveLabel": "Nachrichten Empfangen (Broker → EVU)",
+      "messagesPlaceholder": "z.B. 3003 oder *",
+      "multipleValuesHintPre": "Mehrere Werte kommagetrennt.",
+      "multipleValuesHintPost": "bedeutet: alle erlaubt.",
+      "selectIsbError": "Bitte einen Infrastrukturbetreiber auswählen.",
+      "alreadyLinkedError": "Dieser Infrastrukturbetreiber ist bereits verknüpft.",
+      "save": "Verknüpfung hinzufügen"
+    }
+  }
+}

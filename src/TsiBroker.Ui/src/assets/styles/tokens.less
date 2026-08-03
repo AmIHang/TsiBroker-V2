@@ -1,4 +1,7 @@
-/* color palette from <https://github.com/vuejs/theme> */
+// Design tokens: exposed as CSS custom properties so runtime theming (e.g.
+// VITE_THEME_COLOR, prefers-color-scheme) keeps working. See src/main.ts.
+
+// color palette from <https://github.com/vuejs/theme>
 :root {
   --vt-c-white: #ffffff;
   --vt-c-white-soft: #f8f8f8;
@@ -21,7 +24,7 @@
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
 }
 
-/* semantic color variables for this project */
+// semantic color variables for this project
 :root {
   --color-background: var(--vt-c-white);
   --color-background-soft: var(--vt-c-white-soft);
@@ -33,14 +36,16 @@
   --color-heading: var(--vt-c-text-light-1);
   --color-text: var(--vt-c-text-light-1);
 
+  --color-danger: #d33;
+  --color-success: #2e9e5b;
+  --color-warning: #b8860b;
+
   --section-gap: 160px;
 }
 
-/*
- * Brand/theme color. Swap only --color-primary (e.g. via the VITE_THEME_COLOR
- * env var, see src/main.ts) to re-theme the app per environment (dev/qs/prod) —
- * the hover/soft/contrast shades are derived from it automatically.
- */
+// Brand/theme color. Swap only --color-primary (e.g. via the VITE_THEME_COLOR
+// env var, see src/main.ts) to re-theme the app per environment (dev/qs/prod) —
+// the hover/soft/contrast shades are derived from it automatically.
 :root {
   --color-primary: #6f4295;
   --color-primary-hover: color-mix(in srgb, var(--color-primary) 85%, black);
@@ -48,9 +53,9 @@
   --color-on-primary: #ffffff;
 }
 
-/* App shell (sidebar + topbar) surface colors. Always light, matching the
- * login page's tinted gradient/background (which also ignores dark mode),
- * with --color-primary used for the active nav item. */
+// App shell (sidebar + topbar) surface colors. Always light, matching the
+// login page's tinted gradient/background (which also ignores dark mode),
+// with --color-primary used for the active nav item.
 :root {
   --color-shell-gradient:
     radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 40%),
@@ -88,39 +93,4 @@
     --color-heading: var(--vt-c-text-dark-1);
     --color-text: var(--vt-c-text-dark-2);
   }
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  font-weight: normal;
-}
-
-body {
-  min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-background);
-  transition:
-    color 0.5s,
-    background-color 0.5s;
-  line-height: 1.6;
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
-    'Helvetica Neue',
-    sans-serif;
-  font-size: 15px;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }

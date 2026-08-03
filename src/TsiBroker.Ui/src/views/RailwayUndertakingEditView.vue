@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '@/lib/api'
 import { hasTopbarOverride } from '@/composables/useTopbarOverride'
 
@@ -32,6 +33,7 @@ interface InfrastructureOperator {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const undertaking = ref<RailwayUndertaking | null>(null)
 const infrastructureOperators = ref<InfrastructureOperator[]>([])
@@ -105,7 +107,7 @@ async function load() {
 
     const found = undertakings.find((u) => u.id === route.params.id)
     if (!found) {
-      loadError.value = 'Eisenbahnverkehrsunternehmen wurde nicht gefunden.'
+      loadError.value = t('railwayUndertakingEdit.notFound')
       return
     }
 
@@ -113,7 +115,7 @@ async function load() {
     resetLocalState(found)
     hasTopbarOverride.value = true
   } catch {
-    loadError.value = 'Eisenbahnverkehrsunternehmen konnte nicht geladen werden.'
+    loadError.value = t('railwayUndertakingEdit.loadError')
   } finally {
     isLoading.value = false
   }
@@ -184,7 +186,7 @@ async function saveAll() {
     undertaking.value = updated
     resetLocalState(updated)
   } catch {
-    saveError.value = 'Änderungen konnten nicht gespeichert werden.'
+    saveError.value = t('railwayUndertakingEdit.saveError')
   } finally {
     isSaving.value = false
   }
@@ -211,7 +213,7 @@ async function regenerateBrokerToEvu() {
 }
 
 async function deleteUndertaking() {
-  if (!undertaking.value || !confirm(`"${undertaking.value.name}" wirklich löschen?`)) {
+  if (!undertaking.value || !confirm(t('railwayUndertakingEdit.confirmDelete', { name: undertaking.value.name }))) {
     return
   }
 
@@ -220,7 +222,7 @@ async function deleteUndertaking() {
     await apiFetch(`/api/railway-undertakings/${undertaking.value.id}`, { method: 'DELETE' })
     router.push({ name: 'railway-undertakings' })
   } catch {
-    saveError.value = 'Eisenbahnverkehrsunternehmen konnte nicht gelöscht werden.'
+    saveError.value = t('railwayUndertakingEdit.deleteError')
   }
 }
 
@@ -245,11 +247,11 @@ function openEditAssignmentDialog(assignment: IsbAssignment) {
 function saveAssignmentDialog() {
   dialogError.value = ''
   if (!dialogIsbId.value) {
-    dialogError.value = 'Bitte einen Infrastrukturbetreiber auswählen.'
+    dialogError.value = t('railwayUndertakingEdit.assignmentDialog.selectIsbError')
     return
   }
   if (!editingAssignmentId.value && assignedIsbIds.value.has(dialogIsbId.value)) {
-    dialogError.value = 'Dieser Infrastrukturbetreiber ist bereits verknüpft.'
+    dialogError.value = t('railwayUndertakingEdit.assignmentDialog.alreadyLinkedError')
     return
   }
 
@@ -282,7 +284,7 @@ function toggleAssignmentActive(assignment: IsbAssignment) {
 }
 
 function deleteAssignment(infrastructureOperatorId: string) {
-  if (!confirm('Verknüpfung wirklich löschen?')) {
+  if (!confirm(t('railwayUndertakingEdit.confirmDeleteAssignment'))) {
     return
   }
 
@@ -299,7 +301,7 @@ onUnmounted(() => {
 
 <template>
   <div class="edit-page">
-    <p v-if="isLoading" class="empty-state">Lädt…</p>
+    <p v-if="isLoading" class="empty-state">{{ t('common.loading') }}</p>
     <p v-else-if="loadError" class="error">{{ loadError }}</p>
 
     <template v-else-if="undertaking">
@@ -307,7 +309,7 @@ onUnmounted(() => {
         <div class="topbar-title-block">
           <h1 class="topbar__title">{{ undertaking.name }}</h1>
           <RouterLink class="topbar-breadcrumb" :to="{ name: 'railway-undertakings' }">
-            &larr; Eisenbahnverkehrsunternehmen
+            {{ t('railwayUndertakingEdit.breadcrumbBack') }}
           </RouterLink>
         </div>
       </Teleport>
@@ -316,9 +318,9 @@ onUnmounted(() => {
         <button
           v-if="!undertaking.isActive"
           type="button"
-          class="icon-btn-header icon-btn-header--danger topbar-icon-btn"
-          aria-label="Löschen"
-          title="Löschen"
+          class="icon-btn-header icon-btn-header--danger icon-btn-header--lg"
+          :aria-label="t('common.delete')"
+          :title="t('common.delete')"
           @click="deleteUndertaking"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -334,10 +336,10 @@ onUnmounted(() => {
         </button>
         <button
           type="button"
-          class="icon-btn-header topbar-icon-btn"
+          class="icon-btn-header icon-btn-header--lg"
           :class="pendingIsActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-          :aria-label="pendingIsActive ? 'Sperren' : 'Entsperren'"
-          :title="pendingIsActive ? 'Sperren' : 'Entsperren'"
+          :aria-label="pendingIsActive ? t('railwayUndertakingEdit.lock') : t('railwayUndertakingEdit.unlock')"
+          :title="pendingIsActive ? t('railwayUndertakingEdit.lock') : t('railwayUndertakingEdit.unlock')"
           @click="toggleActive"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -346,29 +348,29 @@ onUnmounted(() => {
           </svg>
         </button>
         <button type="submit" form="stammdaten-form" class="btn btn--primary" :disabled="isSaving">
-          Speichern
+          {{ t('common.save') }}
         </button>
       </Teleport>
 
       <p v-if="saveError" class="error">{{ saveError }}</p>
       <p v-if="pendingIsActive !== undertaking.isActive" class="hint hint--pending">
-        Status-Änderung ({{ pendingIsActive ? 'Entsperrt' : 'Gesperrt' }}) wird beim Speichern übernommen.
+        {{ t('railwayUndertakingEdit.statusChangeHint', { status: pendingIsActive ? t('railwayUndertakingEdit.statusUnlocked') : t('railwayUndertakingEdit.statusLocked') }) }}
       </p>
 
       <div class="columns">
         <div class="column column--main">
           <section class="card">
-            <h3 class="card__title">Stammdaten</h3>
+            <h3 class="card__title">{{ t('common.masterData') }}</h3>
             <form id="stammdaten-form" @submit.prevent="saveAll">
               <label class="field">
-                <span class="field__label">Name</span>
+                <span class="field__label">{{ t('common.name') }}</span>
                 <input v-model="name" type="text" required />
               </label>
 
               <div class="field">
-                <span class="field__label">RicsCodes</span>
-                <div class="card__toolbar">
-                  <button type="button" class="btn btn--primary" @click="addRicsCodeField">+ RicsCode hinzufügen</button>
+                <span class="field__label">{{ t('common.ricsCodes') }}</span>
+                <div class="toolbar">
+                  <button type="button" class="btn btn--primary" @click="addRicsCodeField">{{ t('common.addRicsCode') }}</button>
                 </div>
                 <div v-for="(code, index) in ricsCodes" :key="index" class="rics-row">
                   <input v-model="ricsCodes[index]" type="text" required />
@@ -376,8 +378,8 @@ onUnmounted(() => {
                     type="button"
                     class="icon-btn-header icon-btn-header--danger"
                     :disabled="ricsCodes.length === 1"
-                    aria-label="Entfernen"
-                    title="Entfernen"
+                    :aria-label="t('common.remove')"
+                    :title="t('common.remove')"
                     @click="removeRicsCodeField(index)"
                   >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -395,17 +397,17 @@ onUnmounted(() => {
               </div>
 
               <label class="field">
-                <span class="field__label">SystemUrl</span>
+                <span class="field__label">{{ t('common.systemUrl') }}</span>
                 <input v-model="systemUrl" type="url" required />
               </label>
             </form>
           </section>
 
           <section class="card">
-            <h3 class="card__title">API-Keys</h3>
+            <h3 class="card__title">{{ t('railwayUndertakingEdit.apiKeys') }}</h3>
 
             <div class="field">
-              <span class="field__label">API-Key (EVU → Broker)</span>
+              <span class="field__label">{{ t('railwayUndertakingEdit.apiKeyEvuToBroker') }}</span>
               <div class="key-row">
                 <label class="key-input-wrap">
                   <input
@@ -416,8 +418,8 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="toggle-password"
-                    :aria-label="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
-                    :title="showApiKeyEvuToBroker ? 'Key verbergen' : 'Key anzeigen'"
+                    :aria-label="showApiKeyEvuToBroker ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
+                    :title="showApiKeyEvuToBroker ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
                     @click="showApiKeyEvuToBroker = !showApiKeyEvuToBroker"
                   >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -434,8 +436,8 @@ onUnmounted(() => {
                 <button
                   type="button"
                   class="icon-btn-header"
-                  aria-label="Neu generieren"
-                  title="Neu generieren"
+                  :aria-label="t('common.regenerate')"
+                  :title="t('common.regenerate')"
                   @click="regenerateEvuToBroker"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -452,12 +454,12 @@ onUnmounted(() => {
                 </button>
               </div>
               <p v-if="pendingApiKeyEvuToBroker" class="hint hint--pending">
-                Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.
+                {{ t('railwayUndertakingEdit.apiKeyPendingHint') }}
               </p>
             </div>
 
             <div class="field">
-              <span class="field__label">API-Key (Broker → EVU)</span>
+              <span class="field__label">{{ t('railwayUndertakingEdit.apiKeyBrokerToEvu') }}</span>
               <div class="key-row">
                 <label class="key-input-wrap">
                   <input
@@ -468,8 +470,8 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="toggle-password"
-                    :aria-label="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
-                    :title="showApiKeyBrokerToEvu ? 'Key verbergen' : 'Key anzeigen'"
+                    :aria-label="showApiKeyBrokerToEvu ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
+                    :title="showApiKeyBrokerToEvu ? t('railwayUndertakingEdit.hideKey') : t('railwayUndertakingEdit.showKey')"
                     @click="showApiKeyBrokerToEvu = !showApiKeyBrokerToEvu"
                   >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -486,8 +488,8 @@ onUnmounted(() => {
                 <button
                   type="button"
                   class="icon-btn-header"
-                  aria-label="Neu generieren"
-                  title="Neu generieren"
+                  :aria-label="t('common.regenerate')"
+                  :title="t('common.regenerate')"
                   @click="regenerateBrokerToEvu"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -504,7 +506,7 @@ onUnmounted(() => {
                 </button>
               </div>
               <p v-if="pendingApiKeyBrokerToEvu" class="hint hint--pending">
-                Wird beim Speichern übernommen. Der bisherige Key wird dann ungültig.
+                {{ t('railwayUndertakingEdit.apiKeyPendingHint') }}
               </p>
             </div>
           </section>
@@ -512,25 +514,25 @@ onUnmounted(() => {
 
         <div class="column column--assignments">
           <section class="card">
-            <h3 class="card__title">Verknüpfte Infrastrukturbetreiber</h3>
+            <h3 class="card__title">{{ t('railwayUndertakingEdit.linkedOperators') }}</h3>
 
-            <div class="card__toolbar">
+            <div class="toolbar">
               <button type="button" class="btn btn--primary" :disabled="isSaving" @click="openAddAssignmentDialog">
-                + Verknüpfung hinzufügen
+                {{ t('railwayUndertakingEdit.addAssignment') }}
               </button>
             </div>
 
             <p v-if="pendingAssignments.length === 0" class="empty-state">
-              Noch keine Verknüpfungen hinterlegt.
+              {{ t('railwayUndertakingEdit.noAssignments') }}
             </p>
 
-            <table v-else class="assignment-table">
+            <table v-else class="data-table data-table--compact">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>RicsCode</th>
-                  <th>Nachrichten Senden</th>
-                  <th>Nachrichten Empfangen</th>
+                  <th>{{ t('common.name') }}</th>
+                  <th>{{ t('common.ricsCode') }}</th>
+                  <th>{{ t('railwayUndertakingEdit.columns.messagesSend') }}</th>
+                  <th>{{ t('railwayUndertakingEdit.columns.messagesReceive') }}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -538,22 +540,22 @@ onUnmounted(() => {
                 <tr
                   v-for="assignment in pendingAssignments"
                   :key="assignment.infrastructureOperatorId"
-                  class="assignment-table__row"
-                  :class="{ 'assignment-table__row--inactive': !assignment.isActive }"
-                  title="Doppelklick zum Bearbeiten"
+                  class="data-table__row"
+                  :class="{ 'data-table__row--inactive': !assignment.isActive }"
+                  :title="t('common.doubleClickToEdit')"
                   @dblclick="openEditAssignmentDialog(assignment)"
                 >
-                  <td>{{ isbFor(assignment.infrastructureOperatorId)?.name ?? '(unbekannter Infrastrukturbetreiber)' }}</td>
+                  <td>{{ isbFor(assignment.infrastructureOperatorId)?.name ?? t('railwayUndertakingEdit.unknownOperator') }}</td>
                   <td>{{ isbFor(assignment.infrastructureOperatorId)?.ricsCode }}</td>
                   <td>{{ assignment.allowedMessageTypesEvuToBroker.join(', ') }}</td>
                   <td>{{ assignment.allowedMessageTypesBrokerToEvu.join(', ') }}</td>
-                  <td class="assignment-table__actions">
+                  <td class="data-table__actions">
                     <button
                       type="button"
                       class="icon-btn-header"
                       :class="assignment.isActive ? 'icon-btn-header--deactivate' : 'icon-btn-header--activate'"
-                      :aria-label="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                      :title="assignment.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                      :aria-label="assignment.isActive ? t('common.deactivate') : t('common.activate')"
+                      :title="assignment.isActive ? t('common.deactivate') : t('common.activate')"
                       :disabled="isSaving"
                       @click.stop="toggleAssignmentActive(assignment)"
                     >
@@ -566,8 +568,8 @@ onUnmounted(() => {
                       type="button"
                       class="icon-btn-header icon-btn-header--danger"
                       :disabled="assignment.isActive || isSaving"
-                      aria-label="Löschen"
-                      title="Löschen"
+                      :aria-label="t('common.delete')"
+                      :title="t('common.delete')"
                       @click.stop="deleteAssignment(assignment.infrastructureOperatorId)"
                     >
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -595,10 +597,10 @@ onUnmounted(() => {
         @close="showAssignmentDialog = false"
         @cancel="showAssignmentDialog = false"
       >
-        <form class="modal__form" @submit.prevent="saveAssignmentDialog">
+        <form class="modal__form modal__form--lg" @submit.prevent="saveAssignmentDialog">
           <div class="modal__header">
-            <h2 class="modal__title">{{ editingAssignmentId ? 'Verknüpfung bearbeiten' : 'Verknüpfung hinzufügen' }}</h2>
-            <button type="button" class="modal__close" aria-label="Schließen" @click="showAssignmentDialog = false">
+            <h2 class="modal__title">{{ editingAssignmentId ? t('railwayUndertakingEdit.assignmentDialog.editTitle') : t('railwayUndertakingEdit.assignmentDialog.createTitle') }}</h2>
+            <button type="button" class="modal__close" :aria-label="t('common.close')" @click="showAssignmentDialog = false">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
               </svg>
@@ -606,37 +608,40 @@ onUnmounted(() => {
           </div>
 
           <p v-if="!editingAssignmentId && infrastructureOperators.length === 0" class="hint">
-            Noch keine Infrastrukturbetreiber im System angelegt.
+            {{ t('railwayUndertakingEdit.assignmentDialog.noOperatorsYet') }}
           </p>
           <p v-else-if="!editingAssignmentId && selectableIsbs.length === 0" class="hint">
-            Alle im System gepflegten Infrastrukturbetreiber sind bereits verknüpft.
+            {{ t('railwayUndertakingEdit.assignmentDialog.allLinked') }}
           </p>
           <template v-else>
             <label class="field">
-              <span class="field__label">Infrastrukturbetreiber</span>
+              <span class="field__label">{{ t('railwayUndertakingEdit.assignmentDialog.selectOperator') }}</span>
               <select v-model="dialogIsbId" :disabled="!!editingAssignmentId">
-                <option value="">-- ISB wählen --</option>
+                <option value="">{{ t('railwayUndertakingEdit.assignmentDialog.selectPlaceholder') }}</option>
                 <option v-for="isb in dialogSelectableIsbs" :key="isb.id" :value="isb.id">{{ isbLabel(isb) }}</option>
               </select>
             </label>
 
             <label class="field">
-              <span class="field__label">Nachrichten Senden (EVU &rarr; Broker)</span>
-              <input v-model="dialogAllowedEvuToBroker" type="text" placeholder="z.B. 3003 oder *" />
+              <span class="field__label">{{ t('railwayUndertakingEdit.assignmentDialog.messagesSendLabel') }}</span>
+              <input v-model="dialogAllowedEvuToBroker" type="text" :placeholder="t('railwayUndertakingEdit.assignmentDialog.messagesPlaceholder')" />
             </label>
 
             <label class="field">
-              <span class="field__label">Nachrichten Empfangen (Broker &rarr; EVU)</span>
-              <input v-model="dialogAllowedBrokerToEvu" type="text" placeholder="z.B. 3003 oder *" />
+              <span class="field__label">{{ t('railwayUndertakingEdit.assignmentDialog.messagesReceiveLabel') }}</span>
+              <input v-model="dialogAllowedBrokerToEvu" type="text" :placeholder="t('railwayUndertakingEdit.assignmentDialog.messagesPlaceholder')" />
             </label>
-            <p class="hint">Mehrere Werte kommagetrennt. <code>*</code> bedeutet: alle erlaubt.</p>
+            <p class="hint">
+              {{ t('railwayUndertakingEdit.assignmentDialog.multipleValuesHintPre') }} <code>*</code>
+              {{ t('railwayUndertakingEdit.assignmentDialog.multipleValuesHintPost') }}
+            </p>
 
             <p v-if="dialogError" class="error">{{ dialogError }}</p>
 
             <div class="modal__actions">
-              <button type="button" class="btn" @click="showAssignmentDialog = false">Abbrechen</button>
+              <button type="button" class="btn" @click="showAssignmentDialog = false">{{ t('common.cancel') }}</button>
               <button type="submit" class="btn btn--primary" :disabled="isSaving">
-                {{ editingAssignmentId ? 'Speichern' : 'Verknüpfung hinzufügen' }}
+                {{ editingAssignmentId ? t('common.save') : t('railwayUndertakingEdit.assignmentDialog.save') }}
               </button>
             </div>
           </template>
@@ -646,7 +651,11 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+// Shared building blocks (.btn, .field, .modal*, .icon-btn-header*, .card*,
+// .data-table*, .hint*, .error, .empty-state, .toolbar, .rics-row,
+// .key-row/.key-input-wrap/.toggle-password) come from src/assets/styles —
+// only this view's own layout lives here.
 .edit-page {
   display: flex;
   flex-direction: column;
@@ -679,412 +688,6 @@ onUnmounted(() => {
   }
 }
 
-.empty-state {
-  text-align: center;
-}
-
-.error {
-  font-size: 0.85rem;
-  color: #d33;
-}
-
-.topbar-title-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.topbar__title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-topbar-text);
-}
-
-.topbar-breadcrumb {
-  font-size: 0.8rem;
-  color: var(--color-topbar-text);
-  opacity: 0.7;
-  text-decoration: none;
-  background: transparent;
-}
-
-.topbar-breadcrumb:hover {
-  text-decoration: underline;
-  background: transparent;
-}
-
-.icon-btn-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid rgba(120, 120, 120, 0.4);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
-}
-
-.icon-btn-header:hover {
-  border-color: rgba(120, 120, 120, 0.65);
-}
-
-.icon-btn-header:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.icon-btn-header svg {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-btn-header--activate {
-  color: #2e9e5b;
-  border-color: #2e9e5b;
-}
-
-.icon-btn-header--activate:hover {
-  background: color-mix(in srgb, #2e9e5b 10%, transparent);
-}
-
-.icon-btn-header--deactivate {
-  color: #d33;
-  border-color: #d33;
-}
-
-.icon-btn-header--deactivate:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.icon-btn-header--danger {
-  color: #d33;
-  border-color: #d33;
-}
-
-.icon-btn-header--danger:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.topbar-icon-btn {
-  width: 37px;
-  height: 37px;
-  border-radius: 8px;
-}
-
-.topbar-icon-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: var(--color-background);
-}
-
-.card form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.card__toolbar {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.card__title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.btn {
-  padding: 0.6rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.btn:hover {
-  border-color: var(--color-border-hover);
-}
-
-.btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.btn--primary:hover {
-  background: var(--color-primary-hover);
-}
-
-.btn--primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn--small {
-  padding: 0.35rem 0.7rem;
-  font-size: 0.82rem;
-}
-
-.btn--small:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn--danger {
-  color: #d33;
-  border-color: #d33;
-}
-
-.btn--danger:hover {
-  background: color-mix(in srgb, #d33 10%, transparent);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.field__label {
-  font-size: 0.8rem;
-  color: var(--color-text);
-  opacity: 0.75;
-}
-
-.field input,
-.field select {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.field input:focus,
-.field select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.field select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.rics-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.rics-row input {
-  flex: 1;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.rics-row input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.key-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.key-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex: 1;
-  min-width: 0;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  transition: border-color 0.2s;
-}
-
-.key-input-wrap:focus-within {
-  border-color: var(--color-primary);
-}
-
-.key-input-wrap input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  padding: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  font-family: monospace;
-}
-
-.toggle-password {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.toggle-password:hover {
-  opacity: 1;
-}
-
-.toggle-password svg {
-  width: 100%;
-  height: 100%;
-}
-
-.hint {
-  font-size: 0.82rem;
-  opacity: 0.7;
-}
-
-.hint--pending {
-  opacity: 1;
-  color: #b8860b;
-}
-
-.assignment-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.assignment-table th,
-.assignment-table td {
-  padding: 0.6rem 0.7rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.85rem;
-}
-
-.assignment-table th {
-  font-weight: 600;
-  opacity: 0.75;
-}
-
-.assignment-table__row {
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.assignment-table__row:hover {
-  background: var(--color-background-soft);
-}
-
-.assignment-table__row--inactive {
-  opacity: 0.55;
-}
-
-.assignment-table__actions {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.modal {
-  margin: auto;
-  padding: 0;
-  border: none;
-  border-radius: 14px;
-  background: var(--color-background);
-  box-shadow: 0 20px 45px rgba(30, 20, 45, 0.18);
-}
-
-.modal::backdrop {
-  background: rgba(20, 15, 30, 0.45);
-}
-
-.modal__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: min(460px, 90vw);
-  max-height: 85vh;
-  overflow-y: auto;
-  padding: 1.75rem;
-}
-
-.modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.modal__title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.modal__close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--color-text);
-  opacity: 0.6;
-  cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
-}
-
-.modal__close:hover {
-  opacity: 1;
-  background: var(--color-background-soft);
-}
-
-.modal__close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
+// .topbar-title-block / .topbar__title / .topbar-breadcrumb come from the
+// shared styles/topbar.less (used here via Teleport into AppTopbar).
 </style>

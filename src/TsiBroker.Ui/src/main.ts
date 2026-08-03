@@ -1,10 +1,11 @@
-import './assets/main.css'
+import './assets/main.less'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import i18n from './i18n'
 
 if (import.meta.env.VITE_THEME_COLOR) {
   document.documentElement.style.setProperty('--color-primary', import.meta.env.VITE_THEME_COLOR)
@@ -27,6 +28,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
+app.use(i18n)
 
 router.isReady().then(() => {
   app.mount('#app')
