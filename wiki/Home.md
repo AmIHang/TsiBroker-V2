@@ -1,0 +1,81 @@
+# TsiBroker Wiki
+
+**Message broker between railway undertakings (RU/EVU) and infrastructure managers (IM/ISB)**
+
+TsiBroker relays TAF/TAP-TSI messages — Common Interface (CI) and Heartbeat — between Railway Undertakings and Infrastructure Managers. RUs talk to the broker over REST with an API key; IMs talk to the broker over SOAP (CoreWCF). An admin UI manages the master data (which RUs and IMs exist, and which message types each RU is authorized to exchange with each IM).
+
+---
+
+## Quick Links
+
+| Document | Description |
+|----------|-------------|
+| [[Architecture]] | Solution layout, project responsibilities, feature-folder convention, messaging abstraction |
+| [[Data-Model]] | Entities (`InfrastructureOperator`, `RailwayUndertaking`, `IsbAssignment`), JSON-file storage |
+| [[Business-Flow]] | End-to-end message flow for CI, Heartbeat, and RU→broker submissions; authorization rules |
+| [[External-API-Guide]] | Integration guide for RU (REST) and IM (SOAP) systems connecting to the broker |
+| [[Frontend-Architecture]] | Vue 3 admin UI structure |
+| [[Backend-Best-Practices]] | Backend coding conventions |
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Backend | .NET 10, ASP.NET Core Minimal APIs |
+| Orchestration | .NET Aspire (local dev) |
+| Persistence | JSON files under `App_Data/` — no database |
+| IM-side transport | SOAP/WCF via CoreWCF (Common Interface, Heartbeat, generated from WSDL) |
+| RU-side transport | REST + `X-Api-Key` header |
+| Admin auth | Single admin user, cookie-based, no external IdP |
+| Messaging | RabbitMQ container provisioned (`infrastructure/docker-compose.yml`), **not yet wired up** — see [[Business-Flow]] |
+| Frontend | Vue 3, Pinia, vue-router, vue-i18n, Less (no Vuetify, no TanStack Query, no generated API client) |
+| Containers | podman (not docker) |
+
+## Solution Structure
+
+```
+TsiBroker.slnx
+└── src/
+    ├── TsiBroker.Core/          # Domain entities, JSON-file stores, messaging abstractions
+    ├── TsiBroker.ApiService/    # Admin REST API + cookie auth (consumed by TsiBroker.Ui)
+    ├── TsiBroker.Ru.Api/        # REST API exposed to Railway Undertakings (X-Api-Key)
+    ├── TsiBroker.Im.Api/        # SOAP endpoints exposed to Infrastructure Managers (CoreWCF)
+    ├── TsiBroker.Ui/            # Vue 3 admin frontend
+    └── TsiBroker.AppHost/       # Aspire orchestration for local dev
+```
+
+See [[Architecture]] for what each project actually does and how they depend on each other.
+
+## Current State / Known Gaps
+
+This is an early-stage project. Worth knowing before you dig into the code:
+
+- **No message relay yet.** Both `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register `IMessagePublisher` as `DebugMessagePublisher`, which only logs and drops the message. There is no RabbitMQ-backed publisher, no consumer, and no code that calls out to an RU's or IM's `SystemUrl`. See [[Business-Flow]] for the full picture.
+- **Heartbeat messages are never published**, only logged and echoed back — unlike Common Interface messages, which do build a `BrokerMessage`.
+- **No database** — `InfrastructureOperator` and `RailwayUndertaking` records live in two JSON files under `App_Data/`, guarded by an in-process lock. This is fine for a single-instance deployment but doesn't scale horizontally.
+- **No `.NET` test project** exists in the solution yet.
+- Only `TsiBroker.ApiService` (the admin backend) is containerized in `infrastructure/docker-compose.yml`; `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` have no Docker deployment path yet.
+
+## Development
+
+See [AGENTS.md](../AGENTS.md) at the repo root for day-to-day conventions (language rules, wiki maintenance policy, quick reference commands). Short version:
+
+```bash
+# Start everything with Aspire (recommended)
+dotnet run --project src/TsiBroker.AppHost
+
+# Frontend standalone
+cd src/TsiBroker.Ui && npm install && npm run dev
+
+# Containers (api, ui, rabbitmq)
+cd infrastructure && podman compose --env-file .env.example up -d --build
+```
+
+### Test Users (local dev / docker-compose)
+
+| Username | Password | Source |
+|---|---|---|
+| `sa` | `temp` | `TsiBroker.ApiService/appsettings.json` (`AdminUser` section) |
+| `sa` | `temp!` (default) | `infrastructure/.env.example` (overridable per env file) |
