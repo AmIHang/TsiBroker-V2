@@ -29,14 +29,24 @@ Guidance for any AI coding agent (Claude Code, GitHub Copilot, Cursor, etc.) wor
 
 ## Critical Workflow Rules
 
-### 1. Language Convention
+### 1. Wiki Maintenance (MANDATORY)
+
+Before every commit, check whether the `wiki/` folder needs updating:
+
+- New features / business rules → update the relevant wiki pages
+- Architecture changes → `wiki/Architecture.md`
+- New conventions or patterns → `wiki/Backend-Best-Practices.md`
+- Frontend changes → `wiki/Frontend-Architecture.md`
+- Data model changes → `wiki/Data-Model.md`
+
+### 2. Language Convention
 
 - All code, comments, documentation: **English**
 - Commit messages: **English** (conventional commits)
 - Exception: user-facing UI text is localized (`src/TsiBroker.Ui/src/locales/de.json`, `en.json`)
 - User communication: **German** (the user speaks German)
 
-### 2. Git
+### 3. Git
 
 - Never push to a remote unless explicitly asked.
 - Commit or push only when requested; branch first if on the default branch (`main`).
