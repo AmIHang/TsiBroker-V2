@@ -17,29 +17,38 @@ public static class WhoAmIEndpoints
             RailwayUndertakingStore railwayUndertakingStore,
             InfrastructureOperatorStore infrastructureOperatorStore) =>
         {
-            if (!request.Headers.TryGetValue(ApiKeyHeader.Name, out var apiKeyValues)
-                || string.IsNullOrWhiteSpace(apiKeyValues.ToString()))
+            RailwayUndertaking? railwayUndertaking = null;
+            if (request.Headers.TryGetValue(ApiKeyHeader.Name, out var apiKeyValues)
+                && !string.IsNullOrWhiteSpace(apiKeyValues.ToString()))
             {
-                return Results.Problem(
-                    title: "Missing API key",
-                    detail: $"The {ApiKeyHeader.Name} header is required.",
-                    statusCode: StatusCodes.Status401Unauthorized);
+                railwayUndertaking = await railwayUndertakingStore.FindByApiKeyEvuToBrokerAsync(apiKeyValues.ToString());
+                if (railwayUndertaking is not null && !railwayUndertaking.IsActive)
+                {
+                    railwayUndertaking = null;
+                }
             }
 
-            var railwayUndertaking = await railwayUndertakingStore.FindByApiKeyEvuToBrokerAsync(apiKeyValues.ToString());
-            if (railwayUndertaking is null || !railwayUndertaking.IsActive)
+            WhoAmIResponse response;
+            if (railwayUndertaking is null)
             {
-                return Results.Problem(
-                    title: "Invalid API key",
-                    detail: "No active EVU was found for the supplied API key.",
-                    statusCode: StatusCodes.Status401Unauthorized);
+                response = UnknownResponse();
+            }
+            else
+            {
+                var infrastructureOperators = await infrastructureOperatorStore.GetAllAsync();
+                response = BuildResponse(railwayUndertaking, infrastructureOperators);
             }
 
-            var infrastructureOperators = await infrastructureOperatorStore.GetAllAsync();
-            var response = BuildResponse(railwayUndertaking, infrastructureOperators);
             return Results.Text(SerializeToXml(response), "application/xml");
         });
     }
+
+    private static WhoAmIResponse UnknownResponse() => new()
+    {
+        Name = "<unknown>",
+        RicsCodes = [],
+        InfrastructureOperators = [],
+    };
 
     private static WhoAmIResponse BuildResponse(
         RailwayUndertaking railwayUndertaking,
