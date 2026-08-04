@@ -9,7 +9,7 @@ This guide is for developers of external systems — Railway Undertaking (RU/EVU
 - [RU API (REST)](#ru-api-rest)
   - [Authentication](#ru-authentication)
   - [POST /message](#post-message)
-  - [POST /whoami](#post-whoami)
+  - [GET /whoami](#get-whoami)
 - [IM API (SOAP)](#im-api-soap)
   - [Common Interface — /ci](#common-interface--ci)
   - [Heartbeat — /heartbeat](#heartbeat--heartbeat)
@@ -86,14 +86,14 @@ The broker reads `MessageHeader` (namespace-agnostic, matched by local element n
 
 See [[Business-Flow]] for the full authorization sequence.
 
-### POST /whoami
+### GET /whoami
 
 Self-service endpoint to check what your RU is currently authorized to do — useful for verifying your admin-configured assignments without submitting a real message.
 
 **Request**
 
 ```
-POST /whoami
+GET /whoami
 X-Api-Key: <ApiKeyEvuToBroker>
 ```
 

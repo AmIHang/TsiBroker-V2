@@ -12,7 +12,7 @@ public static class WhoAmIEndpoints
 
     public static void MapWhoAmIEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/whoami", async (
+        app.MapGet("/whoami", async (
             HttpRequest request,
             RailwayUndertakingStore railwayUndertakingStore,
             InfrastructureOperatorStore infrastructureOperatorStore) =>

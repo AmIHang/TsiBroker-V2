@@ -83,7 +83,7 @@
     {
       "name": "WhoAmI",
       "request": {
-        "method": "POST",
+        "method": "GET",
         "header": [
           { "key": "X-Api-Key", "value": "{{apiKey}}" }
         ],
@@ -97,7 +97,7 @@
     {
       "name": "WhoAmI - Missing API Key",
       "request": {
-        "method": "POST",
+        "method": "GET",
         "url": {
           "raw": "{{baseUrl}}/whoami",
           "host": [ "{{baseUrl}}" ],

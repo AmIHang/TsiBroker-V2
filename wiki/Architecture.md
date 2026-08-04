@@ -69,7 +69,7 @@ All endpoints require authentication (`.RequireAuthorization()` on the route gro
 Exposes two endpoints to Railway Undertakings, authenticated via a manually-checked `X-Api-Key` header (there is no ASP.NET Core authentication scheme registered for this — the header is read and validated inside each endpoint handler, not via middleware):
 
 - `Messages/` — `POST /message`: accepts raw TAF/TAP XML, parses the `MessageHeader`, authorizes it against the caller's `RailwayUndertaking` and its `IsbAssignment`s (`TsiMessageAuthorizationService`), and hands the result to `IMessagePublisher`
-- `WhoAmI/` — `POST /whoami`: self-service discovery endpoint returning (as XML) which infrastructure operators and message types the calling RU is authorized for
+- `WhoAmI/` — `GET /whoami`: self-service discovery endpoint returning (as XML) which infrastructure operators and message types the calling RU is authorized for
 
 ### TsiBroker.Im.Api (IM-facing SOAP API)
 
