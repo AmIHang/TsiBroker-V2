@@ -102,7 +102,7 @@ Heartbeat is a pure liveness echo — it has **no** `IMessagePublisher` dependen
 
 To go from "ingest and queue" to an actual working broker, the following pieces don't exist yet in the codebase:
 
-1. A consumer that reads published `BrokerMessage`s off the RabbitMQ queue and forwards them — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM)
+1. A host that actually runs `IMessageConsumer.RunAsync` with a real handler that forwards messages — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM). `IMessageConsumer`/`RabbitMqMessageConsumer` exist in `TsiBroker.Core/Messaging/` (ordering-preserving, with retry + dead-lettering, see [[Backend-Best-Practices]] §5) but nothing calls `AddMessageConsumer`/`RunAsync` yet — there's no dedicated worker/relay process in the solution to host it.
 2. Real `Sender`/`Receiver` resolution on the IM→broker (CI) path, based on RICS codes rather than the current hardcoded `"CI"`/`"App"` literals
 3. An authorization step on the IM→broker path equivalent to `TsiMessageAuthorizationService` on the RU side
 4. A decision on whether/how Heartbeat should participate in the broker's message flow at all

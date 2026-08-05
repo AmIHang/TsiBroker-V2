@@ -18,4 +18,13 @@ public class RabbitMqOptions
     public string Password { get; set; } = "devpassword123";
 
     public string QueueName { get; set; } = "tsi-messages";
+
+    // How many times a failing message is retried (in place, blocking the queue for
+    // that consumer) before it is moved to DeadLetterQueueName and processing moves on.
+    public int MaxDeliveryAttempts { get; set; } = 3;
+
+    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(2);
+
+    // Override this if QueueName is overridden and you want a differently named DLQ.
+    public string DeadLetterQueueName { get; set; } = "tsi-messages.dead-letter";
 }

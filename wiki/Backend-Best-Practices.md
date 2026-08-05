@@ -70,7 +70,7 @@ Cross-store consistency (e.g. removing dangling `IsbAssignment`s when an `Infras
 
 TsiBroker is a single-tenant broker. Don't introduce a `TenantId` concept, tenant-scoped filtering, or per-tenant configuration sections. If a future requirement needs multi-tenancy, that's a deliberate architectural decision to make explicitly — not something to bolt on incrementally.
 
-## 5. Messaging: Always Through IMessagePublisher
+## 5. Messaging: Always Through IMessagePublisher / IMessageConsumer
 
 Feature code must never talk to RabbitMQ (or any transport) directly:
 
@@ -81,16 +81,27 @@ public interface IMessagePublisher
 {
     Task PublishAsync(BrokerMessage message, CancellationToken cancellationToken = default);
 }
+
+public interface IMessageConsumer
+{
+    Task RunAsync(Func<BrokerMessage, CancellationToken, Task> handler, CancellationToken cancellationToken);
+}
 ```
 
-`TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register their `IMessagePublisher` via `services.AddMessagePublisher(configuration)` (`TsiBroker.Core/Messaging/MessagePublisherServiceCollectionExtensions.cs`) instead of an inline `AddSingleton<IMessagePublisher, ...>()` — this extension picks the concrete implementation based on `Messaging:QueueType` (env var `Messaging__QueueType`, `MessageQueueType` enum: `RabbitMq` (default) or `Debug`), so switching backends is a config change, not a code change:
+`TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register their `IMessagePublisher` via `services.AddMessagePublisher(configuration)`; a process that needs to read messages instead (none does yet — see below) calls `services.AddMessageConsumer(configuration)` (both in `TsiBroker.Core/Messaging/MessagePublisherServiceCollectionExtensions.cs`) instead of an inline `AddSingleton<...>()`. Both pick their concrete implementation based on `Messaging:QueueType` (env var `Messaging__QueueType`, `MessageQueueType` enum: `RabbitMq` (default) or `Debug`), so switching backends is a config change, not a code change:
 
-- `RabbitMq` → `RabbitMqMessagePublisher` (`TsiBroker.Core/Messaging/RabbitMqMessagePublisher.cs`). Publishes `BrokerMessage.Content` (raw XML) as a persistent message to a durable queue on RabbitMQ's default exchange, lazily opening one shared connection/channel per process.
-- `Debug` → `DebugMessagePublisher` (log-only, no-op) — for local debugging without a broker.
+- `RabbitMq` → `RabbitMqMessagePublisher` / `RabbitMqMessageConsumer` (`TsiBroker.Core/Messaging/`). The publisher publishes `BrokerMessage.Content` (raw XML) as a persistent message to a durable queue on RabbitMQ's default exchange. The consumer reads with `prefetchCount: 1` and manual ack — it never lets the broker push the next message until the current one is ack'd or dead-lettered, which is what keeps processing (including retries) in strict queue order, e.g. two messages from the same RU never overtake each other. Both lazily open one shared connection/channel per process, and both declare the queue topology via the shared `RabbitMqTopology.DeclareAsync` helper so their (identical) queue arguments never conflict with each other's declaration.
+- `Debug` → `DebugMessagePublisher` / `DebugMessageConsumer` (log-only, no-op) — for local debugging without a broker.
 
-Adding a new backend (e.g. AWS Service Bus/SQS) means adding an enum case to `MessageQueueType`, an `IMessagePublisher` implementation + its own `Options` type in `Messaging/`, and a `case` in `AddMessagePublisher` — feature code calling `IMessagePublisher.PublishAsync` never changes. See [[Business-Flow]] for exactly which flows currently call this and what's still missing end-to-end.
+**Retry / dead-letter policy** (consumer only): on a handler exception, `RabbitMqMessageConsumer` retries the same message in place up to `RabbitMqOptions.MaxDeliveryAttempts` (default 3) with a `RetryDelay` (default 2s) between attempts — no other message is processed while this is happening. After the last attempt still fails, the message is `Nack`'d without requeue, which RabbitMQ routes (via `x-dead-letter-exchange`/`x-dead-letter-routing-key` set on the main queue) straight to `RabbitMqOptions.DeadLetterQueueName` (default `tsi-messages.dead-letter`) for manual inspection, and the consumer moves on to the next message.
 
-RabbitMQ connection settings live in `RabbitMqOptions` (`SectionName = "RabbitMq"`): `HostName`, `Port`, `UseTls`, `VirtualHost`, `UserName`, `Password`, `QueueName`. Following the options pattern in §8, these — plus `Messaging:QueueType` — are meant to be set per environment via env vars (`Messaging__QueueType`, `RabbitMq__HostName`, `RabbitMq__Port`, `RabbitMq__UserName`, `RabbitMq__Password`, etc.) rather than committed to `appsettings.json` — the in-code defaults (`localhost:5672`, `guest`/`guest`) only match a bare local RabbitMQ, not the credentials configured in `infrastructure/docker-compose.yml`.
+> **Ordering tradeoff:** this is a single queue with a single consumer (`prefetchCount: 1`), so ordering is enforced globally, not just per-sender — a message stuck retrying for one RU also delays unrelated messages for other ROs behind it in the same queue. That's a deliberate simplification for the initial implementation; per-sender parallelism (e.g. one queue/consumer per RU, or a partitioned/sharded consumer) would need a bigger redesign and hasn't been requested.
+
+Adding a new backend (e.g. AWS Service Bus/SQS) means adding an enum case to `MessageQueueType`, `IMessagePublisher`/`IMessageConsumer` implementations + their own `Options` type in `Messaging/`, and a `case` in `AddMessagePublisher`/`AddMessageConsumer` — feature code calling `IMessagePublisher.PublishAsync` or providing an `IMessageConsumer` handler never changes. See [[Business-Flow]] for exactly which flows currently call this and what's still missing end-to-end — in particular, **no host currently calls `AddMessageConsumer`/`IMessageConsumer.RunAsync`**; the consumer side exists in `TsiBroker.Core` but isn't wired into a running process yet, since the actual relay-to-RU/IM handler logic doesn't exist yet either.
+
+RabbitMQ connection settings live in `RabbitMqOptions` (`SectionName = "RabbitMq"`): `HostName`, `Port`, `UseTls`, `VirtualHost`, `UserName`, `Password`, `QueueName`, `MaxDeliveryAttempts`, `RetryDelay`, `DeadLetterQueueName`. Following the options pattern in §8, these — plus `Messaging:QueueType` — are meant to be set per environment via env vars (`Messaging__QueueType`, `RabbitMq__HostName`, `RabbitMq__Port`, `RabbitMq__UserName`, `RabbitMq__Password`, etc.) rather than committed to `appsettings.json`.
+
+> **Breaking change note:** the main queue's arguments now include `x-dead-letter-exchange`/`x-dead-letter-routing-key` (see `RabbitMqTopology`). RabbitMQ queue arguments are immutable after declaration — if `tsi-messages` already exists from a pre-dead-letter-queue deployment, the app will fail to redeclare it (`PRECONDITION_FAILED`) until that queue is deleted (it'll be recreated automatically with the new arguments on next connect).
 
 ## 6. SOAP Contract Code Stays Generated-Code-Adjacent
 

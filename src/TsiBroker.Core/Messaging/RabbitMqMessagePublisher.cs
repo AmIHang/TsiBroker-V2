@@ -84,12 +84,7 @@ public sealed class RabbitMqMessagePublisher(
 
             _connection = await factory.CreateConnectionAsync(cancellationToken);
             _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
-            await _channel.QueueDeclareAsync(
-                queue: _options.QueueName,
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
-                cancellationToken: cancellationToken);
+            await RabbitMqTopology.DeclareAsync(_channel, _options, cancellationToken);
 
             logger.LogInformation(
                 "Connected to RabbitMQ at {HostName}:{Port} (vhost '{VirtualHost}'), queue '{QueueName}' declared",
