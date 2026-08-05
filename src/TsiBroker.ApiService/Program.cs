@@ -62,6 +62,7 @@ builder.Services
     .AddOptions<RailwayUndertakingStoreOptions>()
     .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
 builder.Services.AddSingleton<RailwayUndertakingStore>();
+builder.Services.AddHttpClient<EvuApiClient>();
 
 var app = builder.Build();
 

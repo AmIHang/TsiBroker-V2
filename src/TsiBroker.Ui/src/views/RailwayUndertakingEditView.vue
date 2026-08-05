@@ -51,6 +51,9 @@ const pendingApiKeyBrokerToEvu = ref<string | null>(null)
 const saveError = ref('')
 const isSaving = ref(false)
 
+const isTriggeringConfigUpdate = ref(false)
+const configUpdateResult = ref<'success' | 'error' | null>(null)
+
 const showApiKeyEvuToBroker = ref(false)
 const showApiKeyBrokerToEvu = ref(false)
 const copiedApiKeyEvuToBroker = ref(false)
@@ -232,6 +235,24 @@ async function copyApiKeyBrokerToEvu() {
   await navigator.clipboard.writeText(key)
   copiedApiKeyBrokerToEvu.value = true
   setTimeout(() => (copiedApiKeyBrokerToEvu.value = false), 1500)
+}
+
+async function triggerConfigUpdate() {
+  if (!undertaking.value) {
+    return
+  }
+
+  isTriggeringConfigUpdate.value = true
+  configUpdateResult.value = null
+  try {
+    await apiFetch(`/api/railway-undertakings/${undertaking.value.id}/trigger-config-update`, { method: 'POST' })
+    configUpdateResult.value = 'success'
+  } catch {
+    configUpdateResult.value = 'error'
+  } finally {
+    isTriggeringConfigUpdate.value = false
+    setTimeout(() => (configUpdateResult.value = null), 4000)
+  }
 }
 
 async function deleteUndertaking() {
@@ -423,6 +444,23 @@ onUnmounted(() => {
                 <input v-model="systemUrl" type="url" required />
               </label>
             </form>
+
+            <div class="field">
+              <button
+                type="button"
+                class="btn"
+                :disabled="isTriggeringConfigUpdate"
+                @click="triggerConfigUpdate"
+              >
+                {{ isTriggeringConfigUpdate ? t('railwayUndertakingEdit.triggerConfigUpdatePending') : t('railwayUndertakingEdit.triggerConfigUpdate') }}
+              </button>
+              <p v-if="configUpdateResult === 'success'" class="hint">
+                {{ t('railwayUndertakingEdit.triggerConfigUpdateSuccess') }}
+              </p>
+              <p v-if="configUpdateResult === 'error'" class="error">
+                {{ t('railwayUndertakingEdit.triggerConfigUpdateError') }}
+              </p>
+            </div>
           </section>
 
           <section class="card">

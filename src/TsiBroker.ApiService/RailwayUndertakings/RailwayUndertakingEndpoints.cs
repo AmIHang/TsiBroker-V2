@@ -84,6 +84,34 @@ public static class RailwayUndertakingEndpoints
         group.MapPatch("/{id:guid}/status", async (Guid id, SetRailwayUndertakingActiveRequest request, RailwayUndertakingStore store) =>
             await store.SetActiveAsync(id, request.IsActive) ? Results.Ok() : Results.NotFound());
 
+        group.MapPost("/{id:guid}/trigger-config-update", async (Guid id, RailwayUndertakingStore store, EvuApiClient evuApiClient) =>
+        {
+            var undertakings = await store.GetAllAsync();
+            var undertaking = undertakings.FirstOrDefault(u => u.Id == id);
+            if (undertaking is null)
+            {
+                return Results.NotFound();
+            }
+
+            try
+            {
+                using var response = await evuApiClient.TriggerConfigUpdateAsync(undertaking);
+                return response.IsSuccessStatusCode
+                    ? Results.Ok()
+                    : Results.Problem(
+                        title: "EVU request failed",
+                        detail: $"The EVU responded with status {(int)response.StatusCode}.",
+                        statusCode: StatusCodes.Status502BadGateway);
+            }
+            catch (HttpRequestException ex)
+            {
+                return Results.Problem(
+                    title: "EVU unreachable",
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        });
+
         group.MapGet("/generate-api-key", () => Results.Ok(new { apiKey = RailwayUndertakingStore.GenerateApiKey() }));
 
         group.MapDelete("/{id:guid}", async (Guid id, RailwayUndertakingStore store) =>
