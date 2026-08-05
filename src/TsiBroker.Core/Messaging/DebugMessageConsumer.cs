@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
 namespace TsiBroker.Core.Messaging;
 
 public class DebugMessageConsumer(ILogger<DebugMessageConsumer> logger) : IMessageConsumer
 {
+    private readonly ConcurrentDictionary<string, byte> _startedPartitions = new();
+
     public async Task RunAsync(
         Func<BrokerMessage, CancellationToken, Task> handler,
         CancellationToken cancellationToken)
@@ -18,5 +21,28 @@ public class DebugMessageConsumer(ILogger<DebugMessageConsumer> logger) : IMessa
         {
             // Expected on shutdown.
         }
+    }
+
+    public Task StartPartitionAsync(
+        string partitionKey,
+        Func<BrokerMessage, CancellationToken, Task> handler,
+        CancellationToken cancellationToken = default)
+    {
+        if (_startedPartitions.TryAdd(partitionKey, 0))
+        {
+            logger.LogInformation("Debug message consumer: would start consuming partition '{PartitionKey}'", partitionKey);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StopPartitionAsync(string partitionKey, CancellationToken cancellationToken = default)
+    {
+        if (_startedPartitions.TryRemove(partitionKey, out _))
+        {
+            logger.LogInformation("Debug message consumer: would stop consuming partition '{PartitionKey}'", partitionKey);
+        }
+
+        return Task.CompletedTask;
     }
 }

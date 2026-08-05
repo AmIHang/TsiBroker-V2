@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,64 +13,16 @@ public sealed class RabbitMqMessageConsumer(
 {
     private readonly RabbitMqOptions _options = options.Value;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, PartitionHandle> _partitions = new();
     private IConnection? _connection;
-    private IChannel? _channel;
 
     public async Task RunAsync(
         Func<BrokerMessage, CancellationToken, Task> handler,
         CancellationToken cancellationToken)
     {
-        var channel = await GetChannelAsync(cancellationToken);
-
-        var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += async (_, delivery) =>
-        {
-            var message = ToBrokerMessage(delivery);
-            var attempt = 0;
-
-            while (true)
-            {
-                attempt++;
-                try
-                {
-                    await handler(message, cancellationToken);
-                    await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken);
-                    return;
-                }
-                catch (Exception ex) when (attempt < _options.MaxDeliveryAttempts)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Failed processing message {MessageId} from {Sender} to {Receiver} (attempt {Attempt}/{MaxAttempts}) — retrying in {RetryDelay}",
-                        message.Id,
-                        message.Sender,
-                        message.Receiver,
-                        attempt,
-                        _options.MaxDeliveryAttempts,
-                        _options.RetryDelay);
-                    await Task.Delay(_options.RetryDelay, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(
-                        ex,
-                        "Giving up on message {MessageId} from {Sender} to {Receiver} after {Attempts} attempts — moving to '{DeadLetterQueueName}'",
-                        message.Id,
-                        message.Sender,
-                        message.Receiver,
-                        attempt,
-                        _options.DeadLetterQueueName);
-                    await channel.BasicNackAsync(delivery.DeliveryTag, multiple: false, requeue: false, cancellationToken);
-                    return;
-                }
-            }
-        };
-
-        await channel.BasicConsumeAsync(
-            queue: _options.QueueName,
-            autoAck: false,
-            consumer: consumer,
-            cancellationToken: cancellationToken);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var (channel, _) = await SetupConsumerAsync(
+            connection, _options.QueueName, handler, cancellationToken, cancellationToken);
 
         try
         {
@@ -78,6 +31,149 @@ public sealed class RabbitMqMessageConsumer(
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Expected on shutdown.
+        }
+        finally
+        {
+            await channel.CloseAsync();
+            channel.Dispose();
+        }
+    }
+
+    // Starts a background consume loop for partitionKey that keeps running (independently of
+    // cancellationToken, which only bounds this setup call) until StopPartitionAsync is called
+    // or this consumer is disposed. No-op if partitionKey is already running.
+    public async Task StartPartitionAsync(
+        string partitionKey,
+        Func<BrokerMessage, CancellationToken, Task> handler,
+        CancellationToken cancellationToken = default)
+    {
+        var queueName = RabbitMqQueueNaming.ForPartition(partitionKey);
+        if (_partitions.ContainsKey(queueName))
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        var runCts = new CancellationTokenSource();
+        var (channel, deadLetterQueueName) = await SetupConsumerAsync(
+            connection, queueName, handler, runCts.Token, cancellationToken);
+
+        var handle = new PartitionHandle(channel, runCts, WaitUntilCancelledAsync(runCts.Token));
+
+        if (!_partitions.TryAdd(queueName, handle))
+        {
+            // Lost a race with a concurrent StartPartitionAsync for the same key — the other
+            // call's channel/consumer wins; tear down the redundant one we just opened.
+            await handle.DisposeAsync();
+            return;
+        }
+
+        logger.LogInformation(
+            "Started consuming queue '{QueueName}' for partition '{PartitionKey}' (dead-letter: '{DeadLetterQueueName}')",
+            queueName,
+            partitionKey,
+            deadLetterQueueName);
+    }
+
+    public async Task StopPartitionAsync(string partitionKey, CancellationToken cancellationToken = default)
+    {
+        var queueName = RabbitMqQueueNaming.ForPartition(partitionKey);
+        if (!_partitions.TryRemove(queueName, out var handle))
+        {
+            return;
+        }
+
+        await handle.DisposeAsync();
+
+        logger.LogInformation(
+            "Stopped consuming queue '{QueueName}' for partition '{PartitionKey}'",
+            queueName,
+            partitionKey);
+    }
+
+    private async Task<(IChannel Channel, string DeadLetterQueueName)> SetupConsumerAsync(
+        IConnection connection,
+        string queueName,
+        Func<BrokerMessage, CancellationToken, Task> handler,
+        CancellationToken processingCancellationToken,
+        CancellationToken setupCancellationToken)
+    {
+        var deadLetterQueueName = RabbitMqTopology.DeadLetterQueueNameFor(queueName);
+
+        var channel = await connection.CreateChannelAsync(cancellationToken: setupCancellationToken);
+        await RabbitMqTopology.DeclareAsync(channel, queueName, deadLetterQueueName, setupCancellationToken);
+
+        // One unacked (in-flight) message at a time: the broker won't push the next
+        // message on this queue until this one is ack'd/nack'd, which is what keeps
+        // processing — including retries of a failing message — strictly in queue order.
+        await channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false, setupCancellationToken);
+
+        var consumer = new AsyncEventingBasicConsumer(channel);
+        consumer.ReceivedAsync += (_, delivery) =>
+            ProcessDeliveryAsync(channel, queueName, deadLetterQueueName, delivery, handler, processingCancellationToken);
+
+        await channel.BasicConsumeAsync(
+            queue: queueName,
+            autoAck: false,
+            consumer: consumer,
+            cancellationToken: setupCancellationToken);
+
+        logger.LogInformation(
+            "Consuming queue '{QueueName}' (dead-letter: '{DeadLetterQueueName}')",
+            queueName,
+            deadLetterQueueName);
+
+        return (channel, deadLetterQueueName);
+    }
+
+    private async Task ProcessDeliveryAsync(
+        IChannel channel,
+        string queueName,
+        string deadLetterQueueName,
+        BasicDeliverEventArgs delivery,
+        Func<BrokerMessage, CancellationToken, Task> handler,
+        CancellationToken cancellationToken)
+    {
+        var message = ToBrokerMessage(delivery);
+        var attempt = 0;
+
+        while (true)
+        {
+            attempt++;
+            try
+            {
+                await handler(message, cancellationToken);
+                await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken);
+                return;
+            }
+            catch (Exception ex) when (attempt < _options.MaxDeliveryAttempts)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Failed processing message {MessageId} from {Sender} to {Receiver} on '{QueueName}' (attempt {Attempt}/{MaxAttempts}) — retrying in {RetryDelay}",
+                    message.Id,
+                    message.Sender,
+                    message.Receiver,
+                    queueName,
+                    attempt,
+                    _options.MaxDeliveryAttempts,
+                    _options.RetryDelay);
+                await Task.Delay(_options.RetryDelay, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Giving up on message {MessageId} from {Sender} to {Receiver} on '{QueueName}' after {Attempts} attempts — moving to '{DeadLetterQueueName}'",
+                    message.Id,
+                    message.Sender,
+                    message.Receiver,
+                    queueName,
+                    attempt,
+                    deadLetterQueueName);
+                await channel.BasicNackAsync(delivery.DeliveryTag, multiple: false, requeue: false, cancellationToken);
+                return;
+            }
         }
     }
 
@@ -100,19 +196,31 @@ public sealed class RabbitMqMessageConsumer(
         return string.Empty;
     }
 
-    private async Task<IChannel> GetChannelAsync(CancellationToken cancellationToken)
+    private static async Task WaitUntilCancelledAsync(CancellationToken cancellationToken)
     {
-        if (_channel is { IsOpen: true })
+        try
         {
-            return _channel;
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on stop.
+        }
+    }
+
+    private async Task<IConnection> GetConnectionAsync(CancellationToken cancellationToken)
+    {
+        if (_connection is { IsOpen: true })
+        {
+            return _connection;
         }
 
         await _connectionLock.WaitAsync(cancellationToken);
         try
         {
-            if (_channel is { IsOpen: true })
+            if (_connection is { IsOpen: true })
             {
-                return _channel;
+                return _connection;
             }
 
             var factory = new ConnectionFactory
@@ -130,23 +238,14 @@ public sealed class RabbitMqMessageConsumer(
             };
 
             _connection = await factory.CreateConnectionAsync(cancellationToken);
-            _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
-            await RabbitMqTopology.DeclareAsync(_channel, _options, cancellationToken);
-
-            // One unacked (in-flight) message at a time: the broker won't push the next
-            // message until this one is ack'd/nack'd, which is what keeps processing —
-            // including retries of a failing message — strictly in queue order.
-            await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false, cancellationToken);
 
             logger.LogInformation(
-                "Connected to RabbitMQ at {HostName}:{Port} (vhost '{VirtualHost}'), consuming queue '{QueueName}' (dead-letter: '{DeadLetterQueueName}')",
+                "Connected to RabbitMQ at {HostName}:{Port} (vhost '{VirtualHost}')",
                 _options.HostName,
                 _options.Port,
-                _options.VirtualHost,
-                _options.QueueName,
-                _options.DeadLetterQueueName);
+                _options.VirtualHost);
 
-            return _channel;
+            return _connection;
         }
         finally
         {
@@ -156,10 +255,12 @@ public sealed class RabbitMqMessageConsumer(
 
     public async ValueTask DisposeAsync()
     {
-        if (_channel is not null)
+        foreach (var queueName in _partitions.Keys.ToList())
         {
-            await _channel.CloseAsync();
-            _channel.Dispose();
+            if (_partitions.TryRemove(queueName, out var handle))
+            {
+                await handle.DisposeAsync();
+            }
         }
 
         if (_connection is not null)
@@ -169,5 +270,24 @@ public sealed class RabbitMqMessageConsumer(
         }
 
         _connectionLock.Dispose();
+    }
+
+    private sealed record PartitionHandle(IChannel Channel, CancellationTokenSource Cts, Task RunTask)
+    {
+        public async ValueTask DisposeAsync()
+        {
+            await Cts.CancelAsync();
+            try
+            {
+                await RunTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            await Channel.CloseAsync();
+            Channel.Dispose();
+            Cts.Dispose();
+        }
     }
 }

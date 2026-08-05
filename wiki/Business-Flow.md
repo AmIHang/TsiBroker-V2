@@ -2,7 +2,7 @@
 
 TsiBroker relays TAF/TAP-TSI messages between Railway Undertakings (RU/EVU) and Infrastructure Managers (IM/ISB). This page documents what each ingestion path actually does today, and — just as importantly — where the flow currently stops.
 
-> **Status: relay not fully implemented yet.** Both ingestion paths (RU→broker via REST, IM→broker via SOAP) validate/authorize the incoming message, wrap it into a `BrokerMessage`, and call `IMessagePublisher.PublishAsync`. `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register `RabbitMqMessagePublisher` (`TsiBroker.Core/Messaging/RabbitMqMessagePublisher.cs`), which publishes the raw XML `Content` as a persistent message to a durable queue (`RabbitMqOptions.QueueName`, default `tsi-messages`) on the default exchange. Connection details (`HostName`, `Port`, `UseTls`, `VirtualHost`, `UserName`, `Password`, `QueueName`) are bound from the `RabbitMq` configuration section, meant to be overridden per environment via env vars (e.g. `RabbitMq__HostName`, `RabbitMq__UserName`) — see [[Backend-Best-Practices]] §5. `DebugMessagePublisher` (log-only, no-op) still exists as an alternative implementation but is no longer wired up by default. What's still missing: no consumer reads the queue and forwards messages onward — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM). So today a message posted by an RU is authorized and placed on the queue, but never actually delivered to any IM, and vice versa.
+> **Status: relay not fully implemented yet.** Both ingestion paths (RU→broker via REST, IM→broker via SOAP) validate/authorize the incoming message, wrap it into a `BrokerMessage`, and call `IMessagePublisher.PublishAsync`. `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register `RabbitMqMessagePublisher` (`TsiBroker.Core/Messaging/RabbitMqMessagePublisher.cs`), which publishes the raw XML `Content` as a persistent message on RabbitMQ's default exchange. The RU→broker flow sets `BrokerMessage.PartitionKey` to the authorized RU's `Name`, which routes each RU's traffic to its own queue (`{slug-of-name}-in`, e.g. `db-cargo-in`) so that one RU's messages are never held up by another RU's — see [[Backend-Best-Practices]] §5 for the full per-partition/retry/dead-letter design. The IM→broker (CI) flow doesn't resolve a specific IM/RU yet (see gap #2 below), so it still falls back to the single shared `RabbitMqOptions.QueueName` (default `tsi-messages`). Connection details (`HostName`, `Port`, `UseTls`, `VirtualHost`, `UserName`, `Password`, `QueueName`, `MaxDeliveryAttempts`, `RetryDelay`) are bound from the `RabbitMq` configuration section, meant to be overridden per environment via env vars (e.g. `RabbitMq__HostName`, `RabbitMq__UserName`) — see [[Backend-Best-Practices]] §5. `DebugMessagePublisher` (log-only, no-op) still exists as an alternative implementation but is no longer wired up by default. What's still missing: no consumer reads the queues and forwards messages onward — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM). So today a message posted by an RU is authorized and placed on that RU's queue, but never actually delivered to any IM, and vice versa.
 
 ---
 
@@ -28,8 +28,8 @@ sequenceDiagram
     Auth->>Auth: Active IsbAssignment for that operator?
     Auth->>Auth: MessageType in AllowedMessageTypesEvuToBroker (or "*")?
     Auth-->>RuApi: Success(RailwayUndertaking) or Failure(reason)
-    RuApi->>Pub: PublishAsync(BrokerMessage(Id, Sender, Recipient, rawXml))
-    Note over Pub: Placed on RabbitMQ queue — no consumer/delivery to any IM yet
+    RuApi->>Pub: PublishAsync(BrokerMessage(Id, Sender, Recipient, rawXml,<br/>PartitionKey: RailwayUndertaking.Name))
+    Note over Pub: Placed on this RU's own queue ("{slug}-in") — no consumer/delivery to any IM yet
     RuApi-->>RU: 202 Accepted { status: "ACK", messageIdentifier }
 ```
 
@@ -45,7 +45,7 @@ Implementation: `src/TsiBroker.Ru.Api/Messages/TsiMessageEndpoints.cs`, `Incomin
 4. **`NoIsbAssignment`** — the RU has no active `IsbAssignment` for that operator → `403`
 5. **`MessageTypeNotAllowed`** — the message's `MessageType` isn't in the assignment's `AllowedMessageTypesEvuToBroker` and the assignment doesn't allow `"*"` → `403`
 
-Each failure maps to an RFC 7807 `Results.Problem` response with a tailored title/detail/status. On success, a `BrokerMessage(Id: MessageIdentifier, Sender, Receiver: Recipient, Content: rawXml)` is published.
+Each failure maps to an RFC 7807 `Results.Problem` response with a tailored title/detail/status. On success, a `BrokerMessage(Id: MessageIdentifier, Sender, Receiver: Recipient, Content: rawXml, PartitionKey: RailwayUndertaking.Name)` is published — the `PartitionKey` is what routes it to this RU's own queue rather than a shared one (see [[Backend-Best-Practices]] §5).
 
 There is no corresponding "broker → RU" delivery endpoint (push or poll) anywhere — an RU can only push messages in, not receive them back through this API. See [[External-API-Guide]] for the RU-facing contract in detail.
 
@@ -102,7 +102,7 @@ Heartbeat is a pure liveness echo — it has **no** `IMessagePublisher` dependen
 
 To go from "ingest and queue" to an actual working broker, the following pieces don't exist yet in the codebase:
 
-1. A host that actually runs `IMessageConsumer.RunAsync` with a real handler that forwards messages — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM). `IMessageConsumer`/`RabbitMqMessageConsumer` exist in `TsiBroker.Core/Messaging/` (ordering-preserving, with retry + dead-lettering, see [[Backend-Best-Practices]] §5) but nothing calls `AddMessageConsumer`/`RunAsync` yet — there's no dedicated worker/relay process in the solution to host it.
+1. A real handler behind the per-RU queue consumption that actually forwards messages — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM). `TsiBroker.ApiService`'s `RailwayUndertakingConsumerCoordinator` already starts/stops an ordering-preserving, retrying, dead-lettering `IMessageConsumer.StartPartitionAsync` loop per RU in sync with `RailwayUndertakingStore` (create/activate/deactivate/rename/delete, plus a startup reconciliation — see [[Backend-Best-Practices]] §5), but the handler it passes in, `HandleMessageAsync`, is still just a logging placeholder — it never actually calls out to anything.
 2. Real `Sender`/`Receiver` resolution on the IM→broker (CI) path, based on RICS codes rather than the current hardcoded `"CI"`/`"App"` literals
 3. An authorization step on the IM→broker path equivalent to `TsiMessageAuthorizationService` on the RU side
 4. A decision on whether/how Heartbeat should participate in the broker's message flow at all

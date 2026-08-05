@@ -34,7 +34,11 @@ public static class RailwayUndertakingEndpoints
         group.MapGet("/", async (RailwayUndertakingStore store) =>
             Results.Ok(await store.GetAllAsync()));
 
-        group.MapPost("/", async (CreateRailwayUndertakingRequest request, RailwayUndertakingStore store, InfrastructureOperatorStore isbStore) =>
+        group.MapPost("/", async (
+            CreateRailwayUndertakingRequest request,
+            RailwayUndertakingStore store,
+            InfrastructureOperatorStore isbStore,
+            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
         {
             var ricsCodes = NormalizeRicsCodes(request.RicsCodes);
             if (string.IsNullOrWhiteSpace(request.Name)
@@ -51,10 +55,16 @@ public static class RailwayUndertakingEndpoints
             }
 
             var created = await store.AddAsync(request.Name.Trim(), ricsCodes, request.SystemUrl.Trim(), assignments);
+            await consumerCoordinator.StartAsync(created);
             return Results.Created($"/api/railway-undertakings/{created.Id}", created);
         });
 
-        group.MapPut("/{id:guid}", async (Guid id, UpdateRailwayUndertakingRequest request, RailwayUndertakingStore store, InfrastructureOperatorStore isbStore) =>
+        group.MapPut("/{id:guid}", async (
+            Guid id,
+            UpdateRailwayUndertakingRequest request,
+            RailwayUndertakingStore store,
+            InfrastructureOperatorStore isbStore,
+            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
         {
             var ricsCodes = NormalizeRicsCodes(request.RicsCodes);
             if (string.IsNullOrWhiteSpace(request.Name)
@@ -70,6 +80,13 @@ public static class RailwayUndertakingEndpoints
                 return Results.BadRequest();
             }
 
+            var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+            if (existing is null)
+            {
+                return Results.NotFound();
+            }
+
+            var previousName = existing.Name;
             var updated = await store.UpdateAsync(
                 id,
                 request.Name.Trim(),
@@ -78,11 +95,46 @@ public static class RailwayUndertakingEndpoints
                 request.ApiKeyEvuToBroker.Trim(),
                 request.ApiKeyBrokerToEvu.Trim(),
                 assignments);
-            return updated is not null ? Results.Ok(updated) : Results.NotFound();
+            if (updated is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Renaming an active RU changes its queue name (see TsiMessageEndpoints.PartitionKey)
+            // — migrate live consumption to the new queue instead of leaving the old one running.
+            if (!string.Equals(previousName, updated.Name, StringComparison.Ordinal))
+            {
+                await consumerCoordinator.StopAsync(previousName);
+                await consumerCoordinator.StartAsync(updated);
+            }
+
+            return Results.Ok(updated);
         });
 
-        group.MapPatch("/{id:guid}/status", async (Guid id, SetRailwayUndertakingActiveRequest request, RailwayUndertakingStore store) =>
-            await store.SetActiveAsync(id, request.IsActive) ? Results.Ok() : Results.NotFound());
+        group.MapPatch("/{id:guid}/status", async (
+            Guid id,
+            SetRailwayUndertakingActiveRequest request,
+            RailwayUndertakingStore store,
+            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
+        {
+            var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+            if (existing is null || !await store.SetActiveAsync(id, request.IsActive))
+            {
+                return Results.NotFound();
+            }
+
+            if (request.IsActive)
+            {
+                existing.IsActive = true;
+                await consumerCoordinator.StartAsync(existing);
+            }
+            else
+            {
+                await consumerCoordinator.StopAsync(existing.Name);
+            }
+
+            return Results.Ok();
+        });
 
         group.MapPost("/{id:guid}/trigger-config-update", async (Guid id, RailwayUndertakingStore store, EvuApiClient evuApiClient) =>
         {
@@ -114,8 +166,20 @@ public static class RailwayUndertakingEndpoints
 
         group.MapGet("/generate-api-key", () => Results.Ok(new { apiKey = RailwayUndertakingStore.GenerateApiKey() }));
 
-        group.MapDelete("/{id:guid}", async (Guid id, RailwayUndertakingStore store) =>
-            await store.DeleteAsync(id) ? Results.Ok() : Results.NotFound());
+        group.MapDelete("/{id:guid}", async (
+            Guid id,
+            RailwayUndertakingStore store,
+            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
+        {
+            var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+            if (existing is null || !await store.DeleteAsync(id))
+            {
+                return Results.NotFound();
+            }
+
+            await consumerCoordinator.StopAsync(existing.Name);
+            return Results.Ok();
+        });
     }
 
     private static List<string> NormalizeRicsCodes(List<string>? ricsCodes) =>

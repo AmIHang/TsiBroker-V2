@@ -3,6 +3,7 @@ using TsiBroker.ApiService.Auth;
 using TsiBroker.ApiService.InfrastructureOperators;
 using TsiBroker.ApiService.RailwayUndertakings;
 using TsiBroker.Core.InfrastructureOperators;
+using TsiBroker.Core.Messaging;
 using TsiBroker.Core.RailwayUndertakings;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,7 +65,25 @@ builder.Services
 builder.Services.AddSingleton<RailwayUndertakingStore>();
 builder.Services.AddHttpClient<EvuApiClient>();
 
+builder.Services.AddMessageConsumer(builder.Configuration);
+builder.Services.AddSingleton<RailwayUndertakingConsumerCoordinator>();
+
 var app = builder.Build();
+
+// Reconcile: start queue consumption for whatever RUs are already active, so a process
+// restart doesn't silently stop delivery until the next Create/Activate/Deactivate call.
+{
+    var coordinator = app.Services.GetRequiredService<RailwayUndertakingConsumerCoordinator>();
+    var railwayUndertakingStore = app.Services.GetRequiredService<RailwayUndertakingStore>();
+    try
+    {
+        await coordinator.StartAllActiveAsync(await railwayUndertakingStore.GetAllAsync());
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Could not start message consumption for active RUs at startup");
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

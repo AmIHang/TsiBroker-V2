@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ public sealed class RabbitMqMessagePublisher(
 {
     private readonly RabbitMqOptions _options = options.Value;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, byte> _declaredQueues = new();
     private IConnection? _connection;
     private IChannel? _channel;
 
@@ -22,6 +24,11 @@ public sealed class RabbitMqMessagePublisher(
     public async Task PublishAsync(BrokerMessage message, CancellationToken cancellationToken = default)
     {
         var channel = await GetChannelAsync(cancellationToken);
+        var queueName = string.IsNullOrWhiteSpace(message.PartitionKey)
+            ? _options.QueueName
+            : RabbitMqQueueNaming.ForPartition(message.PartitionKey);
+
+        await EnsureQueueDeclaredAsync(channel, queueName, cancellationToken);
 
         var properties = new BasicProperties
         {
@@ -39,18 +46,34 @@ public sealed class RabbitMqMessagePublisher(
 
         await channel.BasicPublishAsync(
             exchange: string.Empty,
-            routingKey: _options.QueueName,
+            routingKey: queueName,
             mandatory: false,
             basicProperties: properties,
             body: body,
             cancellationToken: cancellationToken);
 
         logger.LogInformation(
-            "Published message {MessageId} from {Sender} to {Receiver} on queue {QueueName}",
+            "Published message {MessageId} from {Sender} to {Receiver} on queue '{QueueName}'",
             message.Id,
             message.Sender,
             message.Receiver,
-            _options.QueueName);
+            queueName);
+    }
+
+    private async Task EnsureQueueDeclaredAsync(IChannel channel, string queueName, CancellationToken cancellationToken)
+    {
+        if (_declaredQueues.ContainsKey(queueName))
+        {
+            return;
+        }
+
+        await RabbitMqTopology.DeclareAsync(
+            channel,
+            queueName,
+            RabbitMqTopology.DeadLetterQueueNameFor(queueName),
+            cancellationToken);
+
+        _declaredQueues[queueName] = 0;
     }
 
     private async Task<IChannel> GetChannelAsync(CancellationToken cancellationToken)
@@ -84,14 +107,12 @@ public sealed class RabbitMqMessagePublisher(
 
             _connection = await factory.CreateConnectionAsync(cancellationToken);
             _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
-            await RabbitMqTopology.DeclareAsync(_channel, _options, cancellationToken);
 
             logger.LogInformation(
-                "Connected to RabbitMQ at {HostName}:{Port} (vhost '{VirtualHost}'), queue '{QueueName}' declared",
+                "Connected to RabbitMQ at {HostName}:{Port} (vhost '{VirtualHost}')",
                 _options.HostName,
                 _options.Port,
-                _options.VirtualHost,
-                _options.QueueName);
+                _options.VirtualHost);
 
             return _channel;
         }
