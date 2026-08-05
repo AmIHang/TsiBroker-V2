@@ -2,7 +2,7 @@
 
 TsiBroker relays TAF/TAP-TSI messages between Railway Undertakings (RU/EVU) and Infrastructure Managers (IM/ISB). This page documents what each ingestion path actually does today, and — just as importantly — where the flow currently stops.
 
-> **Status: relay not implemented yet.** Both ingestion paths (RU→broker via REST, IM→broker via SOAP) validate/authorize the incoming message, wrap it into a `BrokerMessage`, and call `IMessagePublisher.PublishAsync`. The only registered `IMessagePublisher` anywhere is `DebugMessagePublisher`, which just logs `"Would publish message {MessageId} from {Sender}: {Payload}"` and returns — no RabbitMQ, no consumer, no outbound call to the other side's `SystemUrl`. So today a message posted by an RU is authorized and logged, but never actually delivered to any IM, and vice versa. RabbitMQ exists only as a container in `infrastructure/docker-compose.yml`; nothing in the application code connects to it yet.
+> **Status: relay not fully implemented yet.** Both ingestion paths (RU→broker via REST, IM→broker via SOAP) validate/authorize the incoming message, wrap it into a `BrokerMessage`, and call `IMessagePublisher.PublishAsync`. `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register `RabbitMqMessagePublisher` (`TsiBroker.Core/Messaging/RabbitMqMessagePublisher.cs`), which publishes the raw XML `Content` as a persistent message to a durable queue (`RabbitMqOptions.QueueName`, default `tsi-messages`) on the default exchange. Connection details (`HostName`, `Port`, `UseTls`, `VirtualHost`, `UserName`, `Password`, `QueueName`) are bound from the `RabbitMq` configuration section, meant to be overridden per environment via env vars (e.g. `RabbitMq__HostName`, `RabbitMq__UserName`) — see [[Backend-Best-Practices]] §5. `DebugMessagePublisher` (log-only, no-op) still exists as an alternative implementation but is no longer wired up by default. What's still missing: no consumer reads the queue and forwards messages onward — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM). So today a message posted by an RU is authorized and placed on the queue, but never actually delivered to any IM, and vice versa.
 
 ---
 
@@ -15,7 +15,7 @@ sequenceDiagram
     participant RuApi as TsiBroker.Ru.Api<br/>POST /message
     participant Auth as TsiMessageAuthorizationService
     participant Store as RailwayUndertakingStore /<br/>InfrastructureOperatorStore
-    participant Pub as IMessagePublisher<br/>(DebugMessagePublisher)
+    participant Pub as IMessagePublisher<br/>(RabbitMqMessagePublisher)
 
     RU->>RuApi: POST /message<br/>X-Api-Key, raw TAF/TAP XML
     RuApi->>RuApi: Parse MessageHeader<br/>(MessageType, Sender, Recipient, MessageIdentifier)
@@ -29,7 +29,7 @@ sequenceDiagram
     Auth->>Auth: MessageType in AllowedMessageTypesEvuToBroker (or "*")?
     Auth-->>RuApi: Success(RailwayUndertaking) or Failure(reason)
     RuApi->>Pub: PublishAsync(BrokerMessage(Id, Sender, Recipient, rawXml))
-    Note over Pub: Currently just logs — no delivery to any IM
+    Note over Pub: Placed on RabbitMQ queue — no consumer/delivery to any IM yet
     RuApi-->>RU: 202 Accepted { status: "ACK", messageIdentifier }
 ```
 
@@ -58,12 +58,12 @@ sequenceDiagram
     autonumber
     participant IM as Infrastructure Manager (ISB)
     participant ImApi as TsiBroker.Im.Api<br/>SOAP /ci (UICMessage)
-    participant Pub as IMessagePublisher<br/>(DebugMessagePublisher)
+    participant Pub as IMessagePublisher<br/>(RabbitMqMessagePublisher)
 
     IM->>ImApi: SOAP UICMessage<br/>(messageIdentifier, messageLiHost, Message)
     ImApi->>ImApi: request.Message present?<br/>(throws ArgumentException if null)
     ImApi->>Pub: PublishAsync(BrokerMessage(<br/>Id: messageIdentifier, Sender: "CI", Receiver: "App", Content))
-    Note over Pub: Currently just logs — no delivery to any RU
+    Note over Pub: Placed on RabbitMQ queue — no consumer/delivery to any RU yet
     alt publish succeeds
         ImApi->>ImApi: TechnicalAckFactory.Create(status: "ACK", ...)
     else any exception (including from publish)
@@ -100,13 +100,12 @@ Heartbeat is a pure liveness echo — it has **no** `IMessagePublisher` dependen
 
 ## What's Missing for End-to-End Relay
 
-To go from "ingest and log" to an actual working broker, the following pieces don't exist yet in the codebase:
+To go from "ingest and queue" to an actual working broker, the following pieces don't exist yet in the codebase:
 
-1. A RabbitMQ-backed `IMessagePublisher` implementation (the container is provisioned in `infrastructure/docker-compose.yml`, but no NuGet package or connection code references it)
-2. A consumer that reads published `BrokerMessage`s and forwards them — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM)
-3. Real `Sender`/`Receiver` resolution on the IM→broker (CI) path, based on RICS codes rather than the current hardcoded `"CI"`/`"App"` literals
-4. An authorization step on the IM→broker path equivalent to `TsiMessageAuthorizationService` on the RU side
-5. A decision on whether/how Heartbeat should participate in the broker's message flow at all
+1. A consumer that reads published `BrokerMessage`s off the RabbitMQ queue and forwards them — to an RU's `SystemUrl` (if the receiver is an RU) or to the appropriate IM SOAP endpoint (if the receiver is an IM)
+2. Real `Sender`/`Receiver` resolution on the IM→broker (CI) path, based on RICS codes rather than the current hardcoded `"CI"`/`"App"` literals
+3. An authorization step on the IM→broker path equivalent to `TsiMessageAuthorizationService` on the RU side
+4. A decision on whether/how Heartbeat should participate in the broker's message flow at all
 
 ## WhoAmI: Self-Service Discovery
 

@@ -18,10 +18,22 @@ builder.Services
     .Bind(builder.Configuration.GetSection(InfrastructureOperatorStoreOptions.SectionName));
 builder.Services.AddSingleton<InfrastructureOperatorStore>();
 
-builder.Services.AddSingleton<IMessagePublisher, DebugMessagePublisher>();
+builder.Services.AddMessagePublisher(builder.Configuration);
 builder.Services.AddScoped<TsiMessageAuthorizationService>();
 
 var app = builder.Build();
+
+if (app.Services.GetRequiredService<IMessagePublisher>() is RabbitMqMessagePublisher rabbitMqMessagePublisher)
+{
+    try
+    {
+        await rabbitMqMessagePublisher.EnsureConnectedAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Could not connect to RabbitMQ at startup");
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {

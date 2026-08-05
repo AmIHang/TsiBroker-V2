@@ -83,7 +83,14 @@ public interface IMessagePublisher
 }
 ```
 
-`DebugMessagePublisher` (log-only, no-op) is currently the sole registered implementation in every host. When a real transport-backed implementation is added, it should be a drop-in replacement registered in `Program.cs` — no feature code should need to change. See [[Business-Flow]] for exactly which flows currently call this and what's still missing end-to-end.
+`TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register their `IMessagePublisher` via `services.AddMessagePublisher(configuration)` (`TsiBroker.Core/Messaging/MessagePublisherServiceCollectionExtensions.cs`) instead of an inline `AddSingleton<IMessagePublisher, ...>()` — this extension picks the concrete implementation based on `Messaging:QueueType` (env var `Messaging__QueueType`, `MessageQueueType` enum: `RabbitMq` (default) or `Debug`), so switching backends is a config change, not a code change:
+
+- `RabbitMq` → `RabbitMqMessagePublisher` (`TsiBroker.Core/Messaging/RabbitMqMessagePublisher.cs`). Publishes `BrokerMessage.Content` (raw XML) as a persistent message to a durable queue on RabbitMQ's default exchange, lazily opening one shared connection/channel per process.
+- `Debug` → `DebugMessagePublisher` (log-only, no-op) — for local debugging without a broker.
+
+Adding a new backend (e.g. AWS Service Bus/SQS) means adding an enum case to `MessageQueueType`, an `IMessagePublisher` implementation + its own `Options` type in `Messaging/`, and a `case` in `AddMessagePublisher` — feature code calling `IMessagePublisher.PublishAsync` never changes. See [[Business-Flow]] for exactly which flows currently call this and what's still missing end-to-end.
+
+RabbitMQ connection settings live in `RabbitMqOptions` (`SectionName = "RabbitMq"`): `HostName`, `Port`, `UseTls`, `VirtualHost`, `UserName`, `Password`, `QueueName`. Following the options pattern in §8, these — plus `Messaging:QueueType` — are meant to be set per environment via env vars (`Messaging__QueueType`, `RabbitMq__HostName`, `RabbitMq__Port`, `RabbitMq__UserName`, `RabbitMq__Password`, etc.) rather than committed to `appsettings.json` — the in-code defaults (`localhost:5672`, `guest`/`guest`) only match a bare local RabbitMQ, not the credentials configured in `infrastructure/docker-compose.yml`.
 
 ## 6. SOAP Contract Code Stays Generated-Code-Adjacent
 

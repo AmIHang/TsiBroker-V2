@@ -10,11 +10,23 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddServiceModelServices();
 builder.Services.AddServiceModelMetadata();
-builder.Services.AddSingleton<IMessagePublisher, DebugMessagePublisher>();
+builder.Services.AddMessagePublisher(builder.Configuration);
 builder.Services.AddScoped<CommonInterfaceMessageService>();
 builder.Services.AddScoped<HeartbeatMessageService>();
 
 var app = builder.Build();
+
+if (app.Services.GetRequiredService<IMessagePublisher>() is RabbitMqMessagePublisher rabbitMqMessagePublisher)
+{
+    try
+    {
+        await rabbitMqMessagePublisher.EnsureConnectedAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Could not connect to RabbitMQ at startup");
+    }
+}
 
 app.UseServiceModel(serviceBuilder =>
 {
