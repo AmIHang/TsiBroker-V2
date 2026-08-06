@@ -44,10 +44,10 @@ public static class TsiMessageEndpoints
                 Sender: message.Sender,
                 Receiver: message.Recipient,
                 Content: rawXml,
-                // Groups all messages from this RU into one queue, regardless of which of
-                // its RicsCodes a given message happened to use as Sender — see
+                // Groups all messages addressed to this Infrastrukturbetreiber into one
+                // queue, regardless of which RU/RicsCode sent them — see
                 // IMessageConsumer.RunPartitionedAsync.
-                PartitionKey: authorization.RailwayUndertaking!.Name);
+                PartitionKey: authorization.InfrastructureOperator!.Name);
 
             await publisher.PublishAsync(brokerMessage);
 

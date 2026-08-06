@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api'
 
 interface QueueStatus {
   queueName: string
-  railwayUndertakingName: string
+  infrastructureOperatorName: string
   isActive: boolean
   messageCount: number | null
 }
@@ -42,7 +42,7 @@ onMounted(loadQueues)
     <table v-else class="data-table">
       <thead>
         <tr>
-          <th>{{ t('queues.columns.railwayUndertaking') }}</th>
+          <th>{{ t('queues.columns.infrastructureOperator') }}</th>
           <th>{{ t('queues.columns.queueName') }}</th>
           <th>{{ t('queues.columns.messageCount') }}</th>
           <th>{{ t('common.status') }}</th>
@@ -55,7 +55,7 @@ onMounted(loadQueues)
           class="data-table__row"
           :class="{ 'data-table__row--inactive': !q.isActive }"
         >
-          <td>{{ q.railwayUndertakingName }}</td>
+          <td>{{ q.infrastructureOperatorName }}</td>
           <td>{{ q.queueName }}</td>
           <td>{{ q.messageCount ?? '–' }}</td>
           <td>

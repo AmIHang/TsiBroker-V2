@@ -9,7 +9,7 @@ Guidance for any AI coding agent (Claude Code, GitHub Copilot, Cursor, etc.) wor
 **Tech Stack**
 - Backend: .NET 10, ASP.NET Core Minimal APIs, Aspire (orchestration)
 - Persistence: no database — JSON files under `App_Data/` (see `InfrastructureOperatorStore`, `RailwayUndertakingStore` in `TsiBroker.Core`), guarded by an in-process `SemaphoreSlim`. In containers, `App_Data` is mounted to a volume so data survives recreation.
-- Messaging: RabbitMQ (`infrastructure/docker-compose.yml`) behind `IMessagePublisher`/`IMessageConsumer`, one queue per RU (`TsiBroker.ApiService`'s `RailwayUndertakingConsumerCoordinator` starts/stops consumption as RUs are created/activated/deactivated/renamed/deleted); `DebugMessagePublisher`/`DebugMessageConsumer` are no-op/logging alternatives, selectable via `Messaging:QueueType`
+- Messaging: RabbitMQ (`infrastructure/docker-compose.yml`) behind `IMessagePublisher`/`IMessageConsumer`, one queue per Infrastrukturbetreiber (`TsiBroker.ApiService`'s `InfrastructureOperatorConsumerCoordinator` starts/stops consumption as operators are created/activated/deactivated/renamed/deleted); `DebugMessagePublisher`/`DebugMessageConsumer` are no-op/logging alternatives, selectable via `Messaging:QueueType`
 - IM-side transport: SOAP/WCF via `CoreWCF` (`TsiBroker.Im.Api` — Common Interface, Heartbeat, generated from WSDL)
 - RU-side transport: REST + `X-Api-Key` header auth (`TsiBroker.Ru.Api`)
 - Admin UI backend auth: single admin user (`AdminUser` config section), cookie-based (`TsiBroker.Auth` cookie), no external IdP

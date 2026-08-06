@@ -67,22 +67,22 @@ builder.Services.AddSingleton<RailwayUndertakingStore>();
 builder.Services.AddHttpClient<EvuApiClient>();
 
 builder.Services.AddMessageConsumer(builder.Configuration);
-builder.Services.AddSingleton<RailwayUndertakingConsumerCoordinator>();
+builder.Services.AddSingleton<InfrastructureOperatorConsumerCoordinator>();
 
 var app = builder.Build();
 
-// Reconcile: start queue consumption for whatever RUs are already active, so a process
-// restart doesn't silently stop delivery until the next Create/Activate/Deactivate call.
+// Reconcile: start queue consumption for whatever Infrastrukturbetreiber are already active,
+// so a process restart doesn't silently stop delivery until the next Create/Activate/Deactivate call.
 {
-    var coordinator = app.Services.GetRequiredService<RailwayUndertakingConsumerCoordinator>();
-    var railwayUndertakingStore = app.Services.GetRequiredService<RailwayUndertakingStore>();
+    var coordinator = app.Services.GetRequiredService<InfrastructureOperatorConsumerCoordinator>();
+    var infrastructureOperatorStore = app.Services.GetRequiredService<InfrastructureOperatorStore>();
     try
     {
-        await coordinator.StartAllActiveAsync(await railwayUndertakingStore.GetAllAsync());
+        await coordinator.StartAllActiveAsync(await infrastructureOperatorStore.GetAllAsync());
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "Could not start message consumption for active RUs at startup");
+        app.Logger.LogError(ex, "Could not start message consumption for active infrastructure operators at startup");
     }
 }
 

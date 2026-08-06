@@ -37,8 +37,7 @@ public static class RailwayUndertakingEndpoints
         group.MapPost("/", async (
             CreateRailwayUndertakingRequest request,
             RailwayUndertakingStore store,
-            InfrastructureOperatorStore isbStore,
-            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
+            InfrastructureOperatorStore isbStore) =>
         {
             var ricsCodes = NormalizeRicsCodes(request.RicsCodes);
             if (string.IsNullOrWhiteSpace(request.Name)
@@ -55,7 +54,6 @@ public static class RailwayUndertakingEndpoints
             }
 
             var created = await store.AddAsync(request.Name.Trim(), ricsCodes, request.SystemUrl.Trim(), assignments);
-            await consumerCoordinator.StartAsync(created);
             return Results.Created($"/api/railway-undertakings/{created.Id}", created);
         });
 
@@ -63,8 +61,7 @@ public static class RailwayUndertakingEndpoints
             Guid id,
             UpdateRailwayUndertakingRequest request,
             RailwayUndertakingStore store,
-            InfrastructureOperatorStore isbStore,
-            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
+            InfrastructureOperatorStore isbStore) =>
         {
             var ricsCodes = NormalizeRicsCodes(request.RicsCodes);
             if (string.IsNullOrWhiteSpace(request.Name)
@@ -86,7 +83,6 @@ public static class RailwayUndertakingEndpoints
                 return Results.NotFound();
             }
 
-            var previousName = existing.Name;
             var updated = await store.UpdateAsync(
                 id,
                 request.Name.Trim(),
@@ -100,37 +96,18 @@ public static class RailwayUndertakingEndpoints
                 return Results.NotFound();
             }
 
-            // Renaming an active RU changes its queue name (see TsiMessageEndpoints.PartitionKey)
-            // — migrate live consumption to the new queue instead of leaving the old one running.
-            if (!string.Equals(previousName, updated.Name, StringComparison.Ordinal))
-            {
-                await consumerCoordinator.StopAsync(previousName);
-                await consumerCoordinator.StartAsync(updated);
-            }
-
             return Results.Ok(updated);
         });
 
         group.MapPatch("/{id:guid}/status", async (
             Guid id,
             SetRailwayUndertakingActiveRequest request,
-            RailwayUndertakingStore store,
-            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
+            RailwayUndertakingStore store) =>
         {
             var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
             if (existing is null || !await store.SetActiveAsync(id, request.IsActive))
             {
                 return Results.NotFound();
-            }
-
-            if (request.IsActive)
-            {
-                existing.IsActive = true;
-                await consumerCoordinator.StartAsync(existing);
-            }
-            else
-            {
-                await consumerCoordinator.StopAsync(existing.Name);
             }
 
             return Results.Ok();
@@ -168,8 +145,7 @@ public static class RailwayUndertakingEndpoints
 
         group.MapDelete("/{id:guid}", async (
             Guid id,
-            RailwayUndertakingStore store,
-            RailwayUndertakingConsumerCoordinator consumerCoordinator) =>
+            RailwayUndertakingStore store) =>
         {
             var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
             if (existing is null || !await store.DeleteAsync(id))
@@ -177,7 +153,6 @@ public static class RailwayUndertakingEndpoints
                 return Results.NotFound();
             }
 
-            await consumerCoordinator.StopAsync(existing.Name);
             return Results.Ok();
         });
     }

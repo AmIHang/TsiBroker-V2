@@ -1,29 +1,30 @@
+using TsiBroker.Core.InfrastructureOperators;
 using TsiBroker.Core.Messaging;
-using TsiBroker.Core.RailwayUndertakings;
 
 namespace TsiBroker.ApiService.Queues;
 
-public record QueueStatusResponse(string QueueName, string RailwayUndertakingName, bool IsActive, int? MessageCount);
+public record QueueStatusResponse(string QueueName, string InfrastructureOperatorName, bool IsActive, int? MessageCount);
 
-// Each active RU owns one queue (see RailwayUndertakingConsumerCoordinator) — this lists all
-// of them together with whether their consume loop is currently running and how many
-// messages are currently waiting in the queue.
+// Each active Infrastrukturbetreiber owns one outbound queue (see
+// InfrastructureOperatorConsumerCoordinator) — this lists all of them together with whether
+// their consume loop is currently running and how many messages are currently waiting in the
+// queue.
 public static class QueueEndpoints
 {
     public static void MapQueueEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/queues").RequireAuthorization();
 
-        group.MapGet("/", async (RailwayUndertakingStore store, IMessageConsumer consumer, CancellationToken cancellationToken) =>
+        group.MapGet("/", async (InfrastructureOperatorStore store, IMessageConsumer consumer, CancellationToken cancellationToken) =>
         {
-            var railwayUndertakings = await store.GetAllAsync();
-            var queues = await Task.WhenAll(railwayUndertakings
-                .OrderBy(ru => ru.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(async ru => new QueueStatusResponse(
-                    RabbitMqQueueNaming.ForPartition(ru.Name),
-                    ru.Name,
-                    consumer.IsPartitionActive(ru.Name),
-                    await consumer.GetMessageCountAsync(ru.Name, cancellationToken))));
+            var infrastructureOperators = await store.GetAllAsync();
+            var queues = await Task.WhenAll(infrastructureOperators
+                .OrderBy(io => io.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(async io => new QueueStatusResponse(
+                    RabbitMqQueueNaming.ForPartition(io.Name),
+                    io.Name,
+                    consumer.IsPartitionActive(io.Name),
+                    await consumer.GetMessageCountAsync(io.Name, cancellationToken))));
 
             return Results.Ok(queues);
         });

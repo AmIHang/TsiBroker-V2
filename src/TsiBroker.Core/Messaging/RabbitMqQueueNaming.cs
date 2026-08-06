@@ -8,11 +8,12 @@ public static class RabbitMqQueueNaming
 {
     private static readonly Regex NonAlphanumeric = new("[^a-zA-Z0-9]+", RegexOptions.Compiled);
 
-    // Turns a partition key (e.g. an RU's master-data name "ÖBB Rail Cargo Austria") into
-    // a stable, RabbitMQ-safe queue name ("obb-rail-cargo-austria-in"). Two RUs whose names
-    // slugify to the same value would end up sharing a queue — acceptable for now, since RU
-    // names aren't currently enforced unique in RailwayUndertakingStore.
-    public static string ForPartition(string partitionKey) => $"{Slugify(partitionKey)}-in";
+    // Turns a partition key (e.g. an Infrastrukturbetreiber's master-data name "ÖBB
+    // Infrastruktur AG") into a stable, RabbitMQ-safe queue name
+    // ("obb-infrastruktur-ag-out"). Two operators whose names slugify to the same value
+    // would end up sharing a queue — acceptable for now, since Name isn't currently
+    // enforced unique in InfrastructureOperatorStore.
+    public static string ForPartition(string partitionKey) => $"{Slugify(partitionKey)}-out";
 
     private static string Slugify(string value)
     {

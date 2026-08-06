@@ -130,7 +130,7 @@
     "loadError": "Queues konnten nicht geladen werden.",
     "empty": "Keine Queues vorhanden.",
     "columns": {
-      "railwayUndertaking": "Eisenbahnverkehrsunternehmen",
+      "infrastructureOperator": "Infrastrukturbetreiber",
       "queueName": "Queue",
       "messageCount": "Nachrichten"
     }

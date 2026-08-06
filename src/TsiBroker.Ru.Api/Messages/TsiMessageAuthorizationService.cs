@@ -14,9 +14,13 @@ public enum TsiMessageAuthorizationFailureReason
 
 public class TsiMessageAuthorizationResult
 {
-    private TsiMessageAuthorizationResult(RailwayUndertaking? railwayUndertaking, TsiMessageAuthorizationFailureReason? failureReason)
+    private TsiMessageAuthorizationResult(
+        RailwayUndertaking? railwayUndertaking,
+        InfrastructureOperator? infrastructureOperator,
+        TsiMessageAuthorizationFailureReason? failureReason)
     {
         RailwayUndertaking = railwayUndertaking;
+        InfrastructureOperator = infrastructureOperator;
         FailureReason = failureReason;
     }
 
@@ -24,13 +28,17 @@ public class TsiMessageAuthorizationResult
 
     public RailwayUndertaking? RailwayUndertaking { get; }
 
+    // The recipient ISB, resolved via the message's Recipient RICS code — determines the
+    // outbound queue the message is placed on (see TsiMessageEndpoints.PartitionKey).
+    public InfrastructureOperator? InfrastructureOperator { get; }
+
     public TsiMessageAuthorizationFailureReason? FailureReason { get; }
 
-    public static TsiMessageAuthorizationResult Success(RailwayUndertaking railwayUndertaking) =>
-        new(railwayUndertaking, null);
+    public static TsiMessageAuthorizationResult Success(RailwayUndertaking railwayUndertaking, InfrastructureOperator infrastructureOperator) =>
+        new(railwayUndertaking, infrastructureOperator, null);
 
     public static TsiMessageAuthorizationResult Failure(TsiMessageAuthorizationFailureReason reason) =>
-        new(null, reason);
+        new(null, null, reason);
 }
 
 public class TsiMessageAuthorizationService(
@@ -74,6 +82,6 @@ public class TsiMessageAuthorizationService(
             return TsiMessageAuthorizationResult.Failure(TsiMessageAuthorizationFailureReason.MessageTypeNotAllowed);
         }
 
-        return TsiMessageAuthorizationResult.Success(railwayUndertaking);
+        return TsiMessageAuthorizationResult.Success(railwayUndertaking, infrastructureOperator);
     }
 }

@@ -130,7 +130,7 @@
     "loadError": "Queues could not be loaded.",
     "empty": "No queues available.",
     "columns": {
-      "railwayUndertaking": "Railway Undertaking",
+      "infrastructureOperator": "Infrastructure Operator",
       "queueName": "Queue",
       "messageCount": "Messages"
     }
