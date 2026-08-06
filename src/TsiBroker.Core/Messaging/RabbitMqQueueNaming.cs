@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace TsiBroker.Core.Messaging;
 
-internal static class RabbitMqQueueNaming
+public static class RabbitMqQueueNaming
 {
     private static readonly Regex NonAlphanumeric = new("[^a-zA-Z0-9]+", RegexOptions.Compiled);
 

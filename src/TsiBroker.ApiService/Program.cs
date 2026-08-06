@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TsiBroker.ApiService.Auth;
 using TsiBroker.ApiService.InfrastructureOperators;
+using TsiBroker.ApiService.Queues;
 using TsiBroker.ApiService.RailwayUndertakings;
 using TsiBroker.Core.InfrastructureOperators;
 using TsiBroker.Core.Messaging;
@@ -100,5 +101,6 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapInfrastructureOperatorEndpoints();
 app.MapRailwayUndertakingEndpoints();
+app.MapQueueEndpoints();
 
 app.Run();

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 
 namespace TsiBroker.Core.Messaging;
 
@@ -89,6 +90,37 @@ public sealed class RabbitMqMessageConsumer(
             "Stopped consuming queue '{QueueName}' for partition '{PartitionKey}'",
             queueName,
             partitionKey);
+    }
+
+    public bool IsPartitionActive(string partitionKey) =>
+        _partitions.ContainsKey(RabbitMqQueueNaming.ForPartition(partitionKey));
+
+    // A passive declare only asks the broker for the queue's current stats — it never
+    // creates the queue, so a partition that has never been started correctly reports "no
+    // such queue" (404, surfaced as OperationInterruptedException) rather than an empty one.
+    public async Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default)
+    {
+        var queueName = RabbitMqQueueNaming.ForPartition(partitionKey);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        try
+        {
+            var result = await channel.QueueDeclarePassiveAsync(queueName, cancellationToken);
+            return (int)result.MessageCount;
+        }
+        catch (OperationInterruptedException)
+        {
+            return null;
+        }
+        finally
+        {
+            if (channel.IsOpen)
+            {
+                await channel.CloseAsync(cancellationToken);
+            }
+
+            channel.Dispose();
+        }
     }
 
     private async Task<(IChannel Channel, string DeadLetterQueueName)> SetupConsumerAsync(

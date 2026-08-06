@@ -18,6 +18,7 @@ const navItems = computed(
       { to: '/', label: t('sidebar.home'), icon: 'home' },
       { to: '/railway-undertakings', label: t('sidebar.railwayUndertakings'), icon: 'train' },
       { to: '/infrastructure-operators', label: t('sidebar.infrastructureOperators'), icon: 'operators' },
+      { to: '/queues', label: t('sidebar.queues'), icon: 'queue' },
     ] as const,
 )
 
@@ -96,6 +97,11 @@ async function onLogout() {
             <circle cx="9" cy="13" r="0.9" fill="currentColor" />
             <circle cx="15" cy="13" r="0.9" fill="currentColor" />
             <path d="M9 18.5l-2 2.2M15 18.5l2 2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <svg v-else-if="item.icon === 'queue'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="4" rx="1" stroke="currentColor" stroke-width="1.8" />
+            <rect x="3" y="10.5" width="18" height="4" rx="1" stroke="currentColor" stroke-width="1.8" />
+            <rect x="3" y="16" width="18" height="4" rx="1" stroke="currentColor" stroke-width="1.8" />
           </svg>
         </span>
         <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>

@@ -33,6 +33,7 @@
     "home": "Home",
     "railwayUndertakings": "Railway Undertakings",
     "infrastructureOperators": "Infrastructure Operators",
+    "queues": "Queues",
     "account": "Account ({user})",
     "logout": "Logout ({user})"
   },
@@ -40,7 +41,8 @@
     "home": "Home",
     "infrastructureOperators": "Infrastructure Operators",
     "railwayUndertakings": "Railway Undertakings",
-    "railwayUndertakingEdit": "Edit Railway Undertaking"
+    "railwayUndertakingEdit": "Edit Railway Undertaking",
+    "queues": "Queues"
   },
   "home": {
     "welcome": "Welcome to TSI-Broker"
@@ -122,6 +124,15 @@
       "selectIsbError": "Please select an infrastructure operator.",
       "alreadyLinkedError": "This infrastructure operator is already linked.",
       "save": "Add link"
+    }
+  },
+  "queues": {
+    "loadError": "Queues could not be loaded.",
+    "empty": "No queues available.",
+    "columns": {
+      "railwayUndertaking": "Railway Undertaking",
+      "queueName": "Queue",
+      "messageCount": "Messages"
     }
   }
 }

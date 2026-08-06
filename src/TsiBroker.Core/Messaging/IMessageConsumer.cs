@@ -23,4 +23,12 @@ public interface IMessageConsumer
 
     // Stops the consume loop for partitionKey, if one is running. A no-op if it isn't.
     Task StopPartitionAsync(string partitionKey, CancellationToken cancellationToken = default);
+
+    // Whether a consume loop for partitionKey is currently running (started via
+    // StartPartitionAsync and not yet stopped/disposed).
+    bool IsPartitionActive(string partitionKey);
+
+    // Number of messages currently sitting in partitionKey's queue, or null if that queue
+    // doesn't exist yet (e.g. a partition that has never been started).
+    Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default);
 }

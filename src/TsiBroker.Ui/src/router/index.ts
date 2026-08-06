@@ -42,6 +42,12 @@ const router = createRouter({
       component: () => import('../views/RailwayUndertakingEditView.vue'),
       meta: { title: 'routeTitles.railwayUndertakingEdit' },
     },
+    {
+      path: '/queues',
+      name: 'queues',
+      component: () => import('../views/QueuesView.vue'),
+      meta: { title: 'routeTitles.queues' },
+    },
   ],
 })
 

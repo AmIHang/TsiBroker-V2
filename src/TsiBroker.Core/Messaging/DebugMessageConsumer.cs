@@ -45,4 +45,9 @@ public class DebugMessageConsumer(ILogger<DebugMessageConsumer> logger) : IMessa
 
         return Task.CompletedTask;
     }
+
+    public bool IsPartitionActive(string partitionKey) => _startedPartitions.ContainsKey(partitionKey);
+
+    public Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default) =>
+        Task.FromResult<int?>(_startedPartitions.ContainsKey(partitionKey) ? 0 : null);
 }

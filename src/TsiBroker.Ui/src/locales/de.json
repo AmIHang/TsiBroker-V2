@@ -33,6 +33,7 @@
     "home": "Startseite",
     "railwayUndertakings": "Eisenbahnverkehrsunternehmen",
     "infrastructureOperators": "Infrastrukturbetreiber",
+    "queues": "Queues",
     "account": "Konto ({user})",
     "logout": "Logout ({user})"
   },
@@ -40,7 +41,8 @@
     "home": "Startseite",
     "infrastructureOperators": "Infrastrukturbetreiber",
     "railwayUndertakings": "Eisenbahnverkehrsunternehmen",
-    "railwayUndertakingEdit": "Eisenbahnverkehrsunternehmen bearbeiten"
+    "railwayUndertakingEdit": "Eisenbahnverkehrsunternehmen bearbeiten",
+    "queues": "Queues"
   },
   "home": {
     "welcome": "Willkommen beim TSI-Broker"
@@ -122,6 +124,15 @@
       "selectIsbError": "Bitte einen Infrastrukturbetreiber auswählen.",
       "alreadyLinkedError": "Dieser Infrastrukturbetreiber ist bereits verknüpft.",
       "save": "Verknüpfung hinzufügen"
+    }
+  },
+  "queues": {
+    "loadError": "Queues konnten nicht geladen werden.",
+    "empty": "Keine Queues vorhanden.",
+    "columns": {
+      "railwayUndertaking": "Eisenbahnverkehrsunternehmen",
+      "queueName": "Queue",
+      "messageCount": "Nachrichten"
     }
   }
 }
