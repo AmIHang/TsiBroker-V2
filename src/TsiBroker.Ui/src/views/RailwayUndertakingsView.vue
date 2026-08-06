@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '@/lib/api'
+import { ApiError, apiFetch } from '@/lib/api'
 
 interface IsbAssignment {
   infrastructureOperatorId: string
@@ -76,6 +76,16 @@ async function loadInfrastructureOperators() {
   }
 }
 
+function duplicateRicsCodeMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError) || !err.body || typeof err.body !== 'object') {
+    return null
+  }
+  const body = err.body as { error?: string; ricsCode?: string }
+  return body.error === 'duplicate_rics_code'
+    ? t('railwayUndertakings.duplicateRicsCodeError', { ricsCode: body.ricsCode })
+    : null
+}
+
 function isbFor(infrastructureOperatorId: string) {
   return infrastructureOperators.value.find((isb) => isb.id === infrastructureOperatorId)
 }
@@ -121,8 +131,8 @@ async function onSubmit() {
     const created: RailwayUndertaking = await response.json()
     showForm.value = false
     router.push({ name: 'railway-undertaking-edit', params: { id: created.id } })
-  } catch {
-    formError.value = t('railwayUndertakings.createError')
+  } catch (err) {
+    formError.value = duplicateRicsCodeMessage(err) ?? t('railwayUndertakings.createError')
   } finally {
     isSubmitting.value = false
   }

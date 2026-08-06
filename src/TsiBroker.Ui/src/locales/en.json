@@ -73,6 +73,7 @@
     "new": "+ New railway undertaking",
     "createTitle": "New railway undertaking",
     "createError": "Railway undertaking could not be created.",
+    "duplicateRicsCodeError": "RicsCode \"{ricsCode}\" is already used by another railway undertaking.",
     "empty": "No railway undertakings available.",
     "columns": {
       "isbs": "IMs"
@@ -82,6 +83,7 @@
     "notFound": "Railway undertaking was not found.",
     "loadError": "Railway undertaking could not be loaded.",
     "saveError": "Changes could not be saved.",
+    "duplicateRicsCodeError": "RicsCode \"{ricsCode}\" is already used by another railway undertaking.",
     "deleteError": "Railway undertaking could not be deleted.",
     "confirmDelete": "Really delete \"{name}\"?",
     "breadcrumbBack": "← Railway undertakings",

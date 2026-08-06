@@ -47,6 +47,12 @@ public static class RailwayUndertakingEndpoints
                 return Results.BadRequest();
             }
 
+            var duplicateRicsCode = FindDuplicateRicsCode(ricsCodes, await store.GetAllAsync(), excludeId: null);
+            if (duplicateRicsCode is not null)
+            {
+                return Results.Conflict(new { error = "duplicate_rics_code", ricsCode = duplicateRicsCode });
+            }
+
             var assignments = await NormalizeAssignmentsAsync(request.InfrastructureOperatorAssignments, isbStore);
             if (assignments is null)
             {
@@ -71,16 +77,23 @@ public static class RailwayUndertakingEndpoints
                 return Results.BadRequest();
             }
 
+            var allUndertakings = await store.GetAllAsync();
+            var existing = allUndertakings.FirstOrDefault(u => u.Id == id);
+            if (existing is null)
+            {
+                return Results.NotFound();
+            }
+
+            var duplicateRicsCode = FindDuplicateRicsCode(ricsCodes, allUndertakings, excludeId: id);
+            if (duplicateRicsCode is not null)
+            {
+                return Results.Conflict(new { error = "duplicate_rics_code", ricsCode = duplicateRicsCode });
+            }
+
             var assignments = await NormalizeAssignmentsAsync(request.InfrastructureOperatorAssignments, isbStore);
             if (assignments is null)
             {
                 return Results.BadRequest();
-            }
-
-            var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
-            if (existing is null)
-            {
-                return Results.NotFound();
             }
 
             var updated = await store.UpdateAsync(
@@ -165,6 +178,14 @@ public static class RailwayUndertakingEndpoints
                 .Where(code => code.Length > 0)
                 .Distinct()
                 .ToList();
+
+    // RicsCodes must be unique across EVUs: the same code cannot be assigned to two different
+    // railway undertakings. ISBs use a separate namespace and are intentionally not checked here.
+    private static string? FindDuplicateRicsCode(List<string> ricsCodes, List<RailwayUndertaking> undertakings, Guid? excludeId) =>
+        ricsCodes.FirstOrDefault(code =>
+            undertakings.Any(u =>
+                u.Id != excludeId
+                && u.RicsCodes.Any(existingCode => string.Equals(existingCode, code, StringComparison.OrdinalIgnoreCase))));
 
     private static List<string> NormalizeMessageTypes(List<string>? messageTypes) =>
         messageTypes is null

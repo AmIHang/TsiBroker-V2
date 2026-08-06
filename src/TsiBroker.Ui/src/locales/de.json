@@ -73,6 +73,7 @@
     "new": "+ Neues Eisenbahnverkehrsunternehmen",
     "createTitle": "Neues Eisenbahnverkehrsunternehmen",
     "createError": "Eisenbahnverkehrsunternehmen konnte nicht angelegt werden.",
+    "duplicateRicsCodeError": "RicsCode \"{ricsCode}\" wird bereits von einem anderen Eisenbahnverkehrsunternehmen verwendet.",
     "empty": "Keine Eisenbahnverkehrsunternehmen vorhanden.",
     "columns": {
       "isbs": "ISBs"
@@ -82,6 +83,7 @@
     "notFound": "Eisenbahnverkehrsunternehmen wurde nicht gefunden.",
     "loadError": "Eisenbahnverkehrsunternehmen konnte nicht geladen werden.",
     "saveError": "Änderungen konnten nicht gespeichert werden.",
+    "duplicateRicsCodeError": "RicsCode \"{ricsCode}\" wird bereits von einem anderen Eisenbahnverkehrsunternehmen verwendet.",
     "deleteError": "Eisenbahnverkehrsunternehmen konnte nicht gelöscht werden.",
     "confirmDelete": "\"{name}\" wirklich löschen?",
     "breadcrumbBack": "← Eisenbahnverkehrsunternehmen",

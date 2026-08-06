@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '@/lib/api'
+import { ApiError, apiFetch } from '@/lib/api'
 import { hasTopbarOverride } from '@/composables/useTopbarOverride'
 
 interface IsbAssignment {
@@ -126,6 +126,16 @@ async function load() {
   }
 }
 
+function duplicateRicsCodeMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError) || !err.body || typeof err.body !== 'object') {
+    return null
+  }
+  const body = err.body as { error?: string; ricsCode?: string }
+  return body.error === 'duplicate_rics_code'
+    ? t('railwayUndertakingEdit.duplicateRicsCodeError', { ricsCode: body.ricsCode })
+    : null
+}
+
 function isbLabel(isb: InfrastructureOperator) {
   return `${isb.name} (${isb.ricsCode})`
 }
@@ -190,8 +200,8 @@ async function saveAll() {
 
     undertaking.value = updated
     resetLocalState(updated)
-  } catch {
-    saveError.value = t('railwayUndertakingEdit.saveError')
+  } catch (err) {
+    saveError.value = duplicateRicsCodeMessage(err) ?? t('railwayUndertakingEdit.saveError')
   } finally {
     isSaving.value = false
   }
