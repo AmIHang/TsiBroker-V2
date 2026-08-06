@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '@/lib/api'
+import { apiFetch, ApiError } from '@/lib/api'
 
 interface InfrastructureOperator {
   id: string
@@ -60,6 +60,16 @@ function openCreateForm() {
   showForm.value = true
 }
 
+function duplicateRicsCodeMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError) || !err.body || typeof err.body !== 'object') {
+    return null
+  }
+  const body = err.body as { error?: string; ricsCode?: string }
+  return body.error === 'duplicate_rics_code'
+    ? t('infrastructureOperators.duplicateRicsCodeError', { ricsCode: body.ricsCode })
+    : null
+}
+
 function openEditForm(op: InfrastructureOperator) {
   editingId.value = op.id
   name.value = op.name
@@ -99,10 +109,10 @@ async function onSubmit() {
     }
 
     showForm.value = false
-  } catch {
-    formError.value = editingId.value
-      ? t('infrastructureOperators.saveError')
-      : t('infrastructureOperators.createError')
+  } catch (err) {
+    formError.value =
+      duplicateRicsCodeMessage(err) ??
+      (editingId.value ? t('infrastructureOperators.saveError') : t('infrastructureOperators.createError'))
   } finally {
     isSubmitting.value = false
   }

@@ -63,6 +63,7 @@
     "createTitle": "New infrastructure operator",
     "createError": "Infrastructure operator could not be created.",
     "saveError": "Infrastructure operator could not be saved.",
+    "duplicateRicsCodeError": "RicsCode \"{ricsCode}\" is already used by another infrastructure operator.",
     "deleteError": "Infrastructure operator could not be deleted.",
     "confirmDelete": "Really delete \"{name}\"?",
     "empty": "No infrastructure operators available.",

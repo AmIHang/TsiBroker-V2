@@ -63,6 +63,7 @@
     "createTitle": "Neuer Infrastrukturbetreiber",
     "createError": "Infrastrukturbetreiber konnte nicht angelegt werden.",
     "saveError": "Infrastrukturbetreiber konnte nicht gespeichert werden.",
+    "duplicateRicsCodeError": "RicsCode \"{ricsCode}\" wird bereits von einem anderen Infrastrukturbetreiber verwendet.",
     "deleteError": "Infrastrukturbetreiber konnte nicht gelöscht werden.",
     "confirmDelete": "\"{name}\" wirklich löschen?",
     "empty": "Keine Infrastrukturbetreiber vorhanden.",

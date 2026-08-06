@@ -30,7 +30,13 @@ public static class InfrastructureOperatorEndpoints
                 return Results.BadRequest();
             }
 
-            var created = await store.AddAsync(request.Name.Trim(), request.RicsCode.Trim(), request.SystemUrl.Trim());
+            var ricsCode = request.RicsCode.Trim();
+            if (await store.FindByRicsCodeAsync(ricsCode) is not null)
+            {
+                return Results.Conflict(new { error = "duplicate_rics_code", ricsCode });
+            }
+
+            var created = await store.AddAsync(request.Name.Trim(), ricsCode, request.SystemUrl.Trim());
             await consumerCoordinator.StartAsync(created);
             return Results.Created($"/api/infrastructure-operators/{created.Id}", created);
         });
@@ -48,14 +54,21 @@ public static class InfrastructureOperatorEndpoints
                 return Results.BadRequest();
             }
 
-            var existing = (await store.GetAllAsync()).FirstOrDefault(o => o.Id == id);
+            var allOperators = await store.GetAllAsync();
+            var existing = allOperators.FirstOrDefault(o => o.Id == id);
             if (existing is null)
             {
                 return Results.NotFound();
             }
 
+            var ricsCode = request.RicsCode.Trim();
+            if (allOperators.Any(o => o.Id != id && string.Equals(o.RicsCode, ricsCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                return Results.Conflict(new { error = "duplicate_rics_code", ricsCode });
+            }
+
             var previousName = existing.Name;
-            var updated = await store.UpdateAsync(id, request.Name.Trim(), request.RicsCode.Trim(), request.SystemUrl.Trim());
+            var updated = await store.UpdateAsync(id, request.Name.Trim(), ricsCode, request.SystemUrl.Trim());
             if (updated is null)
             {
                 return Results.NotFound();
