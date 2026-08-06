@@ -109,6 +109,18 @@
     }
   }
 
+  // Neutral action placed directly on the topbar (no activate/deactivate/
+  // danger intent) — `color: inherit` alone is invisible against the
+  // topbar's own background, so match its title/breadcrumb color instead.
+  &--topbar {
+    color: var(--color-topbar-text);
+    border-color: var(--color-topbar-border);
+
+    &:hover {
+      background: color-mix(in srgb, var(--color-topbar-text) 12%, transparent);
+    }
+  }
+
   &--lg {
     width: 37px;
     height: 37px;

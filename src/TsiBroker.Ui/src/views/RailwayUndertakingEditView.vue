@@ -390,6 +390,26 @@ onUnmounted(() => {
             <path d="M7 5.5a7 7 0 1 0 10 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
+        <button
+          type="button"
+          class="icon-btn-header icon-btn-header--topbar icon-btn-header--lg"
+          :disabled="isTriggeringConfigUpdate"
+          :aria-label="isTriggeringConfigUpdate ? t('railwayUndertakingEdit.triggerConfigUpdatePending') : t('railwayUndertakingEdit.triggerConfigUpdate')"
+          :title="isTriggeringConfigUpdate ? t('railwayUndertakingEdit.triggerConfigUpdatePending') : t('railwayUndertakingEdit.triggerConfigUpdate')"
+          @click="triggerConfigUpdate"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M23 4v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M1 20v-6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <button type="submit" form="stammdaten-form" class="btn btn--primary" :disabled="isSaving">
           {{ t('common.save') }}
         </button>
@@ -445,22 +465,12 @@ onUnmounted(() => {
               </label>
             </form>
 
-            <div class="field">
-              <button
-                type="button"
-                class="btn"
-                :disabled="isTriggeringConfigUpdate"
-                @click="triggerConfigUpdate"
-              >
-                {{ isTriggeringConfigUpdate ? t('railwayUndertakingEdit.triggerConfigUpdatePending') : t('railwayUndertakingEdit.triggerConfigUpdate') }}
-              </button>
-              <p v-if="configUpdateResult === 'success'" class="hint">
-                {{ t('railwayUndertakingEdit.triggerConfigUpdateSuccess') }}
-              </p>
-              <p v-if="configUpdateResult === 'error'" class="error">
-                {{ t('railwayUndertakingEdit.triggerConfigUpdateError') }}
-              </p>
-            </div>
+            <p v-if="configUpdateResult === 'success'" class="hint">
+              {{ t('railwayUndertakingEdit.triggerConfigUpdateSuccess') }}
+            </p>
+            <p v-if="configUpdateResult === 'error'" class="error">
+              {{ t('railwayUndertakingEdit.triggerConfigUpdateError') }}
+            </p>
           </section>
 
           <section class="card">
