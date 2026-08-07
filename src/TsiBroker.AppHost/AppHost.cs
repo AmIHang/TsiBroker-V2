@@ -9,6 +9,14 @@ builder
     .AddProject<Projects.TsiBroker_Im_Api>("InfrastructureManagement-api")
     .WithExternalHttpEndpoints();
 
+// Test double for a real ISB: plays both directions of the Common Interface contract
+// (receiving on /ci once the outbound relay exists, sending to Im.Api's /ci today). Points at
+// Im.Api's static local-dev port by default (see TsiBroker.Im.Mock/appsettings.json) - override
+// CiClient__TargetUrl if that port ever stops being fixed.
+builder
+    .AddProject<Projects.TsiBroker_Im_Mock>("isb-mock")
+    .WithExternalHttpEndpoints();
+
 var ruApi = builder
     .AddProject<Projects.TsiBroker_Ru_Api>("RailwayUndertaking-api")
     .WithExternalHttpEndpoints();

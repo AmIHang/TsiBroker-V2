@@ -1,8 +1,13 @@
 using System.Xml;
 
-namespace TsiBroker.Im.Api.CI;
+namespace TsiBroker.Im.Core.CI;
 
-internal static class TechnicalAckFactory
+/// <summary>
+/// Builds the LI_TechnicalAck response used by both sides of the Common Interface contract:
+/// TsiBroker.Im.Api replies with this to real Infrastructure Managers, and TsiBroker.Im.Mock
+/// replies with this when standing in for an Infrastructure Manager during tests.
+/// </summary>
+public static class TechnicalAckFactory
 {
     public static XmlElement Create(
         string responseStatus,

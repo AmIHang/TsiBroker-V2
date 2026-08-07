@@ -1,5 +1,5 @@
 using CoreWCF;
-using TsiBroker.Im.Api.CI.Generated;
+using TsiBroker.Im.Core.CI.Generated;
 
 namespace TsiBroker.Im.Api.CI.Contracts;
 

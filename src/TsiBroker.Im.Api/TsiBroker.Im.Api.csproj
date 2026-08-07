@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TsiBroker.Core\TsiBroker.Core.csproj" />
+    <ProjectReference Include="..\TsiBroker.Im.Core\TsiBroker.Im.Core.csproj" />
   </ItemGroup>
 
 </Project>

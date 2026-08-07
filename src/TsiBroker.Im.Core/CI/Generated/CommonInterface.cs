@@ -3,10 +3,13 @@
 //     Types generated from ci.wsdl via Microsoft.Tools.ServiceModel.Svcutil, trimmed to the
 //     plain data contracts actually used by the CoreWCF-hosted CommonInterfaceMessageService
 //     (the generated WCF client classes are not used and were dropped).
+//
+//     Shared between TsiBroker.Im.Api (real IM-facing SOAP host) and TsiBroker.Im.Mock
+//     (test double that plays both the receiving and the sending side of the same contract).
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TsiBroker.Im.Api.CI.Generated
+namespace TsiBroker.Im.Core.CI.Generated
 {
     [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://uic.cc.org/UICMessage")]
     public partial class UICMessage
