@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { apiFetch } from '@/lib/api'
 import { useMessages } from '@/composables/useMessages'
 
@@ -15,6 +15,16 @@ interface SendResult {
   error: string | null
 }
 
+interface TemplateField {
+  tag: string
+  label: string
+  placeholder: string
+}
+
+// Header/envelope tags that already have dedicated inputs (Sender/Recipient) or
+// are fixed by the message type itself, so they're excluded from the generated field list.
+const NON_FIELD_TAGS = new Set(['MessageType', 'Sender', 'Recipient'])
+
 const sender = ref('')
 const recipient = ref('')
 const targetUrl = ref('')
@@ -23,6 +33,8 @@ const messageTypes = ref<string[]>([])
 const messageType = ref('')
 const sendResult = ref<SendResult | null>(null)
 const isSending = ref(false)
+const templateFields = ref<TemplateField[]>([])
+const fieldValues = ref<Record<string, string>>({})
 
 const { messages, refresh: loadMessages } = useMessages('Sent')
 
@@ -55,10 +67,69 @@ function applyRicsToPayload(xml: string): string {
   return result
 }
 
+function humanizeTag(tag: string): string {
+  return tag.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+}
+
+function replaceTagContent(xml: string, tag: string, value: string): string {
+  const regex = new RegExp(`(<${tag}>)[^<]*(</${tag}>)`)
+  return xml.replace(regex, (_, open, close) => open + value + close)
+}
+
+function generateMessageIdentifier(): string {
+  return 'MOCK-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase()
+}
+
+// Every leaf element (a tag with plain text content, no children) is a field that's
+// meaningful to the message body - e.g. train number, location, delay - as opposed to
+// envelope plumbing like MessageType/Sender/Recipient which already have their own inputs.
+// The template's own text becomes the field's placeholder, so a still-required
+// "REPLACE-WITH-..." token shows as grey hint text rather than as a value to overtype.
+function extractTemplateFields(xml: string): TemplateField[] {
+  const fields: TemplateField[] = []
+  const seen = new Set<string>()
+  const regex = /<([A-Za-z]+)>([^<]*)<\/\1>/g
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(xml))) {
+    const tag = match[1]!
+    if (NON_FIELD_TAGS.has(tag) || seen.has(tag)) continue
+    seen.add(tag)
+    fields.push({ tag, label: humanizeTag(tag), placeholder: match[2]! })
+  }
+  return fields
+}
+
 async function loadTemplate() {
   if (!messageType.value) return
   const res = await apiFetch('/api/send/templates/' + encodeURIComponent(messageType.value))
-  payload.value = applyRicsToPayload(await res.text())
+  const xml = await res.text()
+  const fields = extractTemplateFields(xml)
+
+  let result = xml
+  const values: Record<string, string> = {}
+  for (const field of fields) {
+    if (field.tag === 'MessageIdentifier' && field.placeholder.startsWith('REPLACE-WITH')) {
+      // Required and must be unique - filling in a generated id beats leaving a token
+      // that would collide with every other unsent message.
+      const value = generateMessageIdentifier()
+      values[field.tag] = value
+      result = replaceTagContent(result, field.tag, value)
+    } else if (field.placeholder.startsWith('REPLACE-WITH')) {
+      values[field.tag] = ''
+    } else {
+      values[field.tag] = field.placeholder
+    }
+  }
+
+  templateFields.value = fields
+  fieldValues.value = values
+  payload.value = applyRicsToPayload(result)
+}
+
+function updateField(tag: string, value: string) {
+  fieldValues.value[tag] = value
+  const field = templateFields.value.find((f) => f.tag === tag)
+  payload.value = replaceTagContent(payload.value, tag, value || field?.placeholder || '')
 }
 
 function badgeClassForResult(result: string | null) {
@@ -79,6 +150,8 @@ async function send() {
     loadMessages()
   }
 }
+
+watch(messageType, () => loadTemplate())
 
 onMounted(() => {
   loadSendDefaults()
@@ -104,15 +177,41 @@ onMounted(() => {
         <span class="field__label">Target URL</span>
         <input v-model="targetUrl" />
       </label>
+      <div class="row row--type">
+        <label class="field field--type">
+          <span class="field__label">Message type</span>
+          <select v-model="messageType">
+            <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
+          </select>
+        </label>
+        <button
+          class="icon-btn-header reset-btn"
+          type="button"
+          title="Reset to template"
+          aria-label="Reset to template"
+          @click="loadTemplate"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M20 4v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <div v-if="templateFields.length > 0" class="fields-grid">
+        <label v-for="field in templateFields" :key="field.tag" class="field">
+          <span class="field__label">{{ field.label }}</span>
+          <input
+            :value="fieldValues[field.tag]"
+            :placeholder="field.placeholder.startsWith('REPLACE-WITH') ? field.placeholder : ''"
+            @input="updateField(field.tag, ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+      </div>
       <label class="field">
         <span class="field__label">Payload</span>
         <textarea v-model="payload" class="payload" placeholder="Message XML"></textarea>
       </label>
       <div class="toolbar">
-        <select v-model="messageType">
-          <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
-        </select>
-        <button class="btn" @click="loadTemplate">Load template</button>
         <button class="btn btn--primary" :disabled="isSending" @click="send">Send</button>
       </div>
       <div v-if="sendResult">
@@ -169,10 +268,34 @@ onMounted(() => {
   margin-left: 0.6rem;
 }
 
+.row--type {
+  align-items: flex-end;
+}
+
+.field--type {
+  flex: none;
+  width: 400px;
+}
+
+.reset-btn {
+  margin-bottom: 6px;
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
 .payload {
-  min-height: 10rem;
+  min-height: 12rem;
+  padding: 0.85rem;
+  border-radius: 10px;
+  background: var(--color-background-mute);
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre;
   resize: vertical;
 }
 
