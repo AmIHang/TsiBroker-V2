@@ -3,17 +3,23 @@
     <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
     <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
     <Project Path="src/TsiBroker.Core/TsiBroker.Core.csproj" />
-    <Project Path="src/TsiBroker.Im.Api/TsiBroker.Im.Api.csproj" />
-    <Project Path="src/TsiBroker.Im.Core/TsiBroker.Im.Core.csproj" />
-    <Project Path="src/TsiBroker.Im.Mock/TsiBroker.Im.Mock.csproj" />
-    <Project Path="src/TsiBroker.Im.Mock.UI/TsiBroker.Im.Mock.UI.esproj">
-      <Build />
-      <Deploy />
-    </Project>
     <Project Path="src/TsiBroker.Ru.Api/TsiBroker.Ru.Api.csproj" />
     <Project Path="src/TsiBroker.Ui/TsiBroker.Ui.esproj">
       <Build />
       <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/src/Im/">
+    <Project Path="src/TsiBroker.Im.Api/TsiBroker.Im.Api.csproj" />
+    <Project Path="src/TsiBroker.Im.Core/TsiBroker.Im.Core.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="src/TsiBroker.Im.Mock.UI/TsiBroker.Im.Mock.UI.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+    <Project Path="src/TsiBroker.Im.Mock/TsiBroker.Im.Mock.csproj">
+      <Build Solution="Debug|*" Project="false" />
     </Project>
   </Folder>
 </Solution>
