@@ -37,7 +37,7 @@ async function onLogout() {
           <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
         </svg>
       </button>
-      <span v-if="!collapsed" class="sidebar__brand">Im.Mock</span>
+      <span v-if="!collapsed" class="sidebar__brand">TSI-Broker | Infra </span>
     </div>
 
     <nav class="sidebar__nav">

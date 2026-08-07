@@ -73,7 +73,7 @@ async function onSubmit() {
         </g>
       </svg>
 
-      <h1>TsiBroker.Im.Mock</h1>
+      <h1>TSI-Broker | Infra</h1>
       <div class="divider"><span class="dot"></span></div>
 
       <label class="login-field">

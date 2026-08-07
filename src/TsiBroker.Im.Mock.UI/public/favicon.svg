@@ -1,13 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg"
      width="166" height="138" viewBox="0 0 166 138"
      role="img" aria-labelledby="title desc">
-  <title id="title">TSI-Broker Logo</title>
-  <desc id="desc">Offene Hexagonkontur mit stilisiertem Gleis und digitalen Leiterbahnen.</desc>
+  <title id="title">TSI-Broker Im.Mock Logo</title>
+  <desc id="desc">Gestrichelte Hexagonkontur (Stellvertreter/Mock) mit stilisiertem Gleis und digitalen Leiterbahnen.</desc>
 
   <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Offene Hexagonkontur -->
+    <!-- Gestrichelte Hexagonkontur - signalisiert "Stellvertreter/Mock" statt der echten ISB,
+         im Gegensatz zur durchgezogenen Kontur des echten TSI-Broker-Logos. -->
     <path d="M123.5 48.5 L80.5 24.7 L35.1 51.4 L35.1 97.2 L80.7 123.4 L123.7 98.6 L123.7 88.3"
-          stroke="#6f4295" stroke-width="4.2"/>
+          stroke="#6f4295" stroke-width="4.2" stroke-dasharray="7 5.5"/>
 
     <!-- Gebogenes Gleis -->
     <g stroke="#3E4349" stroke-width="3.1">
