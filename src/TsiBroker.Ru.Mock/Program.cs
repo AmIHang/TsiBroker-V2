@@ -78,8 +78,10 @@ app.UseCors(UiCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Real Broker -> Mock traffic, not a browser - stays unauthenticated.
+// Real Broker -> Mock traffic, not a browser - stays unauthenticated. See
+// infrastructure/evu-endpoints.openapi.yaml for the documented contract these implement.
 app.MapReceiveMessageEndpoints();
+app.MapReceiveConfigUpdateEndpoints();
 
 app.MapAuthEndpoints();
 app.MapResponseConfigEndpoints();

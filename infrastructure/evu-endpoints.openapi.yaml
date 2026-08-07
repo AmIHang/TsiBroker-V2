@@ -1,0 +1,152 @@
+# Contract a Railway Undertaking (RU/EVU) system must implement so TsiBroker (the broker) can
+# call it - the mirror image of TsiBroker.Ru.Api's EVU -> Broker contract (documented in
+# wiki/External-API-Guide.md), which describes calls in the other direction.
+#
+# TsiBroker.Ru.Mock (src/TsiBroker.Ru.Mock) is a test double that implements this exact contract,
+# so RU integrators can point their own broker-side client at it during development. The two must
+# stay in sync: when a route/behaviour here changes, update TsiBroker.Ru.Mock's Receiving/
+# endpoints to match, and vice versa - see the "keep in sync" comments in
+# src/TsiBroker.Ru.Mock/Receiving/ReceiveMessageEndpoints.cs and
+# src/TsiBroker.Ru.Mock/Receiving/ReceiveConfigUpdateEndpoints.cs.
+openapi: 3.1.0
+info:
+  title: TsiBroker - EVU-side endpoints
+  version: "1.0"
+  description: |
+    Endpoints a Railway Undertaking (RU/EVU) system must expose at its own `RailwayUndertaking.SystemUrl`
+    so TsiBroker can call it. Every call is authenticated with the `X-Api-Key` header, set to the RU's
+    `ApiKeyBrokerToEvu` (generated per `RailwayUndertaking` record, see wiki/Data-Model.md) - the mirror
+    image of the `ApiKeyEvuToBroker` key RUs use to call TsiBroker.Ru.Api.
+
+    **Status:** `GET /config/update` is called today (see `TsiBroker.Core/RailwayUndertakings/EvuApiClient.cs`,
+    triggered by the admin UI's "trigger config update" action). `POST /message` documents the target
+    contract for broker -> EVU message delivery, which TsiBroker does not implement yet (see
+    wiki/External-API-Guide.md and wiki/Business-Flow.md) - `TsiBroker.Ru.Mock` already implements the
+    receiving side so RU integrators can build/test against it in advance.
+servers:
+  - url: "{systemUrl}"
+    description: The RU's own `SystemUrl`, as configured in TsiBroker's admin UI.
+    variables:
+      systemUrl:
+        default: https://localhost:5311
+security:
+  - ApiKeyAuth: []
+paths:
+  /config/update:
+    get:
+      operationId: configUpdate
+      summary: Notify the EVU that its broker-side configuration changed
+      description: |
+        Called when a TsiBroker admin triggers a config refresh for this RU (e.g. after editing its RICS
+        codes or ISB assignments). No request body. The EVU is expected to treat this as a signal to
+        re-fetch/re-cache whatever it locally holds about its TsiBroker configuration - the call itself
+        carries no payload describing what changed.
+
+        TsiBroker only checks the HTTP status code (see `EvuApiClient.TriggerConfigUpdateAsync`); the
+        response body, if any, is ignored.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Acknowledged - any 2xx status is treated as success.
+        "401":
+          description: Missing or invalid `X-Api-Key`.
+        "403":
+          description: The presented key is valid but not authorized for this action.
+        "5XX":
+          description: EVU-side failure. TsiBroker surfaces this to the admin as "EVU request failed".
+  /message:
+    post:
+      operationId: deliverMessage
+      summary: Deliver a TAF/TAP-TSI message from an Infrastructure Manager to this EVU
+      description: |
+        **Not yet called in production** - documents the planned contract for TsiBroker's outbound relay,
+        which `TsiBroker.Ru.Mock`'s `POST /message` already implements as a test double. Mirrors
+        `TsiBroker.Ru.Api`'s own `POST /message` (EVU -> Broker direction, see
+        wiki/External-API-Guide.md#post-message), just reversed: the broker is the caller here.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/TafTapMessage"
+            example: |
+              <TrainReadyMessage>
+                <MessageHeader>
+                  <MessageReference>
+                    <MessageType>TrainReadyMessage</MessageType>
+                    <MessageIdentifier>MSG-1</MessageIdentifier>
+                  </MessageReference>
+                  <Sender>1184</Sender>
+                  <Recipient>0080</Recipient>
+                </MessageHeader>
+                <TrainReady>
+                  <ReadyTimestamp>2026-08-07T10:00:00Z</ReadyTimestamp>
+                </TrainReady>
+              </TrainReadyMessage>
+      responses:
+        "202":
+          description: Accepted - the EVU has taken receipt of the message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AckResponse"
+        "401":
+          description: Missing or invalid `X-Api-Key`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "403":
+          description: The presented key is valid but not authorized for this message/sender/recipient.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "400":
+          description: Malformed XML or missing required `MessageHeader` fields.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: The RU's `ApiKeyBrokerToEvu`.
+  schemas:
+    TafTapMessage:
+      type: string
+      description: |
+        Raw TAF/TAP-TSI XML document. `MessageHeader` (namespace-agnostic, matched by local element
+        name) must be the first child of the document root:
+        `MessageHeader/MessageReference/MessageType`, `MessageHeader/MessageReference/MessageIdentifier`,
+        `MessageHeader/Sender`, `MessageHeader/Recipient` - same shape TsiBroker.Ru.Api requires of RUs
+        (see wiki/External-API-Guide.md#post-message), just with Sender/Recipient swapped.
+    AckResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACK]
+        messageIdentifier:
+          type: string
+          nullable: true
+          description: Echoed back from the request's `MessageHeader/MessageReference/MessageIdentifier`.
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details.
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string

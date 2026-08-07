@@ -7,7 +7,9 @@ namespace TsiBroker.Ru.Mock.Receiving;
 /// broker will POST here (mirroring the real TsiBroker.Ru.Api /message contract, see
 /// External-API-Guide) instead of the mock POSTing to the broker. Deliberately takes the raw
 /// message XML without requiring the X-Api-Key the real endpoint checks - the outbound relay
-/// contract doesn't exist yet, so there is no real wire format to be faithful to.
+/// contract doesn't exist yet, so there is no real wire format to be faithful to. See
+/// infrastructure/evu-endpoints.openapi.yaml for the documented contract - keep both in sync
+/// whenever either changes.
 /// </summary>
 public static class ReceiveMessageEndpoints
 {

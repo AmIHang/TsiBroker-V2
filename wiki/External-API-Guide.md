@@ -2,7 +2,7 @@
 
 This guide is for developers of external systems — Railway Undertaking (RU/EVU) systems and Infrastructure Manager (IM/ISB) systems — integrating with TsiBroker. It covers both APIs: the REST API for RUs and the SOAP API for IMs.
 
-> **Before you integrate:** as of today, TsiBroker validates and authorizes incoming messages but does **not** relay them to the other side yet (`IMessagePublisher` only logs). See [[Business-Flow]] for the exact current state. This guide documents the contracts as they exist; the delivery half is still to come.
+> **Before you integrate:** as of today, TsiBroker validates and authorizes incoming messages but does **not** relay them to the other side yet (`IMessagePublisher` only logs). See [[Business-Flow]] for the exact current state. This guide documents the contracts as they exist; the delivery half is still to come. The one exception is `GET /config/update` (see [Broker → RU: endpoints your system must implement](#broker--ru-endpoints-your-system-must-implement)), which TsiBroker already calls today.
 
 ## Table of Contents
 
@@ -10,6 +10,7 @@ This guide is for developers of external systems — Railway Undertaking (RU/EVU
   - [Authentication](#ru-authentication)
   - [POST /message](#post-message)
   - [GET /whoami](#get-whoami)
+- [Broker → RU: endpoints your system must implement](#broker--ru-endpoints-your-system-must-implement)
 - [IM API (SOAP)](#im-api-soap)
   - [Common Interface — /ci](#common-interface--ci)
   - [Heartbeat — /heartbeat](#heartbeat--heartbeat)
@@ -121,6 +122,21 @@ X-Api-Key: <ApiKeyEvuToBroker>
 ```
 
 Only **active** `IsbAssignment`s to **active** `InfrastructureOperator`s are listed. If the API key is missing, invalid, or belongs to an inactive RU, the endpoint still returns `200 OK` with an "unknown" placeholder (`Name = "<unknown>"`, empty lists) rather than an error — don't rely on the HTTP status to detect an invalid key here, check whether `Name` is `<unknown>`.
+
+---
+
+## Broker → RU: endpoints your system must implement
+
+The reverse direction: calls TsiBroker itself makes to your RU system, at the `SystemUrl` a TsiBroker admin configured for your `RailwayUndertaking` record. Every call carries `X-Api-Key: <ApiKeyBrokerToEvu>` — the key TsiBroker was issued for calling *you*, the mirror image of the `ApiKeyEvuToBroker` key above.
+
+The full machine-readable contract lives in [`infrastructure/evu-endpoints.openapi.yaml`](../infrastructure/evu-endpoints.openapi.yaml). **Keep it and this section in sync** — and see below for the test double you can point your own client at while building against this contract.
+
+| Route | Status | Purpose |
+|---|---|---|
+| `GET /config/update` | **Live today** | TsiBroker calls this after an admin triggers a config refresh for your RU (e.g. after editing RICS codes or ISB assignments) via `POST /railway-undertakings/{id}/trigger-config-update` (`TsiBroker.ApiService`). No request body; no response body is read — only the HTTP status matters (any 2xx = success). Treat it as "something about your TsiBroker config changed, go re-fetch it." |
+| `POST /message` | **Not yet called** — documents the planned contract | The mirror image of your own `POST /message` (see above): TsiBroker would deliver a TAF/TAP-TSI message addressed to you here, `MessageHeader/Sender`/`Recipient` swapped relative to your outbound calls. Not wired up yet (see the note at the top of this guide and [[Business-Flow]]), but `TsiBroker.Ru.Mock` already implements the receiving side so you can build and test against it in advance. |
+
+**Test double:** `TsiBroker.Ru.Mock` (`src/TsiBroker.Ru.Mock`, console at `TsiBroker.Ru.Mock.UI`) implements this exact contract, so you can point a TsiBroker-side test client at it during development instead of standing up your own RU system first. Its Response Settings page lets you switch its replies between `Ack`/`Nack`/`HttpError`/`Unauthorized`/`Forbidden` to exercise your error handling, and its Received Messages log shows every call it got, including `/config/update` pings.
 
 ---
 
