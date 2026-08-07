@@ -106,22 +106,13 @@ X-Api-Key: <ApiKeyEvuToBroker>
   <RicsCodes>
     <RicsCode>...</RicsCode>
   </RicsCodes>
-  <InfrastructureOperators>
-    <InfrastructureOperator>
-      <Name>...</Name>
-      <RicsCode>...</RicsCode>
-      <AllowedMessageTypesEvuToBroker>
-        <MessageType>...</MessageType>
-      </AllowedMessageTypesEvuToBroker>
-      <AllowedMessageTypesBrokerToEvu>
-        <MessageType>...</MessageType>
-      </AllowedMessageTypesBrokerToEvu>
-    </InfrastructureOperator>
-  </InfrastructureOperators>
+  <Permissions>
+    <Permission Sender="..." Receiver="..." MessageType="..." />
+  </Permissions>
 </RailwayUndertaking>
 ```
 
-Only **active** `IsbAssignment`s to **active** `InfrastructureOperator`s are listed. If the API key is missing, invalid, or belongs to an inactive RU, the endpoint still returns `200 OK` with an "unknown" placeholder (`Name = "<unknown>"`, empty lists) rather than an error — don't rely on the HTTP status to detect an invalid key here, check whether `Name` is `<unknown>`.
+`Permissions` is a flat list, one `Permission` per allowed `(Sender, Receiver, MessageType)` combination, covering both directions — for each active `IsbAssignment` to an active `InfrastructureOperator`, one entry per RU RICS code × `AllowedMessageTypesEvuToBroker` entry (`Sender` = your RICS code, `Receiver` = the operator's RICS code), plus one entry per RU RICS code × `AllowedMessageTypesBrokerToEvu` entry (`Sender`/`Receiver` swapped). If the API key is missing, invalid, or belongs to an inactive RU, the endpoint still returns `200 OK` with an "unknown" placeholder (`Name = "<unknown>"`, empty `RicsCodes`/`Permissions`) rather than an error — don't rely on the HTTP status to detect an invalid key here, check whether `Name` is `<unknown>`.
 
 ---
 
