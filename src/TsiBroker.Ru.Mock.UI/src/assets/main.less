@@ -1,0 +1,27 @@
+// Global stylesheet entry point (imported once in src/main.ts).
+//
+// Convention: shared, reusable rules live as partials in ./styles and are
+// imported here — they become plain global classes (BEM-style, e.g.
+// `.data-table__row--inactive`) usable from any component's template.
+// Anything specific to a single view/component (layout, one-off tweaks)
+// belongs in that component's own `<style scoped lang="less">` block
+// instead of here.
+//
+// tokens/base/buttons/forms/card/list/hints/topbar/sidebar come from
+// @tsibroker/ui-kit (packages/tsibroker-ui-kit) so this app matches the admin UI's
+// look automatically — edit them there, not per-app. forms-extra/list-extra hold
+// this app's small additions on top of the shared forms/list base (see those files
+// for what and why). badge.less is new here — the admin UI's `.status` only has an
+// active/inactive pair, not enough variants for message direction/ACK/NACK.
+@import '@tsibroker/ui-kit/styles/tokens.less';
+@import '@tsibroker/ui-kit/styles/base.less';
+@import '@tsibroker/ui-kit/styles/buttons.less';
+@import '@tsibroker/ui-kit/styles/forms.less';
+@import './styles/forms-extra.less';
+@import '@tsibroker/ui-kit/styles/card.less';
+@import '@tsibroker/ui-kit/styles/list.less';
+@import './styles/list-extra.less';
+@import '@tsibroker/ui-kit/styles/hints.less';
+@import '@tsibroker/ui-kit/styles/topbar.less';
+@import '@tsibroker/ui-kit/styles/sidebar.less';
+@import './styles/badge.less';

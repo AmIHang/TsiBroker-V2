@@ -21,6 +21,14 @@ var ruApi = builder
     .AddProject<Projects.TsiBroker_Ru_Api>("RailwayUndertaking-api")
     .WithExternalHttpEndpoints();
 
+// Test double for a real EVU: plays both directions of the RU REST contract (receiving on
+// /message once the outbound relay exists, sending to Ru.Api's /message today). Points at
+// Ru.Api's static local-dev port by default (see TsiBroker.Ru.Mock/appsettings.json) - override
+// RuClient__TargetUrl if that port ever stops being fixed.
+var ruMock = builder
+    .AddProject<Projects.TsiBroker_Ru_Mock>("evu-mock")
+    .WithExternalHttpEndpoints();
+
 // ApiService (admin UI backend) and Ru.Api (EVU-facing) both read/write the same
 // flat-file store, so they need to agree on where it lives on disk.
 var sharedDataDirectory = Path.Combine(builder.AppHostDirectory, "..", "TsiBroker.ApiService", "App_Data");
@@ -48,5 +56,15 @@ var isbMockUi = builder
     .WaitFor(isbMock);
 
 isbMock.WithEnvironment("Cors__AllowedOrigin", isbMockUi.GetEndpoint("http"));
+
+var ruMockUi = builder
+    .AddViteApp("evu-mock-ui", "../TsiBroker.Ru.Mock.UI")
+    .WithReference(ruMock)
+    .WithEnvironment(
+        "VITE_API_BASE_URL",
+        ruMock.GetEndpoint("https"))
+    .WaitFor(ruMock);
+
+ruMock.WithEnvironment("Cors__AllowedOrigin", ruMockUi.GetEndpoint("http"));
 
 builder.Build().Run();

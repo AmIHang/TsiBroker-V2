@@ -1,0 +1,30 @@
+// Small pill tag for a message's direction or ACK/NACK result. Similar in spirit to `.status`
+// (list.less) but with more variants than an active/inactive toggle needs.
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--primary {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+
+  &--neutral {
+    background: color-mix(in srgb, #999 15%, transparent);
+    color: #777;
+  }
+
+  &--success {
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+    color: var(--color-success);
+  }
+
+  &--danger {
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+    color: var(--color-danger);
+  }
+}

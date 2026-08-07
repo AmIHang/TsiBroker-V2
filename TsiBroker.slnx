@@ -3,7 +3,6 @@
     <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
     <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
     <Project Path="src/TsiBroker.Core/TsiBroker.Core.csproj" />
-    <Project Path="src/TsiBroker.Ru.Api/TsiBroker.Ru.Api.csproj" />
     <Project Path="src/TsiBroker.Ui/TsiBroker.Ui.esproj">
       <Build />
       <Deploy />
@@ -22,9 +21,17 @@
       <Build Solution="Debug|*" Project="false" />
     </Project>
   </Folder>
-  <Folder Name="/packages/">
-    <Project Path="packages/tsibroker-ui-kit/TsiBroker.UiKit.esproj">
+  <Folder Name="/src/Ru/">
+    <Project Path="src/TsiBroker.Ru.Api/TsiBroker.Ru.Api.csproj" />
+    <Project Path="src/TsiBroker.Ru.Mock.UI/TsiBroker.Ru.Mock.UI.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+    <Project Path="src/TsiBroker.Ru.Mock/TsiBroker.Ru.Mock.csproj">
       <Build Solution="Debug|*" Project="false" />
     </Project>
+  </Folder>
+  <Folder Name="/packages/">
+    <Project Path="packages/tsibroker-ui-kit/TsiBroker.UiKit.esproj" />
   </Folder>
 </Solution>

@@ -5,6 +5,7 @@
     <ProjectReference Include="..\TsiBroker.Im.Api\TsiBroker.Im.Api.csproj" />
     <ProjectReference Include="..\TsiBroker.Im.Mock\TsiBroker.Im.Mock.csproj" />
     <ProjectReference Include="..\TsiBroker.Ru.Api\TsiBroker.Ru.Api.csproj" />
+    <ProjectReference Include="..\TsiBroker.Ru.Mock\TsiBroker.Ru.Mock.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="166" height="138" viewBox="0 0 166 138"
+     role="img" aria-labelledby="title desc">
+  <title id="title">TSI-Broker Ru.Mock Logo</title>
+  <desc id="desc">Gestrichelte Hexagonkontur (Stellvertreter/Mock) mit stilisiertem Gleis und digitalen Leiterbahnen.</desc>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Gestrichelte Hexagonkontur - signalisiert "Stellvertreter/Mock" statt des echten EVU,
+         im Gegensatz zur durchgezogenen Kontur des echten TSI-Broker-Logos. -->
+    <path d="M123.5 48.5 L80.5 24.7 L35.1 51.4 L35.1 97.2 L80.7 123.4 L123.7 98.6 L123.7 88.3"
+          stroke="#6f4295" stroke-width="4.2" stroke-dasharray="7 5.5"/>
+
+    <!-- Gebogenes Gleis -->
+    <g stroke="#3E4349" stroke-width="3.1">
+      <path d="M62.8 40.8 C66.0 57.2 63.0 76.7 49.9 101.6"/>
+      <path d="M74.0 38.2 C77.7 58.2 74.3 82.0 59.9 107.2"/>
+
+      <!-- Schwellen -->
+      <path d="M59.4 47.8 L74.5 44.8"/>
+      <path d="M60.8 59.5 L76.1 58.2"/>
+      <path d="M59.8 73.4 L74.5 75.4"/>
+      <path d="M55.7 86.3 L69.9 91.0"/>
+      <path d="M49.4 97.8 L63.4 104.0"/>
+    </g>
+
+    <!-- Übergang / Weiche -->
+    <g stroke="#3E4349" stroke-width="3.2">
+      <path d="M60.3 107.0 L102.6 64.0 L136.8 64.0"/>
+      <path d="M77.3 112.0 L104.0 84.5"/>
+      <path d="M104.0 84.5 L116.0 72.6"/>
+      <path d="M104.0 84.5 L116.2 84.5 L127.3 84.5"/>
+
+      <!-- kleine Verbindungsdetails -->
+      <path d="M91.7 75.1 L99.4 82.3"/>
+      <circle cx="101.8" cy="84.4" r="4.4" fill="#ffffff"/>
+      <circle cx="116.3" cy="72.5" r="3.2" fill="#ffffff"/>
+
+      <!-- Endpunkte -->
+      <circle cx="141.7" cy="64.0" r="5.0" fill="#ffffff"/>
+      <circle cx="132.4" cy="84.5" r="5.0" fill="#ffffff"/>
+    </g>
+  </g>
+</svg>
