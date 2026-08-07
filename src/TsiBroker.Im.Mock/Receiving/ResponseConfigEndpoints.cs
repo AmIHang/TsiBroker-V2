@@ -4,10 +4,12 @@ public static class ResponseConfigEndpoints
 {
     public static void MapResponseConfigEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/response-config", (ResponseConfigStore store) =>
+        var group = app.MapGroup("/api/response-config").RequireAuthorization();
+
+        group.MapGet("", (ResponseConfigStore store) =>
             Results.Ok(ToDto(store.Current)));
 
-        app.MapPut("/api/response-config", (ResponseConfigStore store, ResponseConfigDto dto) =>
+        group.MapPut("", (ResponseConfigStore store, ResponseConfigDto dto) =>
         {
             if (!Enum.TryParse<MockResponseMode>(dto.Mode, ignoreCase: true, out var mode))
             {

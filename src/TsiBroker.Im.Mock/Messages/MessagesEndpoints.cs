@@ -6,6 +6,7 @@ public static class MessagesEndpoints
 {
     public static void MapMessagesEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/messages", (MockMessageStore store) => Results.Ok(store.List()));
+        app.MapGet("/api/messages", (MockMessageStore store) => Results.Ok(store.List()))
+            .RequireAuthorization();
     }
 }

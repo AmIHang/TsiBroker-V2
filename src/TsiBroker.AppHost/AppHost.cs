@@ -13,7 +13,7 @@ builder
 // (receiving on /ci once the outbound relay exists, sending to Im.Api's /ci today). Points at
 // Im.Api's static local-dev port by default (see TsiBroker.Im.Mock/appsettings.json) - override
 // CiClient__TargetUrl if that port ever stops being fixed.
-builder
+var isbMock = builder
     .AddProject<Projects.TsiBroker_Im_Mock>("isb-mock")
     .WithExternalHttpEndpoints();
 
@@ -38,5 +38,15 @@ var ui = builder
     .WaitFor(apiService);
 
 apiService.WithEnvironment("Cors__AllowedOrigin", ui.GetEndpoint("http"));
+
+var isbMockUi = builder
+    .AddViteApp("isb-mock-ui", "../TsiBroker.Im.Mock.UI")
+    .WithReference(isbMock)
+    .WithEnvironment(
+        "VITE_API_BASE_URL",
+        isbMock.GetEndpoint("https"))
+    .WaitFor(isbMock);
+
+isbMock.WithEnvironment("Cors__AllowedOrigin", isbMockUi.GetEndpoint("http"));
 
 builder.Build().Run();

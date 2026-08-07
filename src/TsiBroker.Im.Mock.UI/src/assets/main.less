@@ -1,0 +1,23 @@
+// Global stylesheet entry point (imported once in src/main.ts).
+//
+// Convention: shared, reusable rules live as partials in ./styles and are
+// imported here — they become plain global classes (BEM-style, e.g.
+// `.data-table__row--inactive`) usable from any component's template.
+// Anything specific to a single view/component (layout, one-off tweaks)
+// belongs in that component's own `<style scoped lang="less">` block
+// instead of here.
+//
+// tokens/base/buttons/forms/card/list/hints/topbar are copied verbatim from
+// TsiBroker.Ui (src/assets/styles) so this app matches the admin UI's look
+// without a shared package between the two independently-deployed projects.
+// badge.less is new here — the admin UI's `.status` only has an
+// active/inactive pair, not enough variants for message direction/ACK/NACK.
+@import './styles/tokens.less';
+@import './styles/base.less';
+@import './styles/buttons.less';
+@import './styles/forms.less';
+@import './styles/card.less';
+@import './styles/list.less';
+@import './styles/hints.less';
+@import './styles/topbar.less';
+@import './styles/badge.less';

@@ -7,10 +7,12 @@ public static class SendCiEndpoints
 {
     public static void MapSendCiEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/send/defaults", (IOptions<CiClientOptions> options) =>
+        var group = app.MapGroup("/api/send").RequireAuthorization();
+
+        group.MapGet("/defaults", (IOptions<CiClientOptions> options) =>
             Results.Ok(new SendDefaults(options.Value.TargetUrl, options.Value.DefaultSenderRics)));
 
-        app.MapPost("/api/send", async (
+        group.MapPost("", async (
             SendRequest request,
             CiClient client,
             MockMessageStore store,
@@ -41,10 +43,10 @@ public static class SendCiEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/send/templates", () =>
+        group.MapGet("/templates", () =>
             Results.Ok(MessageTemplates.ByMessageType.Keys.OrderBy(k => k, StringComparer.Ordinal)));
 
-        app.MapGet("/api/send/templates/{messageType}", (string messageType) =>
+        group.MapGet("/templates/{messageType}", (string messageType) =>
             MessageTemplates.ByMessageType.TryGetValue(messageType, out var xml)
                 ? Results.Text(xml, "application/xml")
                 : Results.NotFound());
