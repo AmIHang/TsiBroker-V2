@@ -25,7 +25,9 @@ Guidance for any AI coding agent (Claude Code, GitHub Copilot, Cursor, etc.) wor
 | `TsiBroker.Ru.Api` | REST API exposed to Railway Undertakings, authenticated via `X-Api-Key` |
 | `TsiBroker.Im.Api` | SOAP endpoints exposed to Infrastructure Managers (CoreWCF) |
 | `TsiBroker.Ui` | Vue 3 admin frontend |
+| `TsiBroker.Im.Mock.UI` | Vue 3 frontend for the IM/ISB mock (`TsiBroker.Im.Mock`) |
 | `TsiBroker.AppHost` | Aspire orchestration of the above for local dev |
+| `packages/tsibroker-ui-kit` | Shared npm workspace package: design-system Less, generic Shell/Sidebar/Topbar Vue components, `apiFetch`, and the auth store — used by both `TsiBroker.Ui` and `TsiBroker.Im.Mock.UI` (see [[Frontend-Architecture]]) |
 
 ## Critical Workflow Rules
 
@@ -100,6 +102,7 @@ podman compose --env-file .env.example up -d --build
 
 ### Frontend (Vue 3)
 
+- **Shared frontend code lives in `packages/tsibroker-ui-kit`** (npm workspace, root `package.json`), not duplicated per app — design-system Less, `Shell`/`Sidebar`/`Topbar` components, `apiFetch`, and the auth store. `TsiBroker.Ui`/`TsiBroker.Im.Mock.UI`'s own `src/lib/api.ts` and `src/stores/auth.ts` are thin re-export shims to it; edit the kit, not the shim. App-specific chrome (nav items, icons, branding, account menu) stays in each app's own `AppShell.vue`/`MockShell.vue`.
 - **No generated API client** — calls go through `src/lib/api.ts` (`apiFetch`, `ApiError`); don't introduce a codegen step unless asked
 - **All user-facing text MUST use i18n**: `$t('key')` / `t('key')` — never hardcode strings; add keys to both `locales/de.json` and `locales/en.json`
 - **Composables** (`src/composables/`) for reusable stateful logic (e.g. `useLocale`, `useSidebar`)

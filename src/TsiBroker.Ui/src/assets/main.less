@@ -8,12 +8,17 @@
 // instead of here. Larger, self-contained features (e.g. a new list/table
 // view) should get their own partial under ./styles rather than growing an
 // existing one.
-@import './styles/tokens.less';
-@import './styles/base.less';
-@import './styles/buttons.less';
-@import './styles/forms.less';
-@import './styles/card.less';
+//
+// tokens/base/buttons/forms/card/list/hints/topbar/sidebar are the design system
+// shared with every TsiBroker frontend (see @tsibroker/ui-kit in packages/) — edit
+// them there, not per-app, so all apps stay in sync.
+@import '@tsibroker/ui-kit/styles/tokens.less';
+@import '@tsibroker/ui-kit/styles/base.less';
+@import '@tsibroker/ui-kit/styles/buttons.less';
+@import '@tsibroker/ui-kit/styles/forms.less';
+@import '@tsibroker/ui-kit/styles/card.less';
 @import './styles/modal.less';
-@import './styles/list.less';
-@import './styles/hints.less';
-@import './styles/topbar.less';
+@import '@tsibroker/ui-kit/styles/list.less';
+@import '@tsibroker/ui-kit/styles/hints.less';
+@import '@tsibroker/ui-kit/styles/topbar.less';
+@import '@tsibroker/ui-kit/styles/sidebar.less';

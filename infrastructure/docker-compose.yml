@@ -17,8 +17,11 @@ services:
 
   ui:
     build:
-      context: ../src/TsiBroker.Ui
-      dockerfile: Dockerfile
+      # Build context is the repo root, not this project's own folder, because the
+      # image now needs the @tsibroker/ui-kit workspace package (packages/tsibroker-ui-kit)
+      # alongside it — see the Dockerfile's own comment for why.
+      context: ..
+      dockerfile: src/TsiBroker.Ui/Dockerfile
       args:
         VITE_THEME_COLOR: ${VITE_THEME_COLOR:-#23a8f2}
     container_name: tsibroker-ui

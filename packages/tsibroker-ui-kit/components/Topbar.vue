@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { hasTopbarOverride } from '@/composables/useTopbarOverride'
+import { hasTopbarOverride } from '../composables/useTopbarOverride'
 
 defineProps<{
   title?: string

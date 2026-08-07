@@ -1,0 +1,21 @@
+// Addition on top of @tsibroker/ui-kit's shared list.less that only this app needs:
+// a collapsible raw-XML cell used by SendMessageView/ReceivedMessagesView's message
+// log tables.
+details > summary {
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 12rem;
+  overflow: auto;
+  background: var(--color-content-bg);
+  color: var(--color-text);
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}

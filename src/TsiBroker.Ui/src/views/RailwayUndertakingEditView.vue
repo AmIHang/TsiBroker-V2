@@ -798,6 +798,7 @@ onUnmounted(() => {
   }
 }
 
-// .topbar-title-block / .topbar__title / .topbar-breadcrumb come from the
-// shared styles/topbar.less (used here via Teleport into AppTopbar).
+// .topbar-title-block / .topbar__title / .topbar-breadcrumb come from
+// @tsibroker/ui-kit's styles/topbar.less (used here via Teleport into the
+// kit's Topbar component, rendered by AppShell.vue).
 </style>

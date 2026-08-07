@@ -1,0 +1,12 @@
+{
+  "name": "tsibroker",
+  "private": true,
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "workspaces": [
+    "packages/tsibroker-ui-kit",
+    "src/TsiBroker.Ui",
+    "src/TsiBroker.Im.Mock.UI"
+  ]
+}

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.5277448">
+  <PropertyGroup>
+    <!-- Pure source library consumed by TsiBroker.Ui / TsiBroker.Im.Mock.UI via the npm
+         workspace - no dev server to start and no build step of its own. This project
+         exists only so the shared code shows up in the solution/Solution Explorer. -->
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+  </PropertyGroup>
+</Project>
