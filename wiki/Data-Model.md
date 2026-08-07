@@ -101,10 +101,15 @@ public class IsbAssignment
 `BrokerMessage` (`src/TsiBroker.Core/Messaging/BrokerMessage.cs`) is not stored anywhere — it's the transient envelope passed to `IMessagePublisher`:
 
 ```csharp
-public record BrokerMessage(string? Id, string Sender, string Receiver, string Content);
+public record BrokerMessage(
+    string? Id,
+    string Sender,
+    string Receiver,
+    string Content,
+    string? PartitionKey = null);
 ```
 
-`Content` carries the raw message payload (typically XML). See [[Business-Flow]] for how `Sender`/`Receiver`/`Content` are populated on each ingestion path.
+`Content` carries the raw message payload (typically XML). `PartitionKey` groups messages that must stay in order relative to each other (e.g. the recipient `InfrastructureOperator.Name`) — messages without one fall back to the publisher/consumer's single default queue. See [[Business-Flow]] for how `Sender`/`Receiver`/`Content`/`PartitionKey` are populated on each ingestion path, and [[Backend-Best-Practices]] §5 for the per-partition queueing this enables.
 
 ## Storage
 

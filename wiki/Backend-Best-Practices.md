@@ -129,11 +129,11 @@ RabbitMQ connection settings live in `RabbitMqOptions` (`SectionName = "RabbitMq
 
 `TsiBroker.Im.Api/CI` and `.../Heartbeat` each split into:
 
-- `Generated/` — WSDL-derived types (`CommonInterface.cs`, `Heartbeat.cs`) and the raw `.wsdl` file itself. **Do not hand-edit these.**
+- `Generated/` — WSDL-derived types and the raw `.wsdl` file itself. **Do not hand-edit these.** For Heartbeat, the generated type (`Heartbeat.cs`) lives here in `TsiBroker.Im.Api/Heartbeat/Generated/`. For CI, the generated type (`CommonInterface.cs`) instead lives in `TsiBroker.Im.Core/CI/Generated/` — pulled out into its own project because `TsiBroker.Im.Mock` (the ISB test double, see [[Architecture]]) needs the same CI types and shouldn't depend on `TsiBroker.Im.Api`; `TsiBroker.Im.Api/CI/Generated/` today only holds the raw `.wsdl`.
 - `Contracts/` — hand-written `[MessageContract]` wrapper types (`CommonInterfaceRequest`, `CommonInterfaceResponse`, etc.) that map the generated types onto CoreWCF message shapes
 - `I...MessageService.cs` + `...MessageService.cs` — the hand-written service contract and its implementation, as sibling files at the feature root (not inside `Generated/`)
 
-If the upstream WSDL changes and types need regenerating, only `Generated/` should be touched by the regeneration step; `Contracts/` and the service implementation are yours to maintain by hand.
+If the upstream WSDL changes and types need regenerating, only the `Generated/` folders (in `TsiBroker.Im.Api` and, for CI, `TsiBroker.Im.Core`) should be touched by the regeneration step; `Contracts/` and the service implementation are yours to maintain by hand.
 
 ## 7. Validation and Error Responses
 

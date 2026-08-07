@@ -17,6 +17,11 @@ TsiBroker.slnx
     ├── TsiBroker.ApiService/    # Admin REST API + cookie auth
     ├── TsiBroker.Ru.Api/        # REST API for Railway Undertakings (X-Api-Key auth)
     ├── TsiBroker.Im.Api/        # SOAP API for Infrastructure Managers (CoreWCF)
+    ├── TsiBroker.Im.Core/       # Shared CI (Common Interface) contract types, used by TsiBroker.Im.Api and TsiBroker.Im.Mock
+    ├── TsiBroker.Im.Mock/       # Test double for a real ISB (plays both directions of the CI contract)
+    ├── TsiBroker.Im.Mock.UI/    # Vue 3 UI for TsiBroker.Im.Mock
+    ├── TsiBroker.Ru.Mock/       # Test double for a real EVU (plays both directions of the RU REST contract)
+    ├── TsiBroker.Ru.Mock.UI/    # Vue 3 UI for TsiBroker.Ru.Mock
     ├── TsiBroker.Ui/            # Vue 3 admin frontend
     └── TsiBroker.AppHost/       # Aspire orchestration for local dev
 ```
@@ -31,14 +36,27 @@ TsiBroker.ApiService ──┐
 TsiBroker.Ru.Api ──────┼── TsiBroker.Core
 TsiBroker.Im.Api ──────┘
 
+TsiBroker.Im.Core
+└── no project dependencies
+
+TsiBroker.Im.Api ──┐
+TsiBroker.Im.Mock ──┴── TsiBroker.Im.Core
+
+TsiBroker.Ru.Mock
+└── no project dependencies (self-contained; doesn't reference TsiBroker.Core)
+
 TsiBroker.AppHost
 ├── TsiBroker.ApiService
 ├── TsiBroker.Im.Api
+├── TsiBroker.Im.Mock
 ├── TsiBroker.Ru.Api
-└── TsiBroker.Ui (wired via AddViteApp, not a project reference)
+├── TsiBroker.Ru.Mock
+├── TsiBroker.Ui (wired via AddViteApp, not a project reference)
+├── TsiBroker.Im.Mock.UI (wired via AddViteApp, not a project reference)
+└── TsiBroker.Ru.Mock.UI (wired via AddViteApp, not a project reference)
 ```
 
-`TsiBroker.Core` is referenced by all three backend hosts and holds everything they share: the two domain entities, their JSON-file stores, and the `IMessagePublisher` messaging abstraction. `TsiBroker.Im.Api` does **not** use the stores at all today (see [[Business-Flow]]).
+`TsiBroker.Core` is referenced by the three main backend hosts (`ApiService`, `Ru.Api`, `Im.Api`) and holds everything they share: the two domain entities, their JSON-file stores, and the `IMessagePublisher`/`IMessageConsumer` messaging abstractions. `TsiBroker.Im.Api` does **not** use the stores at all today (see [[Business-Flow]]). The mock projects sit outside this — `TsiBroker.Im.Mock` shares only `TsiBroker.Im.Core` (the CI contract types) with `TsiBroker.Im.Api`, and `TsiBroker.Ru.Mock` has no project dependencies at all.
 
 ---
 
@@ -84,9 +102,21 @@ Contract code under `CI/Generated/` and `Heartbeat/Generated/` is WSDL-derived a
 
 Vue 3 SPA. See [[Frontend-Architecture]].
 
+### TsiBroker.Im.Core
+
+Shared kernel for the CI (Common Interface) contract, referenced by both `TsiBroker.Im.Api` and `TsiBroker.Im.Mock` so they agree on the same WSDL-derived types without one depending on the other. Holds `CI/Generated/CommonInterface.cs` (do not hand-edit — see [[Backend-Best-Practices]] §6) and `CI/TechnicalAckFactory.cs`. Note this only covers CI — the Heartbeat contract's generated code still lives locally inside `TsiBroker.Im.Api/Heartbeat/Generated/`, since only `Im.Api` needs it.
+
+### TsiBroker.Im.Mock / TsiBroker.Im.Mock.UI
+
+A test double for a real Infrastructure Manager system — plays both directions of the Common Interface contract (sending to `TsiBroker.Im.Api`'s `/ci` today; receiving on its own `/ci` once the outbound relay from the broker exists). Lets you develop/test against an ISB without standing up a real one. `TsiBroker.Im.Mock.UI` is its Vue 3 frontend, sharing chrome/styles with `TsiBroker.Ui` via `@tsibroker/ui-kit` — see [[Frontend-Architecture]].
+
+### TsiBroker.Ru.Mock / TsiBroker.Ru.Mock.UI
+
+A test double for a real Railway Undertaking system — plays both directions of the RU REST contract (sending to `TsiBroker.Ru.Api`'s `/message` today; already implementing the receiving side, `POST /message` and `GET /config/update`, for when the broker→RU relay exists — see [[External-API-Guide]]). `TsiBroker.Ru.Mock.UI` is its Vue 3 frontend (Response Settings, Received Messages log), sharing chrome/styles with `TsiBroker.Ui` via `@tsibroker/ui-kit` — see [[Frontend-Architecture]].
+
 ### TsiBroker.AppHost
 
-.NET Aspire orchestration for local dev (`src/TsiBroker.AppHost/AppHost.cs`). Wires up four resources: `apiservice`, `InfrastructureManagement-api`, `RailwayUndertaking-api`, and `ui` (via `AddViteApp`, not a project reference). A notable detail: `apiservice` and `RailwayUndertaking-api` are pointed at the **same** `App_Data` directory (under `TsiBroker.ApiService/App_Data`) via matching `RailwayUndertakings__DataDirectory` / `InfrastructureOperators__DataDirectory` environment variables, since they read/write the same flat-file store. `TsiBroker.Im.Api` doesn't get these variables — it doesn't touch the stores. There is **no RabbitMQ resource** registered here; local Aspire runs always use `DebugMessagePublisher`.
+.NET Aspire orchestration for local dev (`src/TsiBroker.AppHost/AppHost.cs`). Wires up eight resources: `apiservice`, `InfrastructureManagement-api`, `isb-mock` (`TsiBroker.Im.Mock`), `RailwayUndertaking-api`, `evu-mock` (`TsiBroker.Ru.Mock`), and three Vite apps — `ui`, `isb-mock-ui`, `evu-mock-ui` (all via `AddViteApp`, not project references). A notable detail: `apiservice` and `RailwayUndertaking-api` are pointed at the **same** `App_Data` directory (under `TsiBroker.ApiService/App_Data`) via matching `RailwayUndertakings__DataDirectory` / `InfrastructureOperators__DataDirectory` environment variables, since they read/write the same flat-file store. `TsiBroker.Im.Api` doesn't get these variables — it doesn't touch the stores. There is **no RabbitMQ resource** registered in AppHost — but note that `MessagingOptions.QueueType` now defaults to `RabbitMq` (not `Debug`) and no project overrides it back to `Debug` for local dev, so an Aspire run needs a reachable RabbitMQ instance (e.g. via `infrastructure/docker-compose.yml`) unless `Messaging__QueueType=Debug` is set explicitly. See [[Backend-Best-Practices]] §5 for the messaging backend and [[Business-Flow]] for what's actually wired up end-to-end.
 
 ---
 

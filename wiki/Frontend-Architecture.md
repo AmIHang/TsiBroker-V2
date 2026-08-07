@@ -4,7 +4,7 @@ Vue 3 SPA for the TsiBroker admin UI — manages `RailwayUndertaking` and `Infra
 
 ## Shared package: `@tsibroker/ui-kit`
 
-The admin UI (`TsiBroker.Ui`) and the IM mock UI (`TsiBroker.Im.Mock.UI`) are separate Vite apps that share the same look and the same chrome (sidebar, topbar, shell), auth store, and `apiFetch` helper. Rather than keep copy-pasted files in sync by hand, both apps are npm workspaces (root `package.json`) alongside a third workspace, `packages/tsibroker-ui-kit`, which holds:
+The admin UI (`TsiBroker.Ui`), the IM mock UI (`TsiBroker.Im.Mock.UI`), and the RU mock UI (`TsiBroker.Ru.Mock.UI`) are separate Vite apps that share the same look and the same chrome (sidebar, topbar, shell), auth store, and `apiFetch` helper. Rather than keep copy-pasted files in sync by hand, all three apps are npm workspaces (root `package.json`) alongside a fourth workspace, `packages/tsibroker-ui-kit`, which holds:
 
 - `styles/` — `tokens.less`, `base.less`, `buttons.less`, `forms.less`, `card.less`, `list.less`, `hints.less`, `topbar.less`, `sidebar.less` (the design system; each app's `main.less` imports these from `@tsibroker/ui-kit/styles/...` instead of a local copy)
 - `components/` — `Shell.vue`, `Sidebar.vue`, `Topbar.vue` (generic chrome; nav items, brand text, and the account/footer area are passed in by each app via props/slots — see `AppShell.vue`/`MockShell.vue`)
@@ -13,11 +13,11 @@ The admin UI (`TsiBroker.Ui`) and the IM mock UI (`TsiBroker.Im.Mock.UI`) are se
 
 Each app's own `src/lib/api.ts`, `src/stores/auth.ts`, and (for `TsiBroker.Ui`) `src/composables/useTopbarOverride.ts` are thin `export * from '@tsibroker/ui-kit/...'` re-export shims, so existing `@/lib/api` / `@/stores/auth` imports across views keep working unchanged.
 
-The two apps stay **independently deployable** — the workspace only shares source at build time; nothing couples their runtime or deployment. `TsiBroker.Ui`'s Docker build context is the repo root (not just `src/TsiBroker.Ui/`) specifically so it can see the workspace root and the kit's source — see the comments in `src/TsiBroker.Ui/Dockerfile` and `infrastructure/docker-compose.yml`.
+The three apps stay **independently deployable** — the workspace only shares source at build time; nothing couples their runtime or deployment. `TsiBroker.Ui`'s Docker build context is the repo root (not just `src/TsiBroker.Ui/`) specifically so it can see the workspace root and the kit's source — see the comments in `src/TsiBroker.Ui/Dockerfile` and `infrastructure/docker-compose.yml`.
 
-This exists so a future third frontend (e.g. a RU mock UI) can reuse the same chrome instead of copy-pasting again; each app still owns its own nav items, icons, and business views.
+This is why a third frontend (`TsiBroker.Ru.Mock.UI`, the RU mock UI) could reuse the same chrome instead of copy-pasting again; each app still owns its own nav items, icons, and business views.
 
-The kit has its own `eslint.config.ts`/`.oxlintrc.json`/`tsconfig.json` (mirroring the two apps') and `npm run lint` script, since each app's `oxlint .`/`eslint .` only covers its own directory. Run `npm run lint` at the repo root to lint all three workspaces at once.
+The kit has its own `eslint.config.ts`/`.oxlintrc.json`/`tsconfig.json` (mirroring the three apps') and `npm run lint` script, since each app's `oxlint .`/`eslint .` only covers its own directory. Run `npm run lint` at the repo root to lint all four workspaces at once.
 
 ## Tech Stack
 
@@ -145,7 +145,7 @@ Dark mode is only **partially** supported: `tokens.less` has a `@media (prefers-
 
 ## Layout Components
 
-- **`Shell.vue`, `Sidebar.vue`, `Topbar.vue`** (`@tsibroker/ui-kit/components/`) — generic chrome shared with `TsiBroker.Im.Mock.UI`. `Sidebar` takes `navItems` (each `{ to, label, icon: Component }`) and a `#footer` scoped slot; `Topbar` shows `props.title` unless `hasTopbarOverride` is set, in which case it exposes `#topbar-custom-title` / `#topbar-actions` teleport targets.
+- **`Shell.vue`, `Sidebar.vue`, `Topbar.vue`** (`@tsibroker/ui-kit/components/`) — generic chrome shared with `TsiBroker.Im.Mock.UI` and `TsiBroker.Ru.Mock.UI`. `Sidebar` takes `navItems` (each `{ to, label, icon: Component }`) and a `#footer` scoped slot; `Topbar` shows `props.title` unless `hasTopbarOverride` is set, in which case it exposes `#topbar-custom-title` / `#topbar-actions` teleport targets.
 - **`AppShell.vue`** — this app's wrapper around the kit's `Shell`: builds `navItems` from `IconHome`/`IconTrain`/`IconOperators`/`IconQueue` + i18n labels, and fills the `sidebar-footer` slot with `AccountMenu.vue`
 - **`AccountMenu.vue`** — account/logout flyout (only rendered when `auth.username` is set), teleported to `body` to escape the sidebar's `overflow:hidden`
 - **`LanguageSwitcher.vue`** — plain `<select>` bound to `useLocale()`

@@ -29,7 +29,7 @@ TsiBroker relays TAF/TAP-TSI messages — Common Interface (CI) and Heartbeat �
 | IM-side transport | SOAP/WCF via CoreWCF (Common Interface, Heartbeat, generated from WSDL) |
 | RU-side transport | REST + `X-Api-Key` header |
 | Admin auth | Single admin user, cookie-based, no external IdP |
-| Messaging | RabbitMQ container provisioned (`infrastructure/docker-compose.yml`), **not yet wired up** — see [[Business-Flow]] |
+| Messaging | RabbitMQ, wired up as the default publisher/consumer backend — ingestion and per-operator queueing work; the consumer-side relay onward is still a logging placeholder — see [[Business-Flow]] |
 | Frontend | Vue 3, Pinia, vue-router, vue-i18n, Less (no Vuetify, no TanStack Query, no generated API client) |
 | Containers | podman (not docker) |
 
@@ -42,6 +42,9 @@ TsiBroker.slnx
     ├── TsiBroker.ApiService/    # Admin REST API + cookie auth (consumed by TsiBroker.Ui)
     ├── TsiBroker.Ru.Api/        # REST API exposed to Railway Undertakings (X-Api-Key)
     ├── TsiBroker.Im.Api/        # SOAP endpoints exposed to Infrastructure Managers (CoreWCF)
+    ├── TsiBroker.Im.Core/       # Shared CI contract types (TsiBroker.Im.Api + TsiBroker.Im.Mock)
+    ├── TsiBroker.Im.Mock/       # Test double for a real ISB, + TsiBroker.Im.Mock.UI frontend
+    ├── TsiBroker.Ru.Mock/       # Test double for a real EVU, + TsiBroker.Ru.Mock.UI frontend
     ├── TsiBroker.Ui/            # Vue 3 admin frontend
     └── TsiBroker.AppHost/       # Aspire orchestration for local dev
 ```
@@ -52,7 +55,7 @@ See [[Architecture]] for what each project actually does and how they depend on 
 
 This is an early-stage project. Worth knowing before you dig into the code:
 
-- **No message relay yet.** Both `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` register `IMessagePublisher` as `DebugMessagePublisher`, which only logs and drops the message. There is no RabbitMQ-backed publisher, no consumer, and no code that calls out to an RU's or IM's `SystemUrl`. See [[Business-Flow]] for the full picture.
+- **No end-to-end message relay yet.** `TsiBroker.Ru.Api` and `TsiBroker.Im.Api` publish incoming messages to RabbitMQ (`RabbitMqMessagePublisher`, the default `IMessagePublisher`), and `TsiBroker.ApiService` consumes per-operator queues, but the consumer's handler is still a logging placeholder — no code yet calls out to an RU's or IM's `SystemUrl`. See [[Business-Flow]] for the full picture.
 - **Heartbeat messages are never published**, only logged and echoed back — unlike Common Interface messages, which do build a `BrokerMessage`.
 - **No database** — `InfrastructureOperator` and `RailwayUndertaking` records live in two JSON files under `App_Data/`, guarded by an in-process lock. This is fine for a single-instance deployment but doesn't scale horizontally.
 - **No `.NET` test project** exists in the solution yet.
