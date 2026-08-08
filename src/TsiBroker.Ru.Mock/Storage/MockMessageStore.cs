@@ -7,8 +7,8 @@ namespace TsiBroker.Ru.Mock.Storage;
 /// <summary>
 /// File-based log of messages the mock has seen (In/Sent). Purely a test aid - content is
 /// written as plain files so it can be inspected/copied by hand, and In/Sent are wiped on every
-/// startup since this history never needs to survive a restart. Out is left alone: it holds
-/// files a user dropped in that may not have been picked up yet.
+/// startup since this history never needs to survive a restart. Out is deliberately excluded
+/// from that wipe: it holds files a user dropped in that may not have been picked up yet.
 /// </summary>
 public class MockMessageStore
 {
@@ -31,9 +31,28 @@ public class MockMessageStore
 
     public void ResetOnStartup()
     {
-        ResetDirectory(InDirectory);
+        DeleteAppDataExceptOut();
+        Directory.CreateDirectory(InDirectory);
         Directory.CreateDirectory(OutDirectory);
-        ResetDirectory(SentDirectory);
+        Directory.CreateDirectory(SentDirectory);
+    }
+
+    /// <summary>
+    /// Deletes everything under App_Data except Out/ (see class remarks for why). Callers are
+    /// expected to recreate the wiped subdirectories afterward.
+    /// </summary>
+    public void DeleteAppDataExceptOut()
+    {
+        DeleteDirectory(InDirectory);
+        DeleteDirectory(SentDirectory);
+    }
+
+    private static void DeleteDirectory(string directory)
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     public async Task SaveReceivedAsync(
@@ -127,16 +146,6 @@ public class MockMessageStore
         var invalidChars = Path.GetInvalidFileNameChars();
         var chars = value.Where(c => !invalidChars.Contains(c)).Take(60).ToArray();
         return new string(chars);
-    }
-
-    private static void ResetDirectory(string directory)
-    {
-        if (Directory.Exists(directory))
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-
-        Directory.CreateDirectory(directory);
     }
 
     private record MessageMeta(string? MessageIdentifier, string Result);

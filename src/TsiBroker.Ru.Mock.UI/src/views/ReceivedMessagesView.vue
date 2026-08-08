@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { useMessages } from '@/composables/useMessages'
 
-const { messages, refresh: loadMessages } = useMessages('Received')
+const { messages, refresh: loadMessages, reset: resetMessages } = useMessages('Received')
 
 function badgeClassForResult(result: string | null) {
   return result === 'ACK' ? 'badge--success' : 'badge--danger'
+}
+
+function clearLog() {
+  if (confirm('Clear the whole message log (received and sent)? This cannot be undone.')) {
+    resetMessages()
+  }
 }
 </script>
 
@@ -13,7 +19,10 @@ function badgeClassForResult(result: string | null) {
     <section class="card">
       <div class="toolbar" style="justify-content: space-between">
         <h2 class="card__title">Received messages (Broker &rarr; Mock, /message)</h2>
-        <button class="btn btn--small" @click="loadMessages">Refresh</button>
+        <div class="actions">
+          <button class="btn btn--small" @click="loadMessages">Refresh</button>
+          <button class="btn btn--small btn--danger" @click="clearLog">Clear log</button>
+        </div>
       </div>
       <table v-if="messages.length > 0" class="data-table">
         <thead>
@@ -56,5 +65,10 @@ function badgeClassForResult(result: string | null) {
 
 .data-table__row {
   cursor: default;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
 }
 </style>

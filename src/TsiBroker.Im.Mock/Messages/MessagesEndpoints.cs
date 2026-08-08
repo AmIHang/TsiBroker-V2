@@ -8,5 +8,11 @@ public static class MessagesEndpoints
     {
         app.MapGet("/api/messages", (MockMessageStore store) => Results.Ok(store.List()))
             .RequireAuthorization();
+
+        app.MapPost("/api/messages/reset", (MockMessageStore store) =>
+        {
+            store.ResetOnStartup();
+            return Results.NoContent();
+        }).RequireAuthorization();
     }
 }

@@ -21,6 +21,14 @@ export function useMessages(direction: MockMessage['direction']) {
     messages.value = all.filter((m) => m.direction === direction)
   }
 
+  // Clears the whole log (both directions, see MockMessageStore.ResetOnStartup) - not just
+  // this composable's own direction - so callers should expect the other view's list to
+  // empty out too on its next poll.
+  async function reset() {
+    await apiFetch('/api/messages/reset', { method: 'POST' })
+    await load()
+  }
+
   let interval: ReturnType<typeof setInterval> | undefined
 
   onMounted(() => {
@@ -30,5 +38,5 @@ export function useMessages(direction: MockMessage['direction']) {
 
   onBeforeUnmount(() => clearInterval(interval))
 
-  return { messages, refresh: load }
+  return { messages, refresh: load, reset }
 }
