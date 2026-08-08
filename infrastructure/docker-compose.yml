@@ -31,6 +31,36 @@ services:
       - api
 
 
+  im-mock:
+    profiles: ["im-mock"]
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.im-mock
+    container_name: tsibroker-im-mock
+    environment:
+      ASPNETCORE_HTTP_PORTS: "8081"
+      AdminUser__Username: ${ADMIN_USERNAME:-sa}
+      AdminUser__Password: ${ADMIN_PASSWORD:-temp!}
+    ports:
+      - "8091:8081"
+    volumes:
+      - im_mock_data:/app/data
+
+  ru-mock:
+    profiles: ["ru-mock"]
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.ru-mock
+    container_name: tsibroker-ru-mock
+    environment:
+      ASPNETCORE_HTTP_PORTS: "8081"
+      AdminUser__Username: ${ADMIN_USERNAME:-sa}
+      AdminUser__Password: ${ADMIN_PASSWORD:-temp!}
+    ports:
+      - "8092:8081"
+    volumes:
+      - ru_mock_data:/app/data
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: tsibroker-rabbitmq
@@ -51,4 +81,6 @@ services:
 
 volumes:
   api_data:
+  im_mock_data:
+  ru_mock_data:
   rabbitmq_data:

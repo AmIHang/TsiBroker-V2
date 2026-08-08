@@ -1,0 +1,35 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy solution and project files
+COPY ["TsiBroker.slnx", "./"]
+COPY ["src/TsiBroker.Im.Mock/TsiBroker.Im.Mock.csproj", "src/TsiBroker.Im.Mock/"]
+COPY ["src/TsiBroker.Im.Core/TsiBroker.Im.Core.csproj", "src/TsiBroker.Im.Core/"]
+
+# Restore dependencies
+RUN dotnet restore "src/TsiBroker.Im.Mock/TsiBroker.Im.Mock.csproj"
+
+# Copy source code
+COPY . .
+
+# Build
+WORKDIR "/src/src/TsiBroker.Im.Mock"
+RUN dotnet build "TsiBroker.Im.Mock.csproj" -c Release -o /app/build
+
+# Publish
+FROM build AS publish
+RUN dotnet publish "TsiBroker.Im.Mock.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+EXPOSE 8081
+
+# Message log (Out/ holds files a user dropped in that may not have been picked up yet) lives
+# here - mount a volume at this path so it survives container recreation.
+ENV MockMessageStore__DataDirectory=/app/data
+VOLUME ["/app/data"]
+
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "TsiBroker.Im.Mock.dll"]
