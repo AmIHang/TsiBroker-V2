@@ -22,7 +22,8 @@ info:
     triggered by the admin UI's "trigger config update" action). `POST /message` documents the target
     contract for broker -> EVU message delivery, which TsiBroker does not implement yet (see
     wiki/External-API-Guide.md and wiki/Business-Flow.md) - `TsiBroker.Ru.Mock` already implements the
-    receiving side so RU integrators can build/test against it in advance.
+    receiving side so RU integrators can build/test against it in advance. `GET /health` documents a
+    plain reachability probe; `TsiBroker.Ru.Mock` implements it, but the broker does not call it yet.
 servers:
   - url: "{systemUrl}"
     description: The RU's own `SystemUrl`, as configured in TsiBroker's admin UI.
@@ -111,6 +112,19 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
+  /health:
+    get:
+      operationId: health
+      summary: Check whether this EVU is reachable at all
+      description: |
+        A plain reachability probe, independent of `RailwayUndertaking`-specific configuration - no
+        request body, no `X-Api-Key`. TsiBroker can call this before/without a specific RU's
+        `ApiKeyBrokerToEvu` just to confirm the `SystemUrl` currently resolves and responds.
+      security: []
+      responses:
+        "200":
+          description: The EVU is up and reachable. Body content is not defined; TsiBroker only checks
+            the status code.
 components:
   securitySchemes:
     ApiKeyAuth:

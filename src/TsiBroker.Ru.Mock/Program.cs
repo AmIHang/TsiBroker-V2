@@ -82,6 +82,7 @@ app.UseAuthorization();
 // infrastructure/evu-endpoints.openapi.yaml for the documented contract these implement.
 app.MapReceiveMessageEndpoints();
 app.MapReceiveConfigUpdateEndpoints();
+app.MapHealthEndpoints();
 
 app.MapAuthEndpoints();
 app.MapResponseConfigEndpoints();
