@@ -23,13 +23,46 @@ public sealed class RabbitMqMessagePublisher(
 
     public async Task PublishAsync(BrokerMessage message, CancellationToken cancellationToken = default)
     {
-        var channel = await GetChannelAsync(cancellationToken);
         var queueName = string.IsNullOrWhiteSpace(message.PartitionKey)
             ? _options.QueueName
             : RabbitMqQueueNaming.ForPartition(message.PartitionKey);
 
+        var channel = await GetChannelAsync(cancellationToken);
+        await EnsureQueueDeclaredAsync(channel, queueName, cancellationToken);
+        await PublishToQueueAsync(channel, queueName, message, cancellationToken);
+
+        logger.LogInformation(
+            "Published message {MessageId} from {Sender} to {Receiver} on queue '{QueueName}'",
+            message.Id,
+            message.Sender,
+            message.Receiver,
+            queueName);
+    }
+
+    public async Task PublishToDeadLetterAsync(string partitionKey, BrokerMessage message, CancellationToken cancellationToken = default)
+    {
+        // Declare topology via the *main* queue name — that's what pairs the dead-letter queue
+        // with matching arguments; declaring the dead-letter queue name directly here would
+        // conflict with its existing (argument-less) declaration from RabbitMqTopology.DeclareAsync.
+        var queueName = RabbitMqQueueNaming.ForPartition(partitionKey);
+        var channel = await GetChannelAsync(cancellationToken);
         await EnsureQueueDeclaredAsync(channel, queueName, cancellationToken);
 
+        var deadLetterQueueName = RabbitMqTopology.DeadLetterQueueNameFor(queueName);
+        await PublishToQueueAsync(channel, deadLetterQueueName, message, cancellationToken);
+
+        logger.LogInformation(
+            "Published message {MessageId} from {Sender} to {Receiver} directly to dead-letter queue '{QueueName}'",
+            message.Id,
+            message.Sender,
+            message.Receiver,
+            deadLetterQueueName);
+    }
+
+    // Raw publish only — callers must ensure the target queue's topology is already declared
+    // (via EnsureQueueDeclaredAsync on its *main* queue name) before calling this.
+    private static async Task PublishToQueueAsync(IChannel channel, string queueName, BrokerMessage message, CancellationToken cancellationToken)
+    {
         var properties = new BasicProperties
         {
             Persistent = true,
@@ -51,13 +84,6 @@ public sealed class RabbitMqMessagePublisher(
             basicProperties: properties,
             body: body,
             cancellationToken: cancellationToken);
-
-        logger.LogInformation(
-            "Published message {MessageId} from {Sender} to {Receiver} on queue '{QueueName}'",
-            message.Id,
-            message.Sender,
-            message.Receiver,
-            queueName);
     }
 
     private async Task EnsureQueueDeclaredAsync(IChannel channel, string queueName, CancellationToken cancellationToken)

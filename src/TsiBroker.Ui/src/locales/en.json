@@ -131,11 +131,24 @@
   },
   "queues": {
     "loadError": "Queues could not be loaded.",
+    "resumeError": "Could not resume queue processing.",
     "empty": "No queues available.",
+    "sections": {
+      "im": "IM queues",
+      "evu": "EVU queues"
+    },
+    "status": {
+      "paused": "Paused"
+    },
+    "actions": {
+      "resume": "Resume now"
+    },
     "columns": {
       "infrastructureOperator": "Infrastructure Operator",
+      "railwayUndertaking": "Railway Undertaking",
       "queueName": "Queue",
-      "messageCount": "Messages"
+      "messageCount": "Messages",
+      "errorMessageCount": "Error messages"
     }
   }
 }

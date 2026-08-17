@@ -47,6 +47,19 @@ public class RailwayUndertakingStore
             string.Equals(u.ApiKeyEvuToBroker, apiKey, StringComparison.Ordinal));
     }
 
+    public async Task<RailwayUndertaking?> FindByIdAsync(Guid id)
+    {
+        var undertakings = await GetAllAsync();
+        return undertakings.FirstOrDefault(u => u.Id == id);
+    }
+
+    public async Task<RailwayUndertaking?> FindByRicsCodeAsync(string ricsCode)
+    {
+        var undertakings = await GetAllAsync();
+        return undertakings.FirstOrDefault(u =>
+            u.RicsCodes.Any(code => string.Equals(code, ricsCode, StringComparison.OrdinalIgnoreCase)));
+    }
+
     public async Task<RailwayUndertaking> AddAsync(
         string name,
         List<string> ricsCodes,
@@ -125,6 +138,33 @@ public class RailwayUndertakingStore
             }
 
             target.IsActive = isActive;
+            await WriteAsync(undertakings);
+            return true;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    // isPaused=false always clears reason/timestamp/backoff step together, since a resume
+    // (automatic or manual) means the previous pause episode is over.
+    public async Task<bool> SetQueuePauseStateAsync(Guid id, bool isPaused, string? reason, int backoffStep)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var undertakings = await ReadAsync();
+            var target = undertakings.FirstOrDefault(u => u.Id == id);
+            if (target is null)
+            {
+                return false;
+            }
+
+            target.IsQueuePaused = isPaused;
+            target.PauseReason = isPaused ? reason : null;
+            target.PausedAtUtc = isPaused ? DateTimeOffset.UtcNow : null;
+            target.PauseBackoffStep = isPaused ? backoffStep : 0;
             await WriteAsync(undertakings);
             return true;
         }

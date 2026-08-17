@@ -64,10 +64,22 @@ builder.Services
     .AddOptions<RailwayUndertakingStoreOptions>()
     .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
 builder.Services.AddSingleton<RailwayUndertakingStore>();
-builder.Services.AddHttpClient<EvuApiClient>();
+// Short timeout so an unreachable EVU is detected in seconds, not the 100s HttpClient default —
+// EvuDeliveryCoordinator blocks its one-message-at-a-time partition consumer on this call while
+// deciding whether to pause.
+builder.Services.AddHttpClient<EvuApiClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
 
+builder.Services.AddMessagePublisher(builder.Configuration);
 builder.Services.AddMessageConsumer(builder.Configuration);
 builder.Services.AddSingleton<InfrastructureOperatorConsumerCoordinator>();
+
+builder.Services.AddSingleton<EvuMessageAuthorizationService>();
+builder.Services.AddSingleton<EvuDeliveryCoordinator>();
+builder.Services.AddSingleton<EvuReachabilityMonitor>();
+// Breaks the constructor cycle between EvuDeliveryCoordinator (starts polling on failure) and
+// EvuReachabilityMonitor (restarts the coordinator's partition on success) — resolving the
+// monitor is deferred until a coordinator actually needs it (.Value), not at construction time.
+builder.Services.AddSingleton(sp => new Lazy<EvuReachabilityMonitor>(sp.GetRequiredService<EvuReachabilityMonitor>));
 
 var app = builder.Build();
 
@@ -83,6 +95,29 @@ var app = builder.Build();
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "Could not start message consumption for active infrastructure operators at startup");
+    }
+}
+
+// Same reconciliation for EVU (broker -> RU) delivery: start consumption for every active,
+// non-paused EVU, and resume backoff polling (from its persisted PauseBackoffStep) for every
+// EVU that was still paused when the process last stopped — otherwise a restart would silently
+// drop out of the backoff schedule instead of continuing it.
+{
+    var evuCoordinator = app.Services.GetRequiredService<EvuDeliveryCoordinator>();
+    var evuReachabilityMonitor = app.Services.GetRequiredService<EvuReachabilityMonitor>();
+    var railwayUndertakingStore = app.Services.GetRequiredService<RailwayUndertakingStore>();
+    try
+    {
+        var railwayUndertakings = await railwayUndertakingStore.GetAllAsync();
+        await evuCoordinator.StartAllActiveAsync(railwayUndertakings);
+        foreach (var railwayUndertaking in railwayUndertakings.Where(ru => ru.IsQueuePaused))
+        {
+            evuReachabilityMonitor.StartPolling(railwayUndertaking);
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Could not start EVU message delivery at startup");
     }
 }
 

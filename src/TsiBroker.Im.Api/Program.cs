@@ -3,6 +3,7 @@ using CoreWCF.Channels;
 using CoreWCF.Configuration;
 using CoreWCF.Description;
 using TsiBroker.Core.Messaging;
+using TsiBroker.Core.RailwayUndertakings;
 using TsiBroker.Im.Api.CI;
 using TsiBroker.Im.Api.Heartbeat;
 
@@ -11,6 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddServiceModelServices();
 builder.Services.AddServiceModelMetadata();
 builder.Services.AddMessagePublisher(builder.Configuration);
+
+builder.Services
+    .AddOptions<RailwayUndertakingStoreOptions>()
+    .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
+builder.Services.AddSingleton<RailwayUndertakingStore>();
+
 builder.Services.AddScoped<CommonInterfaceMessageService>();
 builder.Services.AddScoped<HeartbeatMessageService>();
 

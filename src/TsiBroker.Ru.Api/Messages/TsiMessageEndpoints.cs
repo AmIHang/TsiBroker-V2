@@ -1,4 +1,5 @@
 using TsiBroker.Core.Messaging;
+using TsiBroker.Core.RailwayUndertakings;
 
 namespace TsiBroker.Ru.Api.Messages;
 
@@ -9,7 +10,8 @@ public static class TsiMessageEndpoints
         app.MapPost("/message", async (
             HttpRequest request,
             TsiMessageAuthorizationService authorizationService,
-            IMessagePublisher publisher) =>
+            IMessagePublisher publisher,
+            RailwayUndertakingStore railwayUndertakingStore) =>
         {
             if (!request.Headers.TryGetValue(ApiKeyHeader.Name, out var apiKeyValues)
                 || string.IsNullOrWhiteSpace(apiKeyValues.ToString()))
@@ -39,6 +41,16 @@ public static class TsiMessageEndpoints
                 return ToProblemResult(authorization.FailureReason!.Value);
             }
 
+            // An authenticated request from this EVU is itself evidence it's back online — clear
+            // a paused outbound queue so TsiBroker.ApiService's EvuReachabilityMonitor (a
+            // separate process) picks it up and resumes delivery, without waiting out the rest
+            // of the current backoff interval.
+            if (authorization.RailwayUndertaking!.IsQueuePaused)
+            {
+                await railwayUndertakingStore.SetQueuePauseStateAsync(
+                    authorization.RailwayUndertaking.Id, isPaused: false, reason: null, backoffStep: 0);
+            }
+
             var brokerMessage = new BrokerMessage(
                 Id: message!.MessageIdentifier,
                 Sender: message.Sender,
@@ -47,7 +59,8 @@ public static class TsiMessageEndpoints
                 // Groups all messages addressed to this Infrastrukturbetreiber into one
                 // queue, regardless of which RU/RicsCode sent them — see
                 // IMessageConsumer.RunPartitionedAsync.
-                PartitionKey: authorization.InfrastructureOperator!.Name);
+                PartitionKey: authorization.InfrastructureOperator!.Name,
+                MessageType: message.MessageType);
 
             await publisher.PublishAsync(brokerMessage);
 

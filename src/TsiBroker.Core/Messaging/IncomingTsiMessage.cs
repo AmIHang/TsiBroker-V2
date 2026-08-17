@@ -1,9 +1,11 @@
 using System.Xml.Linq;
 
-namespace TsiBroker.Ru.Api.Messages;
+namespace TsiBroker.Core.Messaging;
 
 // Mirrors the TAF/TAP TSI MessageHeader shape (Sender/Recipient RICS codes, MessageReference/MessageType)
-// that the EVU's XSD-generated documents already carry as the first child of the message root element.
+// that XSD-generated TSI documents already carry as the first child of the message root element.
+// Namespace-agnostic and direction-agnostic — used both for EVU->broker (TsiBroker.Ru.Api) and
+// IM->broker (TsiBroker.Im.Api) message ingestion.
 public record IncomingTsiMessage(
     string MessageType,
     string Sender,

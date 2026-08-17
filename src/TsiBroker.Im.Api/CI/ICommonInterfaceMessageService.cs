@@ -12,5 +12,6 @@ public interface ICommonInterfaceMessageService
         Name = "UICMessage",
         Action = "",
         ReplyAction = "*")]
+    [System.ServiceModel.XmlSerializerFormat]
     Task<CommonInterfaceResponse> ReceiveAsync(CommonInterfaceRequest request);
 }

@@ -26,6 +26,14 @@ public static class WhoAmIEndpoints
                 {
                     railwayUndertaking = null;
                 }
+
+                // An authenticated request from this EVU is itself evidence it's back online —
+                // see TsiMessageEndpoints.cs for the equivalent /message-triggered resume.
+                if (railwayUndertaking is { IsQueuePaused: true })
+                {
+                    await railwayUndertakingStore.SetQueuePauseStateAsync(
+                        railwayUndertaking.Id, isPaused: false, reason: null, backoffStep: 0);
+                }
             }
 
             WhoAmIResponse response;

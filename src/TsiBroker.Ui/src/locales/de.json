@@ -131,11 +131,24 @@
   },
   "queues": {
     "loadError": "Queues konnten nicht geladen werden.",
+    "resumeError": "Verarbeitung konnte nicht neu gestartet werden.",
     "empty": "Keine Queues vorhanden.",
+    "sections": {
+      "im": "IM-Queues",
+      "evu": "EVU-Queues"
+    },
+    "status": {
+      "paused": "Pausiert"
+    },
+    "actions": {
+      "resume": "Jetzt neu starten"
+    },
     "columns": {
       "infrastructureOperator": "Infrastrukturbetreiber",
+      "railwayUndertaking": "Eisenbahnverkehrsunternehmen",
       "queueName": "Queue",
-      "messageCount": "Nachrichten"
+      "messageCount": "Nachrichten",
+      "errorMessageCount": "Fehlerhafte Nachrichten"
     }
   }
 }

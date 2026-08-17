@@ -31,4 +31,9 @@ public interface IMessageConsumer
     // Number of messages currently sitting in partitionKey's queue, or null if that queue
     // doesn't exist yet (e.g. a partition that has never been started).
     Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default);
+
+    // Number of messages currently sitting in partitionKey's dead-letter queue (messages given
+    // up on after MaxDeliveryAttempts, or explicitly routed there via
+    // IMessagePublisher.PublishToDeadLetterAsync), or null if that queue doesn't exist yet.
+    Task<int?> GetDeadLetterMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default);
 }

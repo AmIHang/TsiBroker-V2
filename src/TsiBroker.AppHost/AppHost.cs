@@ -5,7 +5,7 @@ var apiService = builder
     .AddProject<Projects.TsiBroker_ApiService>("apiservice")
     .WithExternalHttpEndpoints();
 
-builder
+var imApi = builder
     .AddProject<Projects.TsiBroker_Im_Api>("InfrastructureManagement-api")
     .WithExternalHttpEndpoints();
 
@@ -29,13 +29,15 @@ var ruMock = builder
     .AddProject<Projects.TsiBroker_Ru_Mock>("evu-mock")
     .WithExternalHttpEndpoints();
 
-// ApiService (admin UI backend) and Ru.Api (EVU-facing) both read/write the same
-// flat-file store, so they need to agree on where it lives on disk.
+// ApiService (admin UI backend), Ru.Api (EVU-facing) and Im.Api (IM-facing — needs
+// RailwayUndertakingStore to resolve a message's recipient RICS code to an EVU) all read/write
+// the same flat-file store, so they need to agree on where it lives on disk.
 var sharedDataDirectory = Path.Combine(builder.AppHostDirectory, "..", "TsiBroker.ApiService", "App_Data");
 apiService.WithEnvironment("RailwayUndertakings__DataDirectory", sharedDataDirectory);
 apiService.WithEnvironment("InfrastructureOperators__DataDirectory", sharedDataDirectory);
 ruApi.WithEnvironment("RailwayUndertakings__DataDirectory", sharedDataDirectory);
 ruApi.WithEnvironment("InfrastructureOperators__DataDirectory", sharedDataDirectory);
+imApi.WithEnvironment("RailwayUndertakings__DataDirectory", sharedDataDirectory);
 
 var ui = builder
     .AddViteApp("ui", "../TsiBroker.Ui")

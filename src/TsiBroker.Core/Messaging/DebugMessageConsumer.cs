@@ -50,4 +50,7 @@ public class DebugMessageConsumer(ILogger<DebugMessageConsumer> logger) : IMessa
 
     public Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default) =>
         Task.FromResult<int?>(_startedPartitions.ContainsKey(partitionKey) ? 0 : null);
+
+    public Task<int?> GetDeadLetterMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default) =>
+        Task.FromResult<int?>(_startedPartitions.ContainsKey(partitionKey) ? 0 : null);
 }

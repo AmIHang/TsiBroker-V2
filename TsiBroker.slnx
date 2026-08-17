@@ -32,6 +32,9 @@
     </Project>
   </Folder>
   <Folder Name="/packages/">
-    <Project Path="packages/tsibroker-ui-kit/TsiBroker.UiKit.esproj" />
+    <Project Path="packages/tsibroker-ui-kit/TsiBroker.UiKit.esproj">
+      <Build />
+      <Deploy />
+    </Project>
   </Folder>
 </Solution>

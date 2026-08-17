@@ -14,4 +14,16 @@ public class DebugMessagePublisher(ILogger<DebugMessagePublisher> logger) : IMes
 
         return Task.CompletedTask;
     }
+
+    public Task PublishToDeadLetterAsync(string partitionKey, BrokerMessage message, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation(
+            "Would publish message {MessageId} from {Sender} directly to dead-letter queue for partition '{PartitionKey}': {Payload}",
+            message.Id,
+            message.Sender,
+            partitionKey,
+            message.Content);
+
+        return Task.CompletedTask;
+    }
 }

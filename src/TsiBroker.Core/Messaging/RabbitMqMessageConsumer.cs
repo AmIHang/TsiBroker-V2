@@ -98,9 +98,16 @@ public sealed class RabbitMqMessageConsumer(
     // A passive declare only asks the broker for the queue's current stats — it never
     // creates the queue, so a partition that has never been started correctly reports "no
     // such queue" (404, surfaced as OperationInterruptedException) rather than an empty one.
-    public async Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default)
+    public Task<int?> GetMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default) =>
+        GetQueueMessageCountAsync(RabbitMqQueueNaming.ForPartition(partitionKey), cancellationToken);
+
+    public Task<int?> GetDeadLetterMessageCountAsync(string partitionKey, CancellationToken cancellationToken = default) =>
+        GetQueueMessageCountAsync(
+            RabbitMqTopology.DeadLetterQueueNameFor(RabbitMqQueueNaming.ForPartition(partitionKey)),
+            cancellationToken);
+
+    private async Task<int?> GetQueueMessageCountAsync(string queueName, CancellationToken cancellationToken)
     {
-        var queueName = RabbitMqQueueNaming.ForPartition(partitionKey);
         var connection = await GetConnectionAsync(cancellationToken);
         var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
         try
@@ -176,6 +183,20 @@ public sealed class RabbitMqMessageConsumer(
             {
                 await handler(message, cancellationToken);
                 await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken);
+                return;
+            }
+            catch (MessagePausedException)
+            {
+                // Not a normal failure: the handler wants this message put back for redelivery
+                // once it resumes processing, without counting toward MaxDeliveryAttempts or
+                // being dead-lettered.
+                logger.LogInformation(
+                    "Pausing consumption of '{QueueName}' — requeuing message {MessageId} from {Sender} to {Receiver} for redelivery once resumed",
+                    queueName,
+                    message.Id,
+                    message.Sender,
+                    message.Receiver);
+                await channel.BasicNackAsync(delivery.DeliveryTag, multiple: false, requeue: true, cancellationToken);
                 return;
             }
             catch (Exception ex) when (attempt < _options.MaxDeliveryAttempts)

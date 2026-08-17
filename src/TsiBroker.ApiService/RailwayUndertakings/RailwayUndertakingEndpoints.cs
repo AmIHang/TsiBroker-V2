@@ -37,7 +37,8 @@ public static class RailwayUndertakingEndpoints
         group.MapPost("/", async (
             CreateRailwayUndertakingRequest request,
             RailwayUndertakingStore store,
-            InfrastructureOperatorStore isbStore) =>
+            InfrastructureOperatorStore isbStore,
+            EvuDeliveryCoordinator coordinator) =>
         {
             var ricsCodes = NormalizeRicsCodes(request.RicsCodes);
             if (string.IsNullOrWhiteSpace(request.Name)
@@ -60,6 +61,7 @@ public static class RailwayUndertakingEndpoints
             }
 
             var created = await store.AddAsync(request.Name.Trim(), ricsCodes, request.SystemUrl.Trim(), assignments);
+            await coordinator.StartAsync(created);
             return Results.Created($"/api/railway-undertakings/{created.Id}", created);
         });
 
@@ -67,7 +69,8 @@ public static class RailwayUndertakingEndpoints
             Guid id,
             UpdateRailwayUndertakingRequest request,
             RailwayUndertakingStore store,
-            InfrastructureOperatorStore isbStore) =>
+            InfrastructureOperatorStore isbStore,
+            EvuDeliveryCoordinator coordinator) =>
         {
             var ricsCodes = NormalizeRicsCodes(request.RicsCodes);
             if (string.IsNullOrWhiteSpace(request.Name)
@@ -109,19 +112,57 @@ public static class RailwayUndertakingEndpoints
                 return Results.NotFound();
             }
 
+            // Always stop-then-start (not just on rename): SystemUrl/ApiKeyBrokerToEvu/ISB
+            // assignments may also have changed, and EvuDeliveryCoordinator's handler reloads
+            // the EVU fresh per message anyway, so this is just about the partition's queue name
+            // possibly changing with the name.
+            await coordinator.StopAsync(existing.Name);
+            await coordinator.StartAsync(updated);
+
             return Results.Ok(updated);
         });
 
         group.MapPatch("/{id:guid}/status", async (
             Guid id,
             SetRailwayUndertakingActiveRequest request,
-            RailwayUndertakingStore store) =>
+            RailwayUndertakingStore store,
+            EvuDeliveryCoordinator coordinator) =>
         {
             var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
             if (existing is null || !await store.SetActiveAsync(id, request.IsActive))
             {
                 return Results.NotFound();
             }
+
+            if (request.IsActive)
+            {
+                existing.IsActive = true;
+                await coordinator.StartAsync(existing);
+            }
+            else
+            {
+                await coordinator.StopAsync(existing);
+            }
+
+            return Results.Ok();
+        });
+
+        group.MapPost("/{id:guid}/resume-queue", async (
+            Guid id,
+            RailwayUndertakingStore store,
+            EvuDeliveryCoordinator coordinator,
+            EvuReachabilityMonitor reachabilityMonitor) =>
+        {
+            var existing = await store.FindByIdAsync(id);
+            if (existing is null)
+            {
+                return Results.NotFound();
+            }
+
+            reachabilityMonitor.CancelPolling(id);
+            await store.SetQueuePauseStateAsync(id, isPaused: false, reason: null, backoffStep: 0);
+            existing.IsQueuePaused = false;
+            await coordinator.StartAsync(existing);
 
             return Results.Ok();
         });
@@ -158,13 +199,18 @@ public static class RailwayUndertakingEndpoints
 
         group.MapDelete("/{id:guid}", async (
             Guid id,
-            RailwayUndertakingStore store) =>
+            RailwayUndertakingStore store,
+            EvuDeliveryCoordinator coordinator,
+            EvuReachabilityMonitor reachabilityMonitor) =>
         {
             var existing = (await store.GetAllAsync()).FirstOrDefault(u => u.Id == id);
             if (existing is null || !await store.DeleteAsync(id))
             {
                 return Results.NotFound();
             }
+
+            reachabilityMonitor.CancelPolling(id);
+            await coordinator.StopAsync(existing);
 
             return Results.Ok();
         });

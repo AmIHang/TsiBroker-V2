@@ -1,9 +1,21 @@
+using TsiBroker.ApiService.RailwayUndertakings;
 using TsiBroker.Core.InfrastructureOperators;
 using TsiBroker.Core.Messaging;
+using TsiBroker.Core.RailwayUndertakings;
 
 namespace TsiBroker.ApiService.Queues;
 
 public record QueueStatusResponse(string QueueName, string InfrastructureOperatorName, bool IsActive, int? MessageCount);
+
+public record EvuQueueStatusResponse(
+    string QueueName,
+    Guid RailwayUndertakingId,
+    string RailwayUndertakingName,
+    bool IsActive,
+    bool IsPaused,
+    string? PauseReason,
+    int? MessageCount,
+    int? ErrorMessageCount);
 
 // Each active Infrastrukturbetreiber owns one outbound queue (see
 // InfrastructureOperatorConsumerCoordinator) — this lists all of them together with whether
@@ -25,6 +37,31 @@ public static class QueueEndpoints
                     io.Name,
                     consumer.IsPartitionActive(io.Name),
                     await consumer.GetMessageCountAsync(io.Name, cancellationToken))));
+
+            return Results.Ok(queues);
+        });
+
+        // The broker -> EVU counterpart of "/" above — one outbound queue per EVU (see
+        // EvuDeliveryCoordinator), including whether it's currently paused (customer system
+        // unreachable) and how many messages are sitting in its error queue.
+        group.MapGet("/evu", async (RailwayUndertakingStore store, IMessageConsumer consumer, CancellationToken cancellationToken) =>
+        {
+            var railwayUndertakings = await store.GetAllAsync();
+            var queues = await Task.WhenAll(railwayUndertakings
+                .OrderBy(ru => ru.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(async ru =>
+                {
+                    var partitionKey = EvuDeliveryCoordinator.PartitionKeyFor(ru);
+                    return new EvuQueueStatusResponse(
+                        RabbitMqQueueNaming.ForPartition(partitionKey),
+                        ru.Id,
+                        ru.Name,
+                        ru.IsActive,
+                        ru.IsQueuePaused,
+                        ru.PauseReason,
+                        await consumer.GetMessageCountAsync(partitionKey, cancellationToken),
+                        await consumer.GetDeadLetterMessageCountAsync(partitionKey, cancellationToken));
+                }));
 
             return Results.Ok(queues);
         });

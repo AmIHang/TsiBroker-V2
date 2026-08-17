@@ -10,6 +10,17 @@ public class RailwayUndertaking
     public string ApiKeyBrokerToEvu { get; set; } = string.Empty;
     public List<IsbAssignment> InfrastructureOperatorAssignments { get; set; } = [];
     public bool IsActive { get; set; } = true;
+
+    // Whether outbound (broker -> EVU) queue processing is currently paused for this EVU,
+    // because its system was found unreachable (see EvuReachabilityMonitor). Independent of
+    // IsActive, which governs inbound authentication instead.
+    public bool IsQueuePaused { get; set; }
+    public string? PauseReason { get; set; }
+    public DateTimeOffset? PausedAtUtc { get; set; }
+
+    // Index into EvuReachabilityMonitor's backoff schedule — persisted so a process restart
+    // resumes the schedule instead of silently restarting it from the shortest interval.
+    public int PauseBackoffStep { get; set; }
 }
 
 /// <summary>
