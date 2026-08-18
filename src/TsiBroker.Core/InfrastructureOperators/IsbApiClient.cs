@@ -85,7 +85,10 @@ public class IsbApiClient(HttpClient httpClient)
                 Soap + "Body",
                 new XElement(
                     MessageNs + "UICMessage",
-                    new XElement("message", new XAttribute(Xsi + "type", "xsd:string"), message.Content),
+                    // Per the BDV Schnittstellenbeschreibung (2.7.1 "Nutzung WSDL"), `message` is
+                    // declared as xs:anyType and carries the TSI message as a real nested XML
+                    // element - not as an xsd:string-typed escaped blob.
+                    new XElement("message", XElement.Parse(message.Content)),
                     new XElement("signature"),
                     new XElement("senderAlias", new XAttribute(Xsi + "type", "xsd:string"), BrokerAlias),
                     new XElement("encoding"))));

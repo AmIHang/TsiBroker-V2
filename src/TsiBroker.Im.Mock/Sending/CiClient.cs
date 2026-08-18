@@ -77,7 +77,10 @@ public class CiClient(HttpClient httpClient, IOptions<CiClientOptions> options)
                 Soap + "Body",
                 new XElement(
                     MessageNs + "UICMessage",
-                    new XElement("message", new XAttribute(Xsi + "type", "xsd:string"), payload),
+                    // Per the BDV Schnittstellenbeschreibung (2.7.1 "Nutzung WSDL"), `message` is
+                    // declared as xs:anyType and carries the TSI message as a real nested XML
+                    // element - not as an xsd:string-typed escaped blob.
+                    new XElement("message", XElement.Parse(payload)),
                     new XElement("signature"),
                     new XElement("senderAlias", new XAttribute(Xsi + "type", "xsd:string"), senderAlias),
                     new XElement("encoding"))));

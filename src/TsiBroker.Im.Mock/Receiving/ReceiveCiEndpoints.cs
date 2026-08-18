@@ -67,7 +67,10 @@ public static class ReceiveCiEndpoints
         try
         {
             var document = XDocument.Parse(envelopeXml);
-            return document.Descendants().FirstOrDefault(e => e.Name.LocalName == "message")?.Value;
+            var messageElement = document.Descendants().FirstOrDefault(e => e.Name.LocalName == "message");
+            // The TSI message is a real nested XML element (xs:anyType), not escaped text - so the
+            // wrapping <message> element's first child, not its decoded .Value, is the payload.
+            return messageElement?.Elements().FirstOrDefault()?.ToString(SaveOptions.DisableFormatting);
         }
         catch (XmlException)
         {
