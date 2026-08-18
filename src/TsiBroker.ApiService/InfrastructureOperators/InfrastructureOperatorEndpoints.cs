@@ -111,11 +111,32 @@ public static class InfrastructureOperatorEndpoints
             return Results.Ok();
         });
 
+        group.MapPost("/{id:guid}/resume-queue", async (
+            Guid id,
+            InfrastructureOperatorStore store,
+            InfrastructureOperatorConsumerCoordinator consumerCoordinator,
+            InfrastructureOperatorReachabilityMonitor reachabilityMonitor) =>
+        {
+            var existing = await store.FindByIdAsync(id);
+            if (existing is null)
+            {
+                return Results.NotFound();
+            }
+
+            reachabilityMonitor.CancelPolling(id);
+            await store.SetQueuePauseStateAsync(id, isPaused: false, reason: null, backoffStep: 0);
+            existing.IsQueuePaused = false;
+            await consumerCoordinator.StartAsync(existing);
+
+            return Results.Ok();
+        });
+
         group.MapDelete("/{id:guid}", async (
             Guid id,
             InfrastructureOperatorStore store,
             RailwayUndertakingStore railwayUndertakingStore,
-            InfrastructureOperatorConsumerCoordinator consumerCoordinator) =>
+            InfrastructureOperatorConsumerCoordinator consumerCoordinator,
+            InfrastructureOperatorReachabilityMonitor reachabilityMonitor) =>
         {
             var existing = (await store.GetAllAsync()).FirstOrDefault(o => o.Id == id);
             if (existing is null || !await store.DeleteAsync(id))
@@ -124,6 +145,7 @@ public static class InfrastructureOperatorEndpoints
             }
 
             await railwayUndertakingStore.RemoveInfrastructureOperatorAssignmentsAsync(id);
+            reachabilityMonitor.CancelPolling(id);
             await consumerCoordinator.StopAsync(existing.Name);
             return Results.Ok();
         });

@@ -69,9 +69,22 @@ builder.Services.AddSingleton<RailwayUndertakingStore>();
 // deciding whether to pause.
 builder.Services.AddHttpClient<EvuApiClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
 
+// Short timeout so an unreachable IM is detected in seconds, not the 100s HttpClient default —
+// InfrastructureOperatorConsumerCoordinator blocks its one-message-at-a-time partition consumer
+// on this call while deciding whether to pause.
+builder.Services.AddHttpClient<IsbApiClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+
 builder.Services.AddMessagePublisher(builder.Configuration);
 builder.Services.AddMessageConsumer(builder.Configuration);
+
+builder.Services.AddSingleton<IsbMessageAuthorizationService>();
 builder.Services.AddSingleton<InfrastructureOperatorConsumerCoordinator>();
+builder.Services.AddSingleton<InfrastructureOperatorReachabilityMonitor>();
+// Breaks the constructor cycle between InfrastructureOperatorConsumerCoordinator (starts polling
+// on failure) and InfrastructureOperatorReachabilityMonitor (restarts the coordinator's partition
+// on success) — resolving the monitor is deferred until a coordinator actually needs it (.Value),
+// not at construction time.
+builder.Services.AddSingleton(sp => new Lazy<InfrastructureOperatorReachabilityMonitor>(sp.GetRequiredService<InfrastructureOperatorReachabilityMonitor>));
 
 builder.Services.AddSingleton<EvuMessageAuthorizationService>();
 builder.Services.AddSingleton<EvuDeliveryCoordinator>();
@@ -83,14 +96,23 @@ builder.Services.AddSingleton(sp => new Lazy<EvuReachabilityMonitor>(sp.GetRequi
 
 var app = builder.Build();
 
-// Reconcile: start queue consumption for whatever Infrastrukturbetreiber are already active,
-// so a process restart doesn't silently stop delivery until the next Create/Activate/Deactivate call.
+// Reconcile: start queue consumption for whatever Infrastrukturbetreiber are already active and
+// not paused, so a process restart doesn't silently stop delivery until the next
+// Create/Activate/Deactivate call, and resume backoff polling (from its persisted
+// PauseBackoffStep) for every operator that was still paused when the process last stopped —
+// otherwise a restart would silently drop out of the backoff schedule instead of continuing it.
 {
     var coordinator = app.Services.GetRequiredService<InfrastructureOperatorConsumerCoordinator>();
+    var reachabilityMonitor = app.Services.GetRequiredService<InfrastructureOperatorReachabilityMonitor>();
     var infrastructureOperatorStore = app.Services.GetRequiredService<InfrastructureOperatorStore>();
     try
     {
-        await coordinator.StartAllActiveAsync(await infrastructureOperatorStore.GetAllAsync());
+        var infrastructureOperators = await infrastructureOperatorStore.GetAllAsync();
+        await coordinator.StartAllActiveAsync(infrastructureOperators);
+        foreach (var infrastructureOperator in infrastructureOperators.Where(io => io.IsQueuePaused))
+        {
+            reachabilityMonitor.StartPolling(infrastructureOperator);
+        }
     }
     catch (Exception ex)
     {

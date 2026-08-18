@@ -5,9 +5,13 @@ import { apiFetch } from '@/lib/api'
 
 interface QueueStatus {
   queueName: string
+  infrastructureOperatorId: string
   infrastructureOperatorName: string
   isActive: boolean
+  isPaused: boolean
+  pauseReason: string | null
   messageCount: number | null
+  errorMessageCount: number | null
 }
 
 interface EvuQueueStatus {
@@ -46,15 +50,15 @@ async function loadQueues() {
   }
 }
 
-async function resumeQueue(railwayUndertakingId: string) {
-  resumingIds.value.add(railwayUndertakingId)
+async function resumeQueue(kind: 'infrastructure-operators' | 'railway-undertakings', id: string) {
+  resumingIds.value.add(id)
   try {
-    await apiFetch(`/api/railway-undertakings/${railwayUndertakingId}/resume-queue`, { method: 'POST' })
+    await apiFetch(`/api/${kind}/${id}/resume-queue`, { method: 'POST' })
     await loadQueues()
   } catch {
     error.value = t('queues.resumeError')
   } finally {
-    resumingIds.value.delete(railwayUndertakingId)
+    resumingIds.value.delete(id)
   }
 }
 
@@ -77,7 +81,9 @@ onMounted(loadQueues)
               <th>{{ t('queues.columns.infrastructureOperator') }}</th>
               <th>{{ t('queues.columns.queueName') }}</th>
               <th>{{ t('queues.columns.messageCount') }}</th>
+              <th>{{ t('queues.columns.errorMessageCount') }}</th>
               <th>{{ t('common.status') }}</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -85,15 +91,31 @@ onMounted(loadQueues)
               v-for="q in queues"
               :key="q.queueName"
               class="data-table__row"
-              :class="{ 'data-table__row--inactive': !q.isActive }"
+              :class="{ 'data-table__row--inactive': !q.isActive && !q.isPaused }"
             >
               <td>{{ q.infrastructureOperatorName }}</td>
               <td>{{ q.queueName }}</td>
               <td>{{ q.messageCount ?? '–' }}</td>
+              <td>{{ q.errorMessageCount ?? '–' }}</td>
               <td>
-                <span class="status" :class="q.isActive ? 'status--active' : 'status--inactive'">
-                  {{ q.isActive ? t('common.active') : t('common.inactive') }}
+                <span
+                  class="status"
+                  :class="q.isPaused ? 'status--paused' : q.isActive ? 'status--active' : 'status--inactive'"
+                  :title="q.isPaused ? (q.pauseReason ?? undefined) : undefined"
+                >
+                  {{ q.isPaused ? t('queues.status.paused') : q.isActive ? t('common.active') : t('common.inactive') }}
                 </span>
+              </td>
+              <td>
+                <button
+                  v-if="q.isPaused"
+                  type="button"
+                  class="btn btn--primary btn--small"
+                  :disabled="resumingIds.has(q.infrastructureOperatorId)"
+                  @click="resumeQueue('infrastructure-operators', q.infrastructureOperatorId)"
+                >
+                  {{ t('queues.actions.resume') }}
+                </button>
               </td>
             </tr>
           </tbody>
@@ -140,7 +162,7 @@ onMounted(loadQueues)
                   type="button"
                   class="btn btn--primary btn--small"
                   :disabled="resumingIds.has(q.railwayUndertakingId)"
-                  @click="resumeQueue(q.railwayUndertakingId)"
+                  @click="resumeQueue('railway-undertakings', q.railwayUndertakingId)"
                 >
                   {{ t('queues.actions.resume') }}
                 </button>

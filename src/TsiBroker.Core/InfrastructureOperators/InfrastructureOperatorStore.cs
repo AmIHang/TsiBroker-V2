@@ -46,6 +46,12 @@ public class InfrastructureOperatorStore
             string.Equals(o.RicsCode, ricsCode, StringComparison.OrdinalIgnoreCase));
     }
 
+    public async Task<InfrastructureOperator?> FindByIdAsync(Guid id)
+    {
+        var operators = await GetAllAsync();
+        return operators.FirstOrDefault(o => o.Id == id);
+    }
+
     public async Task<InfrastructureOperator> AddAsync(string name, string ricsCode, string systemUrl)
     {
         await _lock.WaitAsync();
@@ -107,6 +113,33 @@ public class InfrastructureOperatorStore
             }
 
             target.IsActive = isActive;
+            await WriteAsync(operators);
+            return true;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    // isPaused=false always clears reason/timestamp/backoff step together, since a resume
+    // (automatic or manual) means the previous pause episode is over.
+    public async Task<bool> SetQueuePauseStateAsync(Guid id, bool isPaused, string? reason, int backoffStep)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var operators = await ReadAsync();
+            var target = operators.FirstOrDefault(o => o.Id == id);
+            if (target is null)
+            {
+                return false;
+            }
+
+            target.IsQueuePaused = isPaused;
+            target.PauseReason = isPaused ? reason : null;
+            target.PausedAtUtc = isPaused ? DateTimeOffset.UtcNow : null;
+            target.PauseBackoffStep = isPaused ? backoffStep : 0;
             await WriteAsync(operators);
             return true;
         }

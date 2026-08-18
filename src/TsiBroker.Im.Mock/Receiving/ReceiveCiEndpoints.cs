@@ -1,13 +1,15 @@
+using System.Xml;
+using System.Xml.Linq;
 using TsiBroker.Im.Core.CI;
 using TsiBroker.Im.Mock.Storage;
 
 namespace TsiBroker.Im.Mock.Receiving;
 
 /// <summary>
-/// Plays the ISB side of the Common Interface contract once TsiBroker's outbound relay exists:
-/// the broker will POST here instead of the mock POSTing to the broker. Deliberately takes the
-/// raw message XML without a SOAP envelope - the outbound relay contract doesn't exist yet, so
-/// there is no real wire format to be faithful to.
+/// Plays the ISB side of the Common Interface contract: the broker's outbound relay
+/// (TsiBroker.ApiService's InfrastructureOperatorConsumerCoordinator, via
+/// TsiBroker.Core/InfrastructureOperators/IsbApiClient.cs) posts the same UICMessage SOAP
+/// envelope here that TsiBroker.Im.Api's own /ci endpoint expects from a real IM.
 /// </summary>
 public static class ReceiveCiEndpoints
 {
@@ -20,7 +22,8 @@ public static class ReceiveCiEndpoints
             CancellationToken cancellationToken) =>
         {
             using var reader = new StreamReader(request.Body);
-            var rawXml = await reader.ReadToEndAsync(cancellationToken);
+            var envelopeXml = await reader.ReadToEndAsync(cancellationToken);
+            var rawXml = ExtractMessage(envelopeXml) ?? envelopeXml;
             var messageIdentifier = MessageIdentifierParser.TryExtract(rawXml);
 
             var config = configStore.Current;
@@ -53,5 +56,22 @@ public static class ReceiveCiEndpoints
 
             return Results.Text(ack.OuterXml, "application/xml");
         });
+    }
+
+    // Unwraps the raw TSI message text from the UICMessage SOAP envelope's <message> element
+    // (see IsbApiClient.BuildMessageEnvelope) - namespace-agnostic, mirroring
+    // CommonInterfaceMessageService.ReceiveAsync's own unwrapping on the opposite direction.
+    // Returns null (falling back to the raw body) if the envelope isn't well-formed XML.
+    private static string? ExtractMessage(string envelopeXml)
+    {
+        try
+        {
+            var document = XDocument.Parse(envelopeXml);
+            return document.Descendants().FirstOrDefault(e => e.Name.LocalName == "message")?.Value;
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
     }
 }

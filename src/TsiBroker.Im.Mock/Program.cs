@@ -79,6 +79,7 @@ app.UseAuthorization();
 
 // Real Broker -> Mock traffic, not a browser - stays unauthenticated.
 app.MapReceiveCiEndpoints();
+app.MapReceiveHeartbeatEndpoints();
 
 app.MapAuthEndpoints();
 app.MapResponseConfigEndpoints();

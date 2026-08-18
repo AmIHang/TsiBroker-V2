@@ -34,6 +34,10 @@ erDiagram
         string RicsCode
         string SystemUrl
         bool IsActive
+        bool IsQueuePaused
+        string PauseReason
+        datetime PausedAtUtc
+        int PauseBackoffStep
     }
 ```
 
@@ -51,11 +55,17 @@ public class InfrastructureOperator
     public required string RicsCode { get; set; }
     public required string SystemUrl { get; set; }
     public bool IsActive { get; set; } = true;
+
+    public bool IsQueuePaused { get; set; }
+    public string? PauseReason { get; set; }
+    public DateTimeOffset? PausedAtUtc { get; set; }
+    public int PauseBackoffStep { get; set; }
 }
 ```
 
 - `RicsCode` — the operator's RICS code, used to resolve the `Recipient` on an incoming RU message (`RailwayUndertakingStore`/`InfrastructureOperatorStore.FindByRicsCodeAsync`, case-insensitive)
-- `SystemUrl` — the IM's own system endpoint; currently stored but **not yet used** by any relay logic (see [[Business-Flow]])
+- `SystemUrl` — the IM's own SOAP endpoint base URL; `IsbApiClient` posts to `{SystemUrl}/ci` and `{SystemUrl}/heartbeat` (see [[Business-Flow]] Flow 5)
+- `IsQueuePaused`/`PauseReason`/`PausedAtUtc`/`PauseBackoffStep` — whether broker→IM outbound delivery is currently paused because the IM's system was found unreachable, independent of `IsActive`. Set/cleared via `InfrastructureOperatorStore.SetQueuePauseStateAsync`; `PauseBackoffStep` is the index into `InfrastructureOperatorReachabilityMonitor`'s backoff schedule, persisted so a process restart continues the schedule instead of resetting it. Mirrors the same fields on `RailwayUndertaking` — see [[Business-Flow]] Flow 5.
 - Stored in `App_Data/infrastructure-operators.json` via `InfrastructureOperatorStore`
 
 ### RailwayUndertaking

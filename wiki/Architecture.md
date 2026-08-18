@@ -108,7 +108,7 @@ Shared kernel for the CI (Common Interface) contract, referenced by both `TsiBro
 
 ### TsiBroker.Im.Mock / TsiBroker.Im.Mock.UI
 
-A test double for a real Infrastructure Manager system — plays both directions of the Common Interface contract (sending to `TsiBroker.Im.Api`'s `/ci` today; receiving on its own `/ci` once the outbound relay from the broker exists). Lets you develop/test against an ISB without standing up a real one. `TsiBroker.Im.Mock.UI` is its Vue 3 frontend, sharing chrome/styles with `TsiBroker.Ui` via `@tsibroker/ui-kit` — see [[Frontend-Architecture]].
+A test double for a real Infrastructure Manager system — plays both directions of the Common Interface contract: sending to `TsiBroker.Im.Api`'s `/ci`, and receiving on its own `/ci`/`/heartbeat` from the broker's outbound relay (`TsiBroker.ApiService`'s `InfrastructureOperatorConsumerCoordinator` via `IsbApiClient` — see [[Business-Flow]] Flow 5). Lets you develop/test against an ISB without standing up a real one. `TsiBroker.Im.Mock.UI` is its Vue 3 frontend, sharing chrome/styles with `TsiBroker.Ui` via `@tsibroker/ui-kit` — see [[Frontend-Architecture]].
 
 ### TsiBroker.Ru.Mock / TsiBroker.Ru.Mock.UI
 

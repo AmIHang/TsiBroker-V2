@@ -5,7 +5,15 @@ using TsiBroker.Core.RailwayUndertakings;
 
 namespace TsiBroker.ApiService.Queues;
 
-public record QueueStatusResponse(string QueueName, string InfrastructureOperatorName, bool IsActive, int? MessageCount);
+public record QueueStatusResponse(
+    string QueueName,
+    Guid InfrastructureOperatorId,
+    string InfrastructureOperatorName,
+    bool IsActive,
+    bool IsPaused,
+    string? PauseReason,
+    int? MessageCount,
+    int? ErrorMessageCount);
 
 public record EvuQueueStatusResponse(
     string QueueName,
@@ -19,8 +27,8 @@ public record EvuQueueStatusResponse(
 
 // Each active Infrastrukturbetreiber owns one outbound queue (see
 // InfrastructureOperatorConsumerCoordinator) — this lists all of them together with whether
-// their consume loop is currently running and how many messages are currently waiting in the
-// queue.
+// their consume loop is currently running or paused (IM system unreachable), and how many
+// messages are currently waiting in the queue vs. its error queue.
 public static class QueueEndpoints
 {
     public static void MapQueueEndpoints(this IEndpointRouteBuilder app)
@@ -34,9 +42,13 @@ public static class QueueEndpoints
                 .OrderBy(io => io.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(async io => new QueueStatusResponse(
                     RabbitMqQueueNaming.ForPartition(io.Name),
+                    io.Id,
                     io.Name,
                     consumer.IsPartitionActive(io.Name),
-                    await consumer.GetMessageCountAsync(io.Name, cancellationToken))));
+                    io.IsQueuePaused,
+                    io.PauseReason,
+                    await consumer.GetMessageCountAsync(io.Name, cancellationToken),
+                    await consumer.GetDeadLetterMessageCountAsync(io.Name, cancellationToken))));
 
             return Results.Ok(queues);
         });
