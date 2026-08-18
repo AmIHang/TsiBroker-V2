@@ -72,6 +72,8 @@ builder.Services
     .Bind(builder.Configuration.GetSection(CertificateBundleStoreOptions.SectionName));
 builder.Services.AddSingleton<CertificateBundleStore>();
 builder.Services.AddSingleton<PartnerCertificateProvider>();
+builder.Services.AddSingleton<HttpClient>();
+builder.Services.AddSingleton<CrlCache>();
 builder.Services.AddSingleton<PartnerCertificateValidator>();
 builder.Services.AddHostedService<CertificateExpiryMonitor>();
 

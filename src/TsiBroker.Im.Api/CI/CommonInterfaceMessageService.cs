@@ -17,6 +17,7 @@ public class CommonInterfaceMessageService(
     RailwayUndertakingStore railwayUndertakingStore,
     InfrastructureOperatorStore infrastructureOperatorStore,
     PartnerCertificateProvider certificateProvider,
+    PartnerCertificateValidator certificateValidator,
     IHttpContextAccessor httpContextAccessor,
     ILogger<CommonInterfaceMessageService> logger) : ICommonInterfaceMessageService
 {
@@ -64,13 +65,26 @@ public class CommonInterfaceMessageService(
                         // fault) rather than at the raw TLS handshake, because this Kestrel
                         // endpoint uses ClientCertificateMode.AllowCertificate (not
                         // RequireCertificate) so that 1-way partners can keep sharing the same
-                        // port. TICKET-2 will insert the actual CA/CN/CRL check
-                        // (PartnerCertificateValidator.ValidateClientCertificate) right here, once
-                        // a certificate has been confirmed present.
+                        // port.
                         logger.LogWarning(
                             "Rejecting inbound CI message from {Sender}: partner is provisioned for 2-way SSL but no client certificate was presented",
                             parsed.Sender);
                         throw new FaultException("Client certificate required.");
+                    }
+
+                    // Spec 4.3's CA/CN/CRL check on the presented client certificate — against the
+                    // partner's own configured CA (PartnerCertificateBundle), not the machine trust
+                    // store, since Kestrel already accepted the handshake without validating the
+                    // chain at all (AllowAnyClientCertificate, see Program.cs).
+                    var expectedCaCertificate = await certificateProvider.GetExpectedClientCaCertificateAsync(callingOperator.Id);
+                    var validationResult = await certificateValidator.ValidateClientCertificateAsync(bundle, clientCertificate, expectedCaCertificate);
+                    if (!validationResult.IsValid)
+                    {
+                        logger.LogWarning(
+                            "Rejecting inbound CI message from {Sender}: client certificate failed validation ({FailureReason})",
+                            parsed.Sender,
+                            validationResult.FailureReason);
+                        throw new FaultException($"Client certificate validation failed: {validationResult.FailureReason}.");
                     }
                 }
             }

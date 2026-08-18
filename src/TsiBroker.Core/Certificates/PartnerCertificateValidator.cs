@@ -23,7 +23,7 @@ public record CertificateValidationResult(bool IsValid, CertificateValidationFai
 // trust to the partner's own CA (not the machine trust store — each partner's CA is configured per
 // PartnerCertificateBundle, since these are partner-issued certificates a public root store
 // wouldn't recognize), CN/SAN identity, and CRL revocation status.
-public class PartnerCertificateValidator(ILogger<PartnerCertificateValidator> logger)
+public class PartnerCertificateValidator(CrlCache crlCache, ILogger<PartnerCertificateValidator> logger)
 {
     // TICKET-4: the server certificate the partner's own system presents when the broker connects
     // out to it. No CRL check — spec 4.3 only requires CRL validation for the client-certificate
@@ -33,24 +33,39 @@ public class PartnerCertificateValidator(ILogger<PartnerCertificateValidator> lo
         PartnerCertificateBundle bundle,
         X509Certificate2 serverCertificate,
         X509Certificate2? expectedCaCertificate) =>
-        Validate(serverCertificate, expectedCaCertificate, bundle.ExpectedServerCommonName, checkRevocation: false);
+        ValidateChainAndIdentity(serverCertificate, expectedCaCertificate, bundle.ExpectedServerCommonName);
 
     // TICKET-2: the client certificate a partner presents when connecting in to the broker.
-    public CertificateValidationResult ValidateClientCertificate(
+    public async Task<CertificateValidationResult> ValidateClientCertificateAsync(
         PartnerCertificateBundle bundle,
         X509Certificate2 clientCertificate,
-        X509Certificate2? expectedCaCertificate) =>
-        Validate(
-            clientCertificate,
-            expectedCaCertificate,
-            bundle.ExpectedClientCommonName,
-            checkRevocation: !string.IsNullOrWhiteSpace(bundle.ClientCrlUrl));
+        X509Certificate2? expectedCaCertificate)
+    {
+        var chainResult = ValidateChainAndIdentity(clientCertificate, expectedCaCertificate, bundle.ExpectedClientCommonName);
+        if (!chainResult.IsValid)
+        {
+            return chainResult;
+        }
 
-    private CertificateValidationResult Validate(
+        if (string.IsNullOrWhiteSpace(bundle.ClientCrlUrl))
+        {
+            return CertificateValidationResult.Success;
+        }
+
+        var crl = await crlCache.GetAsync(bundle.ClientCrlUrl);
+        var serialNumberHex = Convert.ToHexString(clientCertificate.SerialNumberBytes.Span);
+        return crl.RevokedSerialNumbersHex.Contains(serialNumberHex)
+            ? CertificateValidationResult.Failure(CertificateValidationFailureReason.Revoked)
+            : CertificateValidationResult.Success;
+    }
+
+    // Expiry, chain trust to the configured CA, and CN/SAN identity — everything except the
+    // revocation check, which is async (CrlCache) and only applies to the client-certificate
+    // direction, so it lives in ValidateClientCertificateAsync instead of here.
+    private CertificateValidationResult ValidateChainAndIdentity(
         X509Certificate2 certificate,
         X509Certificate2? expectedCaCertificate,
-        string? expectedCommonName,
-        bool checkRevocation)
+        string? expectedCommonName)
     {
         // NotBefore/NotAfter are expressed in local time (X509Certificate2 convention) — compare
         // against DateTime.Now, not UTC.
@@ -78,20 +93,16 @@ public class PartnerCertificateValidator(ILogger<PartnerCertificateValidator> lo
         using var chain = new X509Chain();
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
         chain.ChainPolicy.CustomTrustStore.Add(expectedCaCertificate);
-        // .NET's revocation check fetches the CRL from the certificate's own embedded CDP
-        // extension, not from PartnerCertificateBundle.ClientCrlUrl directly — there's no BCL hook
-        // to override the source URL. ClientCrlUrl instead acts as the configured on/off switch:
-        // set it and the partner's cert is expected to carry a usable CDP itself.
-        chain.ChainPolicy.RevocationMode = checkRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
+        // Revocation is handled separately via CrlCache (an explicit, cached fetch of
+        // PartnerCertificateBundle.ClientCrlUrl) rather than here: X509Chain's own online mode
+        // fetches from the certificate's embedded CDP extension on every single call with no
+        // application-level cache, which is both a fresh network round trip per request and not
+        // actually pointed at the partner-configured URL.
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
         chain.ChainPolicy.VerificationFlags = X509VerificationFlags.NoFlag;
 
         if (!chain.Build(certificate))
         {
-            if (chain.ChainStatus.Any(s => s.Status == X509ChainStatusFlags.Revoked))
-            {
-                return CertificateValidationResult.Failure(CertificateValidationFailureReason.Revoked);
-            }
-
             logger.LogWarning(
                 "Certificate chain validation failed for {Subject}: {Statuses}",
                 certificate.Subject,

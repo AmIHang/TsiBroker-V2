@@ -45,15 +45,20 @@ builder.Services
     .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
 builder.Services.AddSingleton<RailwayUndertakingStore>();
 
-// PartnerCertificateProvider is used by CommonInterfaceMessageService (TICKET-1) to look up
-// whether the calling partner is provisioned for 2-way SSL; PartnerCertificateValidator itself is
-// still unused here — that's TICKET-2's CA/CN/CRL check. No admin endpoints or expiry monitor in
-// this process, those live in TsiBroker.ApiService.
+// PartnerCertificateProvider/PartnerCertificateValidator are used by CommonInterfaceMessageService
+// to look up whether the calling partner is provisioned for 2-way SSL (TICKET-1) and, if so, to
+// validate the presented client certificate's CA/CN/CRL status (TICKET-2). No admin endpoints or
+// expiry monitor in this process, those live in TsiBroker.ApiService.
 builder.Services
     .AddOptions<CertificateBundleStoreOptions>()
     .Bind(builder.Configuration.GetSection(CertificateBundleStoreOptions.SectionName));
 builder.Services.AddSingleton<CertificateBundleStore>();
 builder.Services.AddSingleton<PartnerCertificateProvider>();
+// A single long-lived HttpClient is fine here: CrlCache only ever talks to a small, fixed set of
+// partner-configured CRL endpoints, not the general "many, changing hosts" scenario
+// IHttpClientFactory exists for.
+builder.Services.AddSingleton<HttpClient>();
+builder.Services.AddSingleton<CrlCache>();
 builder.Services.AddSingleton<PartnerCertificateValidator>();
 
 builder.Services.AddScoped<CommonInterfaceMessageService>();

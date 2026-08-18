@@ -91,6 +91,8 @@ internal sealed class ImApiTestHost : IAsyncDisposable
             .Bind(builder.Configuration.GetSection(CertificateBundleStoreOptions.SectionName));
         builder.Services.AddSingleton<CertificateBundleStore>();
         builder.Services.AddSingleton<PartnerCertificateProvider>();
+        builder.Services.AddSingleton<HttpClient>();
+        builder.Services.AddSingleton<CrlCache>();
         builder.Services.AddSingleton<PartnerCertificateValidator>();
 
         builder.Services.AddScoped<CommonInterfaceMessageService>();
