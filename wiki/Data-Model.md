@@ -126,6 +126,7 @@ public class PartnerCertificateBundle
     public string? ExpectedClientCaCertificateFileName { get; set; }
     public string? ExpectedClientCommonName { get; set; }
     public string? ClientCrlUrl { get; set; }
+    public bool RequiresClientCertificate => ExpectedClientCaCertificateFileName is not null;
 }
 ```
 
@@ -135,7 +136,9 @@ Three independent slots, each nullable/optional until configured — a bundle ca
 |---|---|---|---|
 | `ClientCertificateFileName` | Broker **outbound** → IM | The broker's own client certificate (PKCS#12/`.pfx`, private key included) presented for mTLS when calling out to this IM's SOAP endpoint | Not wired up yet — `IsbApiClient` still sends plain HTTPS (see its `TODO`); this is the certificate TICKET-3 will attach |
 | `ExpectedServerCaCertificateFileName` + `ExpectedServerCommonName` | Broker outbound → IM | The CA that must have issued the server certificate this IM's system presents, plus the CN/SAN identity expected on it | Will be used by TICKET-4's outbound TLS validation |
-| `ExpectedClientCaCertificateFileName` + `ExpectedClientCommonName` + `ClientCrlUrl` | IM **inbound** → broker | The CA that must have issued the client certificate this IM presents when calling `TsiBroker.Im.Api`'s SOAP endpoints, the expected CN/SAN on it, and the CRL revocation check switch | Will be used by TICKET-2's inbound mTLS validation (CoreWCF/Kestrel client-cert binding) |
+| `ExpectedClientCaCertificateFileName` + `ExpectedClientCommonName` + `ClientCrlUrl` | IM **inbound** → broker | The CA that must have issued the client certificate this IM presents when calling `TsiBroker.Im.Api`'s SOAP endpoints, the expected CN/SAN on it, and the CRL revocation check switch | `RequiresClientCertificate` (see below) is used by TICKET-1's presence-only enforcement on `/ci` today; `ExpectedClientCaCertificateFileName`/`ExpectedClientCommonName`/`ClientCrlUrl` themselves will be used by TICKET-2's actual CA/CN/CRL validation |
+
+- `RequiresClientCertificate` — computed, not stored: `true` whenever `ExpectedClientCaCertificateFileName` is set. This is how a partner is marked "2-way SSL" (spec 2.2) vs. "1-way" — uploading a client CA for a partner *is* what marks them 2-way, there's no separate toggle. See [[Architecture]]'s TsiBroker.Im.Api section for how `CommonInterfaceMessageService` uses this.
 
 - `*FileName` fields hold a bare file name only (never a path) — resolved against `CertificateBundleStore`'s `certificates/` subdirectory via `ResolveCertificatePath`. Files are named `{Id}-client.pfx`, `{Id}-server-ca.cer`, `{Id}-client-ca.cer` on save.
 - `ClientCrlUrl` doubles as documentation of the partner's CRL endpoint *and* the on/off switch for online revocation checking (`PartnerCertificateValidator` uses `X509ChainPolicy.RevocationMode = Online` only when it's set) — .NET's `X509Chain` fetches the CRL from the certificate's own embedded CDP extension, not from this URL directly; there's no BCL hook to override the source.

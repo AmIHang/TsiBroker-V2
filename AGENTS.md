@@ -91,7 +91,7 @@ cd infrastructure
 podman compose --env-file .env.example up -d --build
 ```
 
-> There is currently no `.NET` test project in the solution — don't assume one exists when suggesting a test command; check `TsiBroker.slnx` first.
+> One `.NET` test project exists: `src/TsiBroker.Im.Api.Tests` (xUnit, `dotnet test src/TsiBroker.Im.Api.Tests`). No other project has test coverage yet — check `TsiBroker.slnx` before assuming one exists elsewhere. Note `dotnet build`/`dotnet test` against `TsiBroker.slnx` itself currently fails from the CLI (pre-existing `Build Solution="Debug|*" Project="false"` flags on a few projects) — build/test individual `.csproj` files instead.
 
 ## Architecture Rules
 

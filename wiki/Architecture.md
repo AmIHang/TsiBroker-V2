@@ -17,6 +17,7 @@ TsiBroker.slnx
     ├── TsiBroker.ApiService/    # Admin REST API + cookie auth
     ├── TsiBroker.Ru.Api/        # REST API for Railway Undertakings (X-Api-Key auth)
     ├── TsiBroker.Im.Api/        # SOAP API for Infrastructure Managers (CoreWCF)
+    ├── TsiBroker.Im.Api.Tests/  # xUnit integration tests for TsiBroker.Im.Api (real Kestrel host, e.g. client-certificate enforcement)
     ├── TsiBroker.Im.Core/       # Shared CI (Common Interface) contract types, used by TsiBroker.Im.Api and TsiBroker.Im.Mock
     ├── TsiBroker.Im.Mock/       # Test double for a real ISB (plays both directions of the CI contract)
     ├── TsiBroker.Im.Mock.UI/    # Vue 3 UI for TsiBroker.Im.Mock
@@ -100,7 +101,17 @@ CoreWCF-hosted SOAP service with two endpoints, both `BasicHttpBinding` over HTT
 
 Contract code under `CI/Generated/` and `Heartbeat/Generated/` is WSDL-derived and treated as generated code; hand-written service logic lives in sibling `*MessageService.cs` files, not inside `Generated/`.
 
-Also registers `CertificateBundleStore`/`PartnerCertificateProvider`/`PartnerCertificateValidator` (no admin endpoints, no expiry monitor — those live in `TsiBroker.ApiService`) in anticipation of inbound client-certificate validation for the `/ci`/`/heartbeat` endpoints; nothing consumes them yet.
+Also registers `CertificateBundleStore`/`PartnerCertificateProvider`/`PartnerCertificateValidator` (no admin endpoints, no expiry monitor — those live in `TsiBroker.ApiService`). `PartnerCertificateProvider` is now used by `CommonInterfaceMessageService` (TICKET-1, see below); `PartnerCertificateValidator`'s CA/CN/CRL check is still unused — that's TICKET-2.
+
+**Client-certificate handling (2-way SSL, spec 2.2), TICKET-1:** Kestrel is configured (`ConfigureHttpsDefaults`) with `ClientCertificateMode.AllowCertificate` + `AllowAnyClientCertificate()` — every HTTPS connection is asked for a client certificate, but none is required or chain-validated at the TLS layer. This is deliberate: a single Kestrel endpoint can't run two different `ClientCertificateMode`s, and both 1-way partners (no cert, today's only real-world case per spec Table 1) and 2-way partners (cert required) need to share this one port, so per-partner enforcement happens in application code instead of at the raw TLS handshake.
+
+A partner is "2-way" purely by data: `PartnerCertificateBundle.RequiresClientCertificate` is `true` whenever `ExpectedClientCaCertificateFileName` is set (uploading a client CA for a partner *is* what marks them 2-way — no separate toggle). `CommonInterfaceMessageService.ReceiveAsync` resolves the calling `InfrastructureOperator` from the parsed message's `Sender` RICS code, loads its bundle via `PartnerCertificateProvider`, and — if `RequiresClientCertificate` is true and `HttpContext.Connection.GetClientCertificateAsync()` returns `null` — throws a `CoreWCF.FaultException` (SOAP fault, HTTP 500) *before* the normal ACK/NACK try/catch, so a missing-certificate rejection stays distinguishable from an ordinary business NACK. This is the .NET/CoreWCF functional equivalent of the spec's `SSLHandshakeException: bad_certificate`, surfaced one layer up (app layer) rather than at the TLS handshake itself, as a direct consequence of the single-port design. TICKET-2 will insert the actual CA/CN/CRL check (`PartnerCertificateValidator.ValidateClientCertificate`) right after the presence check, once a certificate is confirmed present — mapping `ChainNotTrusted` to the spec's `certificate_unknown` case and `Revoked` to the CRL `SSLException: readHandshakeRecord` case.
+
+**Known limitation:** this enforcement only covers `/ci`. `/heartbeat`'s contract (`HeartbeatRequest`) carries no sender/host identity at all (its WSDL body is just two `xs:anyType` elements), so with the single-port/app-layer design there is no code-level way to know which partner is calling `/heartbeat` without a certificate. A 2-way partner that omits its certificate on `/heartbeat` currently goes through unauthenticated — a genuine gap, not covered by any test. Closing it would need either a spec-driven identity field added to the heartbeat message, or migrating 2-way traffic to a separate Kestrel port/`ClientCertificateMode.RequireCertificate` (true TLS-layer rejection, at the cost of partners needing a distinct URL).
+
+**CoreWCF binding note:** `BasicHttpBinding(BasicHttpSecurityMode.Transport)` is correct and sufficient for this, not just for plain HTTPS — CoreWCF hosted on Kestrel delegates *all* TLS handling, including client certificates, to Kestrel's `HttpsConnectionMiddleware`; there's no separate WCF-level transport handshake underneath it. `WSHttpBinding` / `ClientCredentialType.Certificate` was considered and rejected — that configures WCF's own message-level security or classic HTTP.sys hosting, neither of which is in play for CoreWCF-over-ASP.NET-Core.
+
+Covered by `TsiBroker.Im.Api.Tests` (`ClientCertificateEnforcementTests`) — spins up a real Kestrel host on an OS-assigned loopback port with throwaway self-signed certs (an in-memory `TestServer` can't exercise a real TLS handshake), asserting: a 2-way partner without a cert is rejected, a 2-way partner with a (merely present, not yet CA-validated) cert is accepted, and a 1-way partner is unaffected.
 
 ### TsiBroker.Ui
 

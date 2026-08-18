@@ -30,6 +30,11 @@ public class PartnerCertificateBundle
     // presents when connecting in to the broker (TICKET-2).
     public string? ExpectedClientCaCertificateFileName { get; set; }
 
+    // TICKET-1: whether this partner is provisioned for 2-way SSL (client certificate required on
+    // inbound /ci calls). Uploading a client CA is what marks a partner 2-way — there's no
+    // separate toggle, so this stays in sync with the bundle's actual capability automatically.
+    public bool RequiresClientCertificate => ExpectedClientCaCertificateFileName is not null;
+
     // Expected Common Name / Subject Alternative Name on that client certificate (TICKET-2).
     public string? ExpectedClientCommonName { get; set; }
 
