@@ -102,7 +102,8 @@ public class CertificateBundleStore
         Guid id,
         string? expectedServerCommonName,
         string? expectedClientCommonName,
-        string? clientCrlUrl)
+        string? clientCrlUrl,
+        string? serverCrlUrl)
     {
         await _lock.WaitAsync();
         try
@@ -117,6 +118,7 @@ public class CertificateBundleStore
             target.ExpectedServerCommonName = expectedServerCommonName;
             target.ExpectedClientCommonName = expectedClientCommonName;
             target.ClientCrlUrl = clientCrlUrl;
+            target.ServerCrlUrl = serverCrlUrl;
             await WriteAsync(bundles);
             return target;
         }

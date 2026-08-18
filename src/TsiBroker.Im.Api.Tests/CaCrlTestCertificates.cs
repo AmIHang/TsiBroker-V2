@@ -32,13 +32,28 @@ internal static class CaCrlTestCertificates
     public static X509Certificate2 CreateClientCertificateSignedBy(
         X509Certificate2 issuerWithPrivateKey,
         string commonName,
+        out byte[] serialNumber) =>
+        CreateLeafCertificateSignedBy(issuerWithPrivateKey, commonName, "1.3.6.1.5.5.7.3.2", out serialNumber);
+
+    // TICKET-4 coverage needs a leaf with the serverAuth EKU (rather than clientAuth) — Kestrel's
+    // UseHttps refuses to bind a ServerCertificate that lacks it (EnsureCertificateIsAllowedForServerAuth).
+    public static X509Certificate2 CreateServerCertificateSignedBy(
+        X509Certificate2 issuerWithPrivateKey,
+        string commonName,
+        out byte[] serialNumber) =>
+        CreateLeafCertificateSignedBy(issuerWithPrivateKey, commonName, "1.3.6.1.5.5.7.3.1", out serialNumber);
+
+    private static X509Certificate2 CreateLeafCertificateSignedBy(
+        X509Certificate2 issuerWithPrivateKey,
+        string commonName,
+        string enhancedKeyUsageOid,
         out byte[] serialNumber)
     {
         using var rsa = RSA.Create(2048);
         var request = new CertificateRequest($"CN={commonName}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, critical: false));
         request.CertificateExtensions.Add(
-            new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.2")], critical: false));
+            new X509EnhancedKeyUsageExtension([new Oid(enhancedKeyUsageOid)], critical: false));
         // Ties this leaf to the issuing CA's Subject Key Identifier — see the comment on
         // CreateCa's own SKI for why chain validation needs this.
         request.CertificateExtensions.Add(

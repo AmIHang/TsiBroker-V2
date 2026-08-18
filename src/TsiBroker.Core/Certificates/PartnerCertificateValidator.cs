@@ -19,21 +19,27 @@ public record CertificateValidationResult(bool IsValid, CertificateValidationFai
     public static CertificateValidationResult Failure(CertificateValidationFailureReason reason) => new(false, reason);
 }
 
-// Validates a certificate a partner presents against BDV spec 4.3's four checks: expiry, chain
-// trust to the partner's own CA (not the machine trust store — each partner's CA is configured per
+// Validates a certificate a partner presents against BDV spec 4.3's checks: expiry, chain trust to
+// the partner's own CA (not the machine trust store — each partner's CA is configured per
 // PartnerCertificateBundle, since these are partner-issued certificates a public root store
-// wouldn't recognize), CN/SAN identity, and CRL revocation status.
+// wouldn't recognize), CN/SAN identity, and CRL revocation status. Shared between both directions:
+// the client certificate a partner presents inbound (TICKET-2) and the server certificate a
+// partner presents when the broker connects out to it (TICKET-4, spec 2.3.2 step 1 requires the
+// same "CA or CRL" check outbound) — only which bundle fields (CA/CRL/CN) apply differs.
 public class PartnerCertificateValidator(CrlCache crlCache, ILogger<PartnerCertificateValidator> logger)
 {
     // TICKET-4: the server certificate the partner's own system presents when the broker connects
-    // out to it. No CRL check — spec 4.3 only requires CRL validation for the client-certificate
-    // direction (the broker authenticating an inbound caller); the outbound direction relies on
-    // TLS's own online status via the CA/chain check.
+    // out to it. Takes an already-fetched CRL rather than a URL: the caller
+    // (HttpClientHandler.ServerCertificateCustomValidationCallback in IsbApiClient) is a
+    // synchronous TLS-handshake hook, so the async CRL fetch has to happen before the handshake
+    // starts, not inside this call. Pass null when bundle.ServerCrlUrl isn't set, to skip the
+    // revocation check the same way ValidateClientCertificateAsync does.
     public CertificateValidationResult ValidateServerCertificate(
-        PartnerCertificateBundle bundle,
+        PartnerCertificateBundle? bundle,
         X509Certificate2 serverCertificate,
-        X509Certificate2? expectedCaCertificate) =>
-        ValidateChainAndIdentity(serverCertificate, expectedCaCertificate, bundle.ExpectedServerCommonName);
+        X509Certificate2? expectedCaCertificate,
+        CachedCrl? crl) =>
+        ValidateChainIdentityAndRevocation(serverCertificate, expectedCaCertificate, bundle?.ExpectedServerCommonName, crl);
 
     // TICKET-2: the client certificate a partner presents when connecting in to the broker.
     public async Task<CertificateValidationResult> ValidateClientCertificateAsync(
@@ -41,27 +47,33 @@ public class PartnerCertificateValidator(CrlCache crlCache, ILogger<PartnerCerti
         X509Certificate2 clientCertificate,
         X509Certificate2? expectedCaCertificate)
     {
-        var chainResult = ValidateChainAndIdentity(clientCertificate, expectedCaCertificate, bundle.ExpectedClientCommonName);
-        if (!chainResult.IsValid)
+        var crl = string.IsNullOrWhiteSpace(bundle.ClientCrlUrl) ? null : await crlCache.GetAsync(bundle.ClientCrlUrl);
+        return ValidateChainIdentityAndRevocation(clientCertificate, expectedCaCertificate, bundle.ExpectedClientCommonName, crl);
+    }
+
+    // Expiry, chain trust to the configured CA, CN/SAN identity, and — if a CRL was fetched —
+    // revocation. The shared core both ValidateServerCertificate and ValidateClientCertificateAsync
+    // delegate to, so the CA/CRL check only needs to be gotten right once for both directions.
+    private CertificateValidationResult ValidateChainIdentityAndRevocation(
+        X509Certificate2 certificate,
+        X509Certificate2? expectedCaCertificate,
+        string? expectedCommonName,
+        CachedCrl? crl)
+    {
+        var chainResult = ValidateChainAndIdentity(certificate, expectedCaCertificate, expectedCommonName);
+        if (!chainResult.IsValid || crl is null)
         {
             return chainResult;
         }
 
-        if (string.IsNullOrWhiteSpace(bundle.ClientCrlUrl))
-        {
-            return CertificateValidationResult.Success;
-        }
-
-        var crl = await crlCache.GetAsync(bundle.ClientCrlUrl);
-        var serialNumberHex = Convert.ToHexString(clientCertificate.SerialNumberBytes.Span);
+        var serialNumberHex = Convert.ToHexString(certificate.SerialNumberBytes.Span);
         return crl.RevokedSerialNumbersHex.Contains(serialNumberHex)
             ? CertificateValidationResult.Failure(CertificateValidationFailureReason.Revoked)
             : CertificateValidationResult.Success;
     }
 
-    // Expiry, chain trust to the configured CA, and CN/SAN identity — everything except the
-    // revocation check, which is async (CrlCache) and only applies to the client-certificate
-    // direction, so it lives in ValidateClientCertificateAsync instead of here.
+    // Expiry, chain trust to the configured CA, and CN/SAN identity — everything except revocation,
+    // which ValidateChainIdentityAndRevocation layers on top once a CRL (if any) has been fetched.
     private CertificateValidationResult ValidateChainAndIdentity(
         X509Certificate2 certificate,
         X509Certificate2? expectedCaCertificate,

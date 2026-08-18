@@ -44,4 +44,10 @@ public class PartnerCertificateBundle
     // arbitrary URL, so this field otherwise serves as documentation of the expected endpoint.
     // Revocation checking is skipped entirely if this is not set.
     public string? ClientCrlUrl { get; set; }
+
+    // CRL distribution point URL for the partner's server certificate (TICKET-4, spec 2.3.2 step 1
+    // requires the same CA-or-CRL check outbound as inbound). Same on/off-switch semantics as
+    // ClientCrlUrl: revocation checking against the server certificate is skipped if this is not
+    // set.
+    public string? ServerCrlUrl { get; set; }
 }

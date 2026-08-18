@@ -22,6 +22,7 @@ interface PartnerCertificateBundle {
   expectedClientCaCertificateFileName: string | null
   expectedClientCommonName: string | null
   clientCrlUrl: string | null
+  serverCrlUrl: string | null
 }
 
 type CertificateSlot = 'client-certificate' | 'server-ca-certificate' | 'client-ca-certificate'
@@ -37,6 +38,7 @@ const loadError = ref('')
 const expectedServerCommonName = ref('')
 const expectedClientCommonName = ref('')
 const clientCrlUrl = ref('')
+const serverCrlUrl = ref('')
 const isSavingIdentity = ref(false)
 const identityError = ref('')
 const identitySaved = ref(false)
@@ -51,6 +53,7 @@ function resetIdentityFields() {
   expectedServerCommonName.value = bundle.value?.expectedServerCommonName ?? ''
   expectedClientCommonName.value = bundle.value?.expectedClientCommonName ?? ''
   clientCrlUrl.value = bundle.value?.clientCrlUrl ?? ''
+  serverCrlUrl.value = bundle.value?.serverCrlUrl ?? ''
 }
 
 async function loadBundle() {
@@ -156,6 +159,7 @@ async function saveIdentity() {
         expectedServerCommonName: expectedServerCommonName.value.trim() || null,
         expectedClientCommonName: expectedClientCommonName.value.trim() || null,
         clientCrlUrl: clientCrlUrl.value.trim() || null,
+        serverCrlUrl: serverCrlUrl.value.trim() || null,
       }),
     })
     bundle.value = await response.json()
@@ -335,6 +339,10 @@ onUnmounted(() => {
           <label class="field">
             <span class="field__label">{{ t('infrastructureOperatorCertificates.clientCrlUrl') }}</span>
             <input v-model="clientCrlUrl" type="url" />
+          </label>
+          <label class="field">
+            <span class="field__label">{{ t('infrastructureOperatorCertificates.serverCrlUrl') }}</span>
+            <input v-model="serverCrlUrl" type="url" />
           </label>
 
           <p v-if="identityError" class="error">{{ identityError }}</p>

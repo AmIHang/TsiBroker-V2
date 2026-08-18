@@ -6,7 +6,11 @@ using TsiBroker.Core.InfrastructureOperators;
 
 namespace TsiBroker.ApiService.Certificates;
 
-public record UpdateCertificateIdentityRequest(string? ExpectedServerCommonName, string? ExpectedClientCommonName, string? ClientCrlUrl);
+public record UpdateCertificateIdentityRequest(
+    string? ExpectedServerCommonName,
+    string? ExpectedClientCommonName,
+    string? ClientCrlUrl,
+    string? ServerCrlUrl);
 
 public record UploadCertificateRequest(string CertificateBase64);
 
@@ -40,7 +44,8 @@ public static class CertificateEndpoints
                 bundle.Id,
                 NullIfWhiteSpace(request.ExpectedServerCommonName),
                 NullIfWhiteSpace(request.ExpectedClientCommonName),
-                NullIfWhiteSpace(request.ClientCrlUrl));
+                NullIfWhiteSpace(request.ClientCrlUrl),
+                NullIfWhiteSpace(request.ServerCrlUrl));
             return Results.Ok(updated);
         });
 

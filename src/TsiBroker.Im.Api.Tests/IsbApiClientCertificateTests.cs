@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TsiBroker.Core.Certificates;
 using TsiBroker.Core.InfrastructureOperators;
 using Xunit;
@@ -15,16 +16,12 @@ namespace TsiBroker.Im.Api.Tests;
 // partner-specific certificate is configured for the IM actually being called rather than sharing
 // one certificate across every partner (see IsbApiClient.CreateHttpClientAsync).
 //
-// Coverage is split in two rather than driven end-to-end through IsbApiClient.CheckHeartbeatAsync
-// against a self-signed test server: IsbApiClient's HttpClientHandler uses the OS's default trust
-// for whatever server certificate the IM presents (validating it against a partner-specific CA is
-// TICKET-4, not wired up yet — see PartnerCertificateProvider.GetExpectedServerCaCertificateAsync),
-// so a real end-to-end call would fail on the *server's* certificate, not the client one under
-// test here. Trusting a throwaway test root in the machine's certificate store to work around that
-// would mutate shared system state for a test run, so instead: one test proves per-partner
-// resolution picks the right certificate (PartnerCertificateProvider, no network), and the other
-// proves that certificate is actually delivered over a real TLS handshake to a server that demands
-// one, using the exact ClientCertificates mechanism IsbApiClient.CreateHttpClientAsync relies on.
+// The first two tests below predate TICKET-4 (server certificate CA/CRL validation, see
+// IsbApiClientServerCertificateTests.cs for that coverage) and were written when IsbApiClient still
+// trusted whatever server certificate the IM presented via the OS default trust store. They keep
+// their own throwaway "trust everything" ServerCertificateCustomValidationCallback rather than
+// going through IsbApiClient.CreateHttpClientAsync end-to-end, so they still only exercise the
+// client-certificate side (ClientCertificates) without needing a partner CA configured.
 public class IsbApiClientCertificateTests
 {
     [Fact]
@@ -143,7 +140,11 @@ public class IsbApiClientCertificateTests
                 SystemUrl = server.BaseAddress.ToString(),
             };
 
-            var sut = new IsbApiClient(provider);
+            var sut = new IsbApiClient(
+                provider,
+                certificateStoreApp.Services.GetRequiredService<PartnerCertificateValidator>(),
+                certificateStoreApp.Services.GetRequiredService<CrlCache>(),
+                certificateStoreApp.Services.GetRequiredService<ILogger<IsbApiClient>>());
 
             // RequireCertificate on the server side means the handshake itself fails without a
             // certificate — CheckHeartbeatAsync swallows that as "not reachable" rather than
@@ -163,7 +164,7 @@ public class IsbApiClientCertificateTests
         }
     }
 
-    private static WebApplication BuildCertificateStoreApp(string dataDirectory)
+    internal static WebApplication BuildCertificateStoreApp(string dataDirectory)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -175,6 +176,9 @@ public class IsbApiClientCertificateTests
             .Bind(builder.Configuration.GetSection(CertificateBundleStoreOptions.SectionName));
         builder.Services.AddSingleton<CertificateBundleStore>();
         builder.Services.AddSingleton<PartnerCertificateProvider>();
+        builder.Services.AddSingleton<HttpClient>();
+        builder.Services.AddSingleton<CrlCache>();
+        builder.Services.AddSingleton<PartnerCertificateValidator>();
         return builder.Build();
     }
 
@@ -182,8 +186,10 @@ public class IsbApiClientCertificateTests
     // it, and re-exporting that already-reloaded instance fails on Windows ("key is not valid in
     // the specified state") — so this exports once, from the freshly self-signed certificate, and
     // hands back both the bytes (for CertificateBundleStore) and a certificate loaded from those
-    // same bytes (for the test's own thumbprint assertions).
-    private static (byte[] PfxBytes, X509Certificate2 Certificate) CreateClientCertificatePfx()
+    // same bytes (for the test's own thumbprint assertions). Internal so
+    // IsbApiClientServerCertificateTests can reuse it too — ClientCertCapturingServer requires a
+    // client certificate at the TLS layer regardless of which certificate's content is under test.
+    internal static (byte[] PfxBytes, X509Certificate2 Certificate) CreateClientCertificatePfx()
     {
         using var rsa = RSA.Create(2048);
         var request = new CertificateRequest("CN=test-partner", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);

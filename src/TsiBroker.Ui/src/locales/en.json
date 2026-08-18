@@ -93,6 +93,7 @@
     "expectedServerCommonName": "Expected common name (server certificate)",
     "expectedClientCommonName": "Expected common name (client certificate)",
     "clientCrlUrl": "CRL URL (for inbound client certificate)",
+    "serverCrlUrl": "CRL URL (for outbound server certificate)",
     "saveError": "Changes could not be saved.",
     "identitySaved": "Changes were saved.",
     "deleteAll": "Delete all certificates",

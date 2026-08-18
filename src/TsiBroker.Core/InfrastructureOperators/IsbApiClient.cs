@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using TsiBroker.Core.Certificates;
 using TsiBroker.Core.Messaging;
 
@@ -14,13 +15,20 @@ namespace TsiBroker.Core.InfrastructureOperators;
 // generate a client from.
 //
 // Spec 4.3: SOAP delivery always uses 2-way SSL, and each IM partner can have its own client
-// certificate for the broker to present (TICKET-3, mirroring TICKET-2's inbound direction). A
-// single shared HttpClient can't do this — HttpClientHandler.ClientCertificates is fixed per
-// handler/connection, not selectable per outbound call, and IHttpClientFactory's named/typed
-// clients are wired up once at startup while partners are created and their certificates rotated
-// at runtime (PartnerCertificateProvider). So this client resolves and attaches the right
-// certificate per call instead of once via DI — see CreateHttpClientAsync.
-public class IsbApiClient(PartnerCertificateProvider certificateProvider)
+// certificate for the broker to present (TICKET-3, mirroring TICKET-2's inbound direction), plus a
+// CA/CRL check against the server certificate the IM presents back once one is configured for that
+// partner (TICKET-4, spec 2.3.2 step 1). A single shared HttpClient can't do either —
+// HttpClientHandler.ClientCertificates and
+// .ServerCertificateCustomValidationCallback are fixed per handler/connection, not selectable per
+// outbound call, and IHttpClientFactory's named/typed clients are wired up once at startup while
+// partners are created and their certificates rotated at runtime (PartnerCertificateProvider). So
+// this client resolves and attaches the right certificate/validation per call instead of once via
+// DI — see CreateHttpClientAsync.
+public class IsbApiClient(
+    PartnerCertificateProvider certificateProvider,
+    PartnerCertificateValidator certificateValidator,
+    CrlCache crlCache,
+    ILogger<IsbApiClient> logger)
 {
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
     private static readonly XNamespace HeaderNs = "http://uic.cc.org/UICMessage/Header";
@@ -53,7 +61,7 @@ public class IsbApiClient(PartnerCertificateProvider certificateProvider)
         // explicitly; without it the request fails dispatch with ActionNotSupported.
         content.Headers.TryAddWithoutValidation("SOAPAction", "\"\"");
 
-        using var httpClient = await CreateHttpClientAsync(infrastructureOperator.Id);
+        using var httpClient = await CreateHttpClientAsync(infrastructureOperator);
         using var response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "ci"), content, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -76,7 +84,7 @@ public class IsbApiClient(PartnerCertificateProvider certificateProvider)
 
         try
         {
-            using var httpClient = await CreateHttpClientAsync(infrastructureOperator.Id);
+            using var httpClient = await CreateHttpClientAsync(infrastructureOperator);
             using var response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "heartbeat"), content, cancellationToken);
             return response.IsSuccessStatusCode;
         }
@@ -87,17 +95,55 @@ public class IsbApiClient(PartnerCertificateProvider certificateProvider)
     }
 
     // Resolves this IM partner's client certificate (if any — spec 4.3 requires 2-way SSL for
-    // every partner, but not every partner is provisioned yet) and builds a handler/client scoped
-    // to just this call. PartnerCertificateProvider re-reads from disk on every call, so a
-    // certificate uploaded or rotated via the admin API is picked up on the very next delivery
-    // attempt, with no cache to invalidate and no process restart needed.
-    private async Task<HttpClient> CreateHttpClientAsync(Guid infrastructureOperatorId)
+    // every partner, but not every partner is provisioned yet) and the CA/CRL used to validate the
+    // partner's own server certificate during the handshake, then builds a handler/client scoped to
+    // just this call. PartnerCertificateProvider re-reads from disk on every call, so a certificate
+    // uploaded or rotated via the admin API is picked up on the very next delivery attempt, with no
+    // cache to invalidate and no process restart needed.
+    private async Task<HttpClient> CreateHttpClientAsync(InfrastructureOperator infrastructureOperator)
     {
         var handler = new HttpClientHandler();
-        var clientCertificate = await certificateProvider.GetClientCertificateAsync(infrastructureOperatorId);
+        var clientCertificate = await certificateProvider.GetClientCertificateAsync(infrastructureOperator.Id);
         if (clientCertificate is not null)
         {
             handler.ClientCertificates.Add(clientCertificate);
+        }
+
+        // TICKET-4 (spec 2.3.2 step 1): validate the IM's server certificate against this partner's
+        // configured CA/CRL. Same "not every partner is provisioned yet" reasoning as the client
+        // certificate above — a partner with no expected server CA configured has this check
+        // skipped entirely, leaving HttpClientHandler's own default (OS trust store) validation in
+        // place, rather than failing every call to a partner nobody has gotten around to
+        // provisioning yet.
+        var bundle = await certificateProvider.GetBundleAsync(infrastructureOperator.Id);
+        var expectedServerCaCertificate = await certificateProvider.GetExpectedServerCaCertificateAsync(infrastructureOperator.Id);
+        if (expectedServerCaCertificate is not null)
+        {
+            // The CRL fetch has to happen up front, before the TLS handshake starts:
+            // ServerCertificateCustomValidationCallback below is a synchronous hook, so it can't
+            // await CrlCache itself.
+            var serverCrl = !string.IsNullOrWhiteSpace(bundle?.ServerCrlUrl)
+                ? await crlCache.GetAsync(bundle.ServerCrlUrl)
+                : null;
+
+            handler.ServerCertificateCustomValidationCallback = (_, certificate, _, _) =>
+            {
+                if (certificate is null)
+                {
+                    return false;
+                }
+
+                var result = certificateValidator.ValidateServerCertificate(bundle, certificate, expectedServerCaCertificate, serverCrl);
+                if (!result.IsValid)
+                {
+                    logger.LogWarning(
+                        "Closing outbound connection to {InfrastructureOperatorName}: server certificate failed validation ({FailureReason})",
+                        infrastructureOperator.Name,
+                        result.FailureReason);
+                }
+
+                return result.IsValid;
+            };
         }
 
         return new HttpClient(handler) { Timeout = RequestTimeout };

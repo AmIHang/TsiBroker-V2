@@ -90,6 +90,6 @@ public class CaCrlValidationTests
         var bundle = await host.CertificateBundles.GetOrCreateForOperatorAsync(infrastructureOperator.Id);
         await host.CertificateBundles.SaveExpectedClientCaCertificateAsync(bundle.Id, expectedCa.Export(X509ContentType.Cert));
         await host.CertificateBundles.UpdateIdentityAsync(
-            bundle.Id, expectedServerCommonName: null, expectedClientCommonName: null, clientCrlUrl);
+            bundle.Id, expectedServerCommonName: null, expectedClientCommonName: null, clientCrlUrl, serverCrlUrl: null);
     }
 }

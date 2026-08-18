@@ -93,6 +93,7 @@
     "expectedServerCommonName": "Erwarteter Common Name (Server-Zertifikat)",
     "expectedClientCommonName": "Erwarteter Common Name (Client-Zertifikat)",
     "clientCrlUrl": "CRL-URL (für eingehendes Client-Zertifikat)",
+    "serverCrlUrl": "CRL-URL (für ausgehendes Server-Zertifikat)",
     "saveError": "Änderungen konnten nicht gespeichert werden.",
     "identitySaved": "Änderungen wurden gespeichert.",
     "deleteAll": "Alle Zertifikate löschen",

@@ -48,6 +48,7 @@ erDiagram
         string ClientCertificateFileName
         string ExpectedServerCaCertificateFileName
         string ExpectedServerCommonName
+        string ServerCrlUrl
         string ExpectedClientCaCertificateFileName
         string ExpectedClientCommonName
         string ClientCrlUrl
@@ -124,9 +125,10 @@ public class PartnerCertificateBundle
     public string? ExpectedServerCaCertificateFileName { get; set; }
     public string? ExpectedServerCommonName { get; set; }
     public string? ExpectedClientCaCertificateFileName { get; set; }
+    public bool RequiresClientCertificate => ExpectedClientCaCertificateFileName is not null;
     public string? ExpectedClientCommonName { get; set; }
     public string? ClientCrlUrl { get; set; }
-    public bool RequiresClientCertificate => ExpectedClientCaCertificateFileName is not null;
+    public string? ServerCrlUrl { get; set; }
 }
 ```
 
@@ -134,14 +136,14 @@ Three independent slots, each nullable/optional until configured — a bundle ca
 
 | Field(s) | Direction | Purpose | Consumed by |
 |---|---|---|---|
-| `ClientCertificateFileName` | Broker **outbound** → IM | The broker's own client certificate (PKCS#12/`.pfx`, private key included) presented for mTLS when calling out to this IM's SOAP endpoint | Not wired up yet — `IsbApiClient` still sends plain HTTPS (see its `TODO`); this is the certificate TICKET-3 will attach |
-| `ExpectedServerCaCertificateFileName` + `ExpectedServerCommonName` | Broker outbound → IM | The CA that must have issued the server certificate this IM's system presents, plus the CN/SAN identity expected on it | Will be used by TICKET-4's outbound TLS validation |
-| `ExpectedClientCaCertificateFileName` + `ExpectedClientCommonName` + `ClientCrlUrl` | IM **inbound** → broker | The CA that must have issued the client certificate this IM presents when calling `TsiBroker.Im.Api`'s SOAP endpoints, the expected CN/SAN on it, and the CRL revocation check switch | `RequiresClientCertificate` (see below) is used by TICKET-1's presence-only enforcement on `/ci` today; `ExpectedClientCaCertificateFileName`/`ExpectedClientCommonName`/`ClientCrlUrl` themselves will be used by TICKET-2's actual CA/CN/CRL validation |
+| `ClientCertificateFileName` | Broker **outbound** → IM | The broker's own client certificate (PKCS#12/`.pfx`, private key included) presented for mTLS when calling out to this IM's SOAP endpoint | `IsbApiClient.CreateHttpClientAsync` attaches it via `HttpClientHandler.ClientCertificates` (TICKET-3); skipped (plain outbound TLS, no mTLS) when a partner has none configured yet |
+| `ExpectedServerCaCertificateFileName` + `ExpectedServerCommonName` + `ServerCrlUrl` | Broker outbound → IM | The CA that must have issued the server certificate this IM's system presents, the expected CN/SAN on it, and the CRL revocation check switch | `IsbApiClient.CreateHttpClientAsync` sets `HttpClientHandler.ServerCertificateCustomValidationCallback` to `PartnerCertificateValidator.ValidateServerCertificate` (TICKET-4, spec 2.3.2 step 1) only when `ExpectedServerCaCertificateFileName` is set; same "not every partner is provisioned yet" fallback as the client certificate above — no CA configured leaves `HttpClientHandler`'s own default (OS trust store) validation in place instead of failing the call |
+| `ExpectedClientCaCertificateFileName` + `ExpectedClientCommonName` + `ClientCrlUrl` | IM **inbound** → broker | The CA that must have issued the client certificate this IM presents when calling `TsiBroker.Im.Api`'s SOAP endpoints, the expected CN/SAN on it, and the CRL revocation check switch | `RequiresClientCertificate` (see below) gates presence enforcement on `/ci` (TICKET-1); `CommonInterfaceMessageService` then runs `PartnerCertificateValidator.ValidateClientCertificateAsync` for the actual CA/CN/CRL check (TICKET-2) |
 
 - `RequiresClientCertificate` — computed, not stored: `true` whenever `ExpectedClientCaCertificateFileName` is set. This is how a partner is marked "2-way SSL" (spec 2.2) vs. "1-way" — uploading a client CA for a partner *is* what marks them 2-way, there's no separate toggle. See [[Architecture]]'s TsiBroker.Im.Api section for how `CommonInterfaceMessageService` uses this.
 
 - `*FileName` fields hold a bare file name only (never a path) — resolved against `CertificateBundleStore`'s `certificates/` subdirectory via `ResolveCertificatePath`. Files are named `{Id}-client.pfx`, `{Id}-server-ca.cer`, `{Id}-client-ca.cer` on save.
-- `ClientCrlUrl` doubles as documentation of the partner's CRL endpoint *and* the on/off switch for online revocation checking (`PartnerCertificateValidator` uses `X509ChainPolicy.RevocationMode = Online` only when it's set) — .NET's `X509Chain` fetches the CRL from the certificate's own embedded CDP extension, not from this URL directly; there's no BCL hook to override the source.
+- `ClientCrlUrl`/`ServerCrlUrl` each double as documentation of the partner's CRL endpoint *and* the on/off switch for revocation checking — `PartnerCertificateValidator` fetches the CRL (via `CrlCache`) only when the corresponding URL is set, and skips the revocation check entirely otherwise. This is an explicit, cached, application-level fetch rather than `X509Chain`'s own `RevocationMode.Online`: the BCL fetches from the certificate's own embedded CDP extension on every single chain build with no cache, not from this URL directly, and there's no hook to point it elsewhere.
 - The PFX password for `ClientCertificateFileName` (if the file has one) is **not** stored on the entity or in the JSON file at all — it comes from `CertificateBundleStoreOptions.PfxPassword`, set via `CertificateBundles__PfxPassword` env var / `dotnet user-secrets`, the same way `RabbitMqOptions.Password` is kept out of `appsettings.json`.
 - Stored in `App_Data/certificate-bundles.json` via `CertificateBundleStore`; actual certificate bytes live alongside it in `App_Data/certificates/`.
 - See [[Architecture]] for the module split (`CertificateBundleStore` / `PartnerCertificateProvider` / `PartnerCertificateValidator` / `CertificateExpiryMonitor`) and the admin UI page (`InfrastructureOperatorCertificatesView.vue`, [[Frontend-Architecture]]) that manages this entity.
