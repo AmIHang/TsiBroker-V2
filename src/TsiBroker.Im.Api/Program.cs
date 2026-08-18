@@ -2,6 +2,7 @@ using CoreWCF;
 using CoreWCF.Channels;
 using CoreWCF.Configuration;
 using CoreWCF.Description;
+using TsiBroker.Core.Certificates;
 using TsiBroker.Core.Messaging;
 using TsiBroker.Core.RailwayUndertakings;
 using TsiBroker.Im.Api.CI;
@@ -17,6 +18,16 @@ builder.Services
     .AddOptions<RailwayUndertakingStoreOptions>()
     .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
 builder.Services.AddSingleton<RailwayUndertakingStore>();
+
+// Registered here (foundational for TICKET-2's inbound client-certificate validation) even though
+// nothing in this project consumes it yet — no admin endpoints or expiry monitor in this process,
+// those live in TsiBroker.ApiService.
+builder.Services
+    .AddOptions<CertificateBundleStoreOptions>()
+    .Bind(builder.Configuration.GetSection(CertificateBundleStoreOptions.SectionName));
+builder.Services.AddSingleton<CertificateBundleStore>();
+builder.Services.AddSingleton<PartnerCertificateProvider>();
+builder.Services.AddSingleton<PartnerCertificateValidator>();
 
 builder.Services.AddScoped<CommonInterfaceMessageService>();
 builder.Services.AddScoped<HeartbeatMessageService>();

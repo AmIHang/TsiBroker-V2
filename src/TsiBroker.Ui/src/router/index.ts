@@ -31,6 +31,12 @@ const router = createRouter({
       meta: { title: 'routeTitles.infrastructureOperators' },
     },
     {
+      path: '/infrastructure-operators/:id/certificates',
+      name: 'infrastructure-operator-certificates',
+      component: () => import('../views/InfrastructureOperatorCertificatesView.vue'),
+      meta: { title: 'routeTitles.infrastructureOperatorCertificates' },
+    },
+    {
       path: '/railway-undertakings',
       name: 'railway-undertakings',
       component: () => import('../views/RailwayUndertakingsView.vue'),

@@ -68,6 +68,7 @@ Shared kernel. No web framework references — just domain + persistence + messa
 
 - `InfrastructureOperators/` — `InfrastructureOperator` entity + `InfrastructureOperatorStore` (JSON file `infrastructure-operators.json`)
 - `RailwayUndertakings/` — `RailwayUndertaking` + `IsbAssignment` entities + `RailwayUndertakingStore` (JSON file `railway-undertakings.json`)
+- `Certificates/` — `PartnerCertificateBundle` entity + `CertificateBundleStore` (JSON file `certificate-bundles.json` + raw certificate files under `certificates/`), `PartnerCertificateProvider` (loads `X509Certificate2`s per operator on demand, no caching, so a swapped file takes effect immediately), `PartnerCertificateValidator` (expiry/CN-SAN/CA-chain/CRL checks per BDV spec 4.3) — see [[Data-Model]]#PartnerCertificateBundle
 - `Messaging/` — `BrokerMessage` record, `IMessagePublisher` interface, `DebugMessagePublisher` (the only current implementation)
 
 See [[Data-Model]] for entity shapes and the store implementation.
@@ -79,6 +80,7 @@ Cookie-authenticated REST API consumed exclusively by `TsiBroker.Ui`. Owns CRUD 
 - `Auth/` — single hard-coded admin account (`AdminUserOptions`, config section `AdminUser`), cookie scheme `TsiBroker.Auth` (`HttpOnly`, `SameSite=None`, `Secure=Always`, 10-minute sliding expiration), timing-safe password comparison via `CryptographicOperations.FixedTimeEquals`
 - `InfrastructureOperators/` — `GET/POST /api/infrastructure-operators`, `PUT/PATCH/DELETE /{id}`
 - `RailwayUndertakings/` — same CRUD shape plus `GET /generate-api-key` (stateless key generation) and cascading cleanup of `IsbAssignment`s when an operator is deleted
+- `Certificates/` — `GET/PUT /api/certificates/{infrastructureOperatorId}` (identity metadata: expected CNs, CRL URL — auto-creates the bundle on first write), `POST .../client-certificate` / `.../server-ca-certificate` / `.../client-ca-certificate` (base64 upload per slot, parsed and rejected with `400` before being persisted if not a valid certificate), `DELETE /{infrastructureOperatorId}`. `CertificateExpiryMonitor` (`BackgroundService`) sweeps every bundle once a day (and once at startup) and logs a warning/error as certificates approach or pass their expiry date.
 
 All endpoints require authentication (`.RequireAuthorization()` on the route group) except login itself.
 
@@ -97,6 +99,8 @@ CoreWCF-hosted SOAP service with two endpoints, both `BasicHttpBinding` over HTT
 - `/heartbeat` — Heartbeat (`Heartbeat/`), pure liveness echo — logged only, never published
 
 Contract code under `CI/Generated/` and `Heartbeat/Generated/` is WSDL-derived and treated as generated code; hand-written service logic lives in sibling `*MessageService.cs` files, not inside `Generated/`.
+
+Also registers `CertificateBundleStore`/`PartnerCertificateProvider`/`PartnerCertificateValidator` (no admin endpoints, no expiry monitor — those live in `TsiBroker.ApiService`) in anticipation of inbound client-certificate validation for the `/ci`/`/heartbeat` endpoints; nothing consumes them yet.
 
 ### TsiBroker.Ui
 
@@ -122,9 +126,9 @@ A test double for a real Railway Undertaking system — plays both directions of
 
 ## Persistence: JSON-File Stores, Not a Database
 
-There is intentionally no database. `InfrastructureOperatorStore` and `RailwayUndertakingStore` (both in `TsiBroker.Core`) are plain singleton classes that read/write a JSON file on every operation:
+There is intentionally no database. `InfrastructureOperatorStore`, `RailwayUndertakingStore`, and `CertificateBundleStore` (all in `TsiBroker.Core`) are plain singleton classes that read/write a JSON file on every operation:
 
-- Default location: `<ContentRootPath>/App_Data/{infrastructure-operators,railway-undertakings}.json` — overridable per-store via `IOptions<T>` (`InfrastructureOperators:DataDirectory`, `RailwayUndertakings:DataDirectory`)
+- Default location: `<ContentRootPath>/App_Data/{infrastructure-operators,railway-undertakings,certificate-bundles}.json` — overridable per-store via `IOptions<T>` (`InfrastructureOperators:DataDirectory`, `RailwayUndertakings:DataDirectory`, `CertificateBundles:DataDirectory`). `CertificateBundleStore` additionally writes the raw certificate bytes themselves (not just metadata) to a `certificates/` subfolder of its data directory — the only store that owns binary files, not just JSON.
 - Concurrency: a single `SemaphoreSlim(1, 1)` per store guards **every** read-modify-write, including plain reads — simple mutual exclusion, not reader/writer locking
 - Writes are full-file overwrites (`JsonSerializer.SerializeAsync` with `WriteIndented = true`) — no atomic rename, no backup
 - Referential integrity between the two entities (an `IsbAssignment` referencing an `InfrastructureOperator`) is enforced at the endpoint layer, not by the storage layer — e.g. deleting an `InfrastructureOperator` triggers `RailwayUndertakingStore.RemoveInfrastructureOperatorAssignmentsAsync` to strip dangling assignments

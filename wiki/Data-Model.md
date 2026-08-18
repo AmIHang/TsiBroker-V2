@@ -1,6 +1,6 @@
 # Data Model
 
-TsiBroker has two persisted entities, both stored as JSON files (no database — see [[Architecture]]). There is no `RailwayUndertaking` ↔ `InfrastructureOperator` link table; the relationship is embedded directly on `RailwayUndertaking` as a list of `IsbAssignment`.
+TsiBroker has three persisted entities, all stored as JSON files (no database — see [[Architecture]]). There is no `RailwayUndertaking` ↔ `InfrastructureOperator` link table; the relationship is embedded directly on `RailwayUndertaking` as a list of `IsbAssignment`. `PartnerCertificateBundle` links to `InfrastructureOperator` by `Id` the same way `IsbAssignment` does, but isn't embedded — it's its own top-level JSON file, since it also owns certificate *files* on disk, not just metadata.
 
 ```mermaid
 erDiagram
@@ -38,6 +38,19 @@ erDiagram
         string PauseReason
         datetime PausedAtUtc
         int PauseBackoffStep
+    }
+
+    PARTNER_CERTIFICATE_BUNDLE }o--|| INFRASTRUCTURE_OPERATOR : "references by Id (0..1 per operator)"
+
+    PARTNER_CERTIFICATE_BUNDLE {
+        guid Id
+        guid InfrastructureOperatorId
+        string ClientCertificateFileName
+        string ExpectedServerCaCertificateFileName
+        string ExpectedServerCommonName
+        string ExpectedClientCaCertificateFileName
+        string ExpectedClientCommonName
+        string ClientCrlUrl
     }
 ```
 
@@ -98,6 +111,38 @@ public class RailwayUndertaking
 - `IsQueuePaused`/`PauseReason`/`PausedAtUtc`/`PauseBackoffStep` — whether broker→EVU outbound delivery is currently paused because the EVU's system was found unreachable, independent of `IsActive` (which governs inbound authentication instead). Set/cleared via `RailwayUndertakingStore.SetQueuePauseStateAsync`; `PauseBackoffStep` is the index into `EvuReachabilityMonitor`'s backoff schedule, persisted so a process restart continues the schedule instead of resetting it. See [[Business-Flow]] Flow 4.
 - Stored in `App_Data/railway-undertakings.json` via `RailwayUndertakingStore`
 
+### PartnerCertificateBundle
+
+`src/TsiBroker.Core/Certificates/PartnerCertificateBundle.cs` — the X.509 certificate configuration for one `InfrastructureOperator`, per BDV spec 4.3 ("Austausch von Server und Client Zertifikaten"). At most one bundle per operator (`InfrastructureOperatorId` acts as a de-facto unique key, enforced by `CertificateBundleStore.GetOrCreateForOperatorAsync` always reusing an existing row instead of creating a second one).
+
+```csharp
+public class PartnerCertificateBundle
+{
+    public Guid Id { get; set; }
+    public required Guid InfrastructureOperatorId { get; set; }
+    public string? ClientCertificateFileName { get; set; }
+    public string? ExpectedServerCaCertificateFileName { get; set; }
+    public string? ExpectedServerCommonName { get; set; }
+    public string? ExpectedClientCaCertificateFileName { get; set; }
+    public string? ExpectedClientCommonName { get; set; }
+    public string? ClientCrlUrl { get; set; }
+}
+```
+
+Three independent slots, each nullable/optional until configured — a bundle can exist with only some of them filled in:
+
+| Field(s) | Direction | Purpose | Consumed by |
+|---|---|---|---|
+| `ClientCertificateFileName` | Broker **outbound** → IM | The broker's own client certificate (PKCS#12/`.pfx`, private key included) presented for mTLS when calling out to this IM's SOAP endpoint | Not wired up yet — `IsbApiClient` still sends plain HTTPS (see its `TODO`); this is the certificate TICKET-3 will attach |
+| `ExpectedServerCaCertificateFileName` + `ExpectedServerCommonName` | Broker outbound → IM | The CA that must have issued the server certificate this IM's system presents, plus the CN/SAN identity expected on it | Will be used by TICKET-4's outbound TLS validation |
+| `ExpectedClientCaCertificateFileName` + `ExpectedClientCommonName` + `ClientCrlUrl` | IM **inbound** → broker | The CA that must have issued the client certificate this IM presents when calling `TsiBroker.Im.Api`'s SOAP endpoints, the expected CN/SAN on it, and the CRL revocation check switch | Will be used by TICKET-2's inbound mTLS validation (CoreWCF/Kestrel client-cert binding) |
+
+- `*FileName` fields hold a bare file name only (never a path) — resolved against `CertificateBundleStore`'s `certificates/` subdirectory via `ResolveCertificatePath`. Files are named `{Id}-client.pfx`, `{Id}-server-ca.cer`, `{Id}-client-ca.cer` on save.
+- `ClientCrlUrl` doubles as documentation of the partner's CRL endpoint *and* the on/off switch for online revocation checking (`PartnerCertificateValidator` uses `X509ChainPolicy.RevocationMode = Online` only when it's set) — .NET's `X509Chain` fetches the CRL from the certificate's own embedded CDP extension, not from this URL directly; there's no BCL hook to override the source.
+- The PFX password for `ClientCertificateFileName` (if the file has one) is **not** stored on the entity or in the JSON file at all — it comes from `CertificateBundleStoreOptions.PfxPassword`, set via `CertificateBundles__PfxPassword` env var / `dotnet user-secrets`, the same way `RabbitMqOptions.Password` is kept out of `appsettings.json`.
+- Stored in `App_Data/certificate-bundles.json` via `CertificateBundleStore`; actual certificate bytes live alongside it in `App_Data/certificates/`.
+- See [[Architecture]] for the module split (`CertificateBundleStore` / `PartnerCertificateProvider` / `PartnerCertificateValidator` / `CertificateExpiryMonitor`) and the admin UI page (`InfrastructureOperatorCertificatesView.vue`, [[Frontend-Architecture]]) that manages this entity.
+
 ### IsbAssignment (embedded, not a top-level entity)
 
 `src/TsiBroker.Core/RailwayUndertakings/RailwayUndertaking.cs` (same file) — authorizes message exchange between one RU and one `InfrastructureOperator`.
@@ -138,5 +183,6 @@ public record BrokerMessage(
 |---------|----------|------|-----------|
 | JSON file | `InfrastructureOperator` | `App_Data/infrastructure-operators.json` | Low record count, single-instance deployment, no need for a database yet |
 | JSON file | `RailwayUndertaking` (with embedded `IsbAssignment`s) | `App_Data/railway-undertakings.json` | Same |
+| JSON file + raw files | `PartnerCertificateBundle` | `App_Data/certificate-bundles.json` (metadata) + `App_Data/certificates/*.pfx`/`*.cer` (certificate bytes) | Same storage convention as the other two — deliberately not a secret store (Key Vault etc.), since none exists elsewhere in this project; see [[Data-Model]]#PartnerCertificateBundle |
 
-Both files are read/written under a per-store `SemaphoreSlim(1, 1)` lock. See [[Architecture]] for the concurrency and scaling caveats of this approach.
+All three JSON files are read/written under a per-store `SemaphoreSlim(1, 1)` lock. See [[Architecture]] for the concurrency and scaling caveats of this approach.

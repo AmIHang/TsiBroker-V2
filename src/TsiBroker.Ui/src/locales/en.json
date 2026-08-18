@@ -42,6 +42,7 @@
     "infrastructureOperators": "Infrastructure Operators",
     "railwayUndertakings": "Railway Undertakings",
     "railwayUndertakingEdit": "Edit Railway Undertaking",
+    "infrastructureOperatorCertificates": "Certificates",
     "queues": "Queues"
   },
   "home": {
@@ -67,7 +68,36 @@
     "deleteError": "Infrastructure operator could not be deleted.",
     "confirmDelete": "Really delete \"{name}\"?",
     "empty": "No infrastructure operators available.",
-    "statusChangeHint": "Status change ({status}) will be applied on save."
+    "statusChangeHint": "Status change ({status}) will be applied on save.",
+    "manageCertificates": "Manage certificates"
+  },
+  "infrastructureOperatorCertificates": {
+    "loadError": "Certificates could not be loaded.",
+    "operatorNotFound": "Infrastructure operator was not found.",
+    "breadcrumbBack": "← Infrastructure operators",
+    "clientCertificate": "Own client certificate",
+    "clientCertificateHint": "Sent as the client certificate (mTLS) when connecting to this infrastructure operator's system.",
+    "serverCaCertificate": "Expected server CA",
+    "serverCaCertificateHint": "CA certificate that must have issued this infrastructure operator's server certificate.",
+    "clientCaCertificate": "Expected client CA",
+    "clientCaCertificateHint": "CA certificate that must have issued this infrastructure operator's client certificate on inbound connections.",
+    "configured": "Configured: {fileName}",
+    "notConfigured": "No certificate configured yet.",
+    "upload": "Choose file …",
+    "replace": "Replace",
+    "uploading": "Uploading …",
+    "uploadError": "File could not be uploaded.",
+    "invalidCertificateError": "The file is not a valid certificate.",
+    "invalidFileError": "The file could not be read.",
+    "identityTitle": "Expected identity & revocation list",
+    "expectedServerCommonName": "Expected common name (server certificate)",
+    "expectedClientCommonName": "Expected common name (client certificate)",
+    "clientCrlUrl": "CRL URL (for inbound client certificate)",
+    "saveError": "Changes could not be saved.",
+    "identitySaved": "Changes were saved.",
+    "deleteAll": "Delete all certificates",
+    "confirmDelete": "Really delete all certificates for this infrastructure operator?",
+    "deleteError": "Certificates could not be deleted."
   },
   "railwayUndertakings": {
     "loadError": "Railway undertakings could not be loaded.",

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TsiBroker.ApiService.Auth;
+using TsiBroker.ApiService.Certificates;
 using TsiBroker.ApiService.InfrastructureOperators;
 using TsiBroker.ApiService.Queues;
 using TsiBroker.ApiService.RailwayUndertakings;
+using TsiBroker.Core.Certificates;
 using TsiBroker.Core.InfrastructureOperators;
 using TsiBroker.Core.Messaging;
 using TsiBroker.Core.RailwayUndertakings;
@@ -64,6 +66,15 @@ builder.Services
     .AddOptions<RailwayUndertakingStoreOptions>()
     .Bind(builder.Configuration.GetSection(RailwayUndertakingStoreOptions.SectionName));
 builder.Services.AddSingleton<RailwayUndertakingStore>();
+
+builder.Services
+    .AddOptions<CertificateBundleStoreOptions>()
+    .Bind(builder.Configuration.GetSection(CertificateBundleStoreOptions.SectionName));
+builder.Services.AddSingleton<CertificateBundleStore>();
+builder.Services.AddSingleton<PartnerCertificateProvider>();
+builder.Services.AddSingleton<PartnerCertificateValidator>();
+builder.Services.AddHostedService<CertificateExpiryMonitor>();
+
 // Short timeout so an unreachable EVU is detected in seconds, not the 100s HttpClient default —
 // EvuDeliveryCoordinator blocks its one-message-at-a-time partition consumer on this call while
 // deciding whether to pause.
@@ -159,5 +170,6 @@ app.MapAuthEndpoints();
 app.MapInfrastructureOperatorEndpoints();
 app.MapRailwayUndertakingEndpoints();
 app.MapQueueEndpoints();
+app.MapCertificateEndpoints();
 
 app.Run();

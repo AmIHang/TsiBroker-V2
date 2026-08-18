@@ -43,6 +43,7 @@ src/TsiBroker.Ui/src/
 │   ├── HomeView.vue
 │   ├── LoginView.vue
 │   ├── InfrastructureOperatorsView.vue
+│   ├── InfrastructureOperatorCertificatesView.vue
 │   ├── RailwayUndertakingsView.vue
 │   └── RailwayUndertakingEditView.vue
 ├── components/
@@ -76,7 +77,8 @@ Path alias `@` → `src/` (configured in `vite.config.ts`, used everywhere inste
 |---|---|---|
 | `/login` | `login` | `meta.public = true` |
 | `/` | `home` | |
-| `/infrastructure-operators` | `infrastructure-operators` | |
+| `/infrastructure-operators` | `infrastructure-operators` | list view; each row links to its certificates page |
+| `/infrastructure-operators/:id/certificates` | `infrastructure-operator-certificates` | certificate management (separate from the list view's edit modal — see below) |
 | `/railway-undertakings` | `railway-undertakings` | list view |
 | `/railway-undertakings/:id` | `railway-undertaking-edit` | detail/edit view |
 
@@ -133,7 +135,7 @@ Callers do their own `.json()` on the returned `Response` and their own error ha
 
 `locales/*.json` are auto-registered via `import.meta.glob('./locales/*.json', { eager: true })` — dropping in a new `<lang>.json` file requires no code change. Locale resolution order: cookie → `VITE_DEFAULT_LOCALE` env var → `en` fallback. All user-facing text must go through `$t()`/`t()` — add matching keys to **both** `de.json` and `en.json`, never hardcode UI strings (see [AGENTS.md](../AGENTS.md)).
 
-Namespaces: `language`, `common` (generic labels/actions reused across views), `sidebar`, `routeTitles`, `home`, `login`, `infrastructureOperators`, `railwayUndertakings`, `railwayUndertakingEdit` (including a nested `linkedOperators`/`assignmentDialog` namespace).
+Namespaces: `language`, `common` (generic labels/actions reused across views), `sidebar`, `routeTitles`, `home`, `login`, `infrastructureOperators`, `infrastructureOperatorCertificates`, `railwayUndertakings`, `railwayUndertakingEdit` (including a nested `linkedOperators`/`assignmentDialog` namespace).
 
 ## Styling
 
@@ -153,3 +155,12 @@ Dark mode is only **partially** supported: `tokens.less` has a `@media (prefers-
 ## Notable View: `RailwayUndertakingEditView.vue`
 
 The most complex view in the app (~700 lines) — master data form, API-key management (masked/show-hide, "regenerate" staged locally until an explicit save), and a linked-operators table for managing `IsbAssignment`s via a nested dialog. Everything is staged in local refs and committed together via one explicit `saveAll()` (a `PUT` plus a conditional `PATCH .../status`) — there's no autosave. If you're adding a similarly data-heavy edit view, this is the reference implementation for the "local staging, explicit save" pattern used throughout the admin UI.
+
+## Notable View: `InfrastructureOperatorCertificatesView.vue`
+
+Manages one `InfrastructureOperator`'s `PartnerCertificateBundle` (see [[Data-Model]]#PartnerCertificateBundle) — three certificate upload slots (own client cert, expected server CA, expected client CA) plus an identity form (expected CNs, CRL URL). Unlike `RailwayUndertakingEditView.vue`, uploads are **not** staged — selecting a file immediately `POST`s it (the backend persists it to disk right away regardless), so there's nothing to "save" for that part; only the identity form fields are staged locally and committed via an explicit `PUT`.
+
+This is the app's first file upload, so it introduces two things with no prior precedent:
+
+- **File → base64**: `FileReader.readAsDataURL()`, then the `data:...;base64,` prefix is stripped before sending `{ certificateBase64 }` in a JSON body — no `multipart/form-data`, keeping the same `apiFetch`/JSON convention as every other endpoint.
+- **Styled file input** (`.file-upload` / `.file-upload__input`, scoped in this view): a native `<input type="file">` renders as an unstyled OS widget, so it's visually hidden (clipped to 1px, not `display:none`, to stay screen-reader-accessible) inside a `<label class="btn file-upload">` — clicking/activating the label opens the native file picker, and the label itself is styled like any other `.btn`. Reuse this pattern rather than reinventing it for the next file upload.
