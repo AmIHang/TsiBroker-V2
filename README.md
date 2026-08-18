@@ -11,13 +11,16 @@ Message-Broker zwischen Eisenbahnverkehrsunternehmen (RU/EVU) und Infrastrukturb
 | JSON-Dateien unter `App_Data/` (keine Datenbank) | vue-i18n (DE, EN) |
 | SOAP/WCF via CoreWCF (IM-Seite) | Less (kein Vuetify, kein generierter API-Client) |
 | REST + `X-Api-Key` (RU-Seite) | |
-| RabbitMQ (provisioniert, noch nicht angebunden) | |
+| RabbitMQ (Standard-Messaging-Backend, End-to-End-Zustellung in beide Richtungen verdrahtet) | |
 
 ## Quick Start
 
 ```bash
 # Voraussetzungen: .NET 10 SDK, Node.js 20+, Podman/Docker Desktop
 dotnet workload install aspire  # einmalig
+
+# RabbitMQ starten (wird von AppHost nicht mitverwaltet, siehe Hinweis unten)
+cd infrastructure && podman compose --env-file .env.example up -d rabbitmq && cd ..
 
 # Backend + alle Services starten (Aspire Dashboard, Apis, Vite-Dev-Server)
 dotnet run --project src/TsiBroker.AppHost
@@ -27,6 +30,8 @@ cd src/TsiBroker.Ui
 npm install
 npm run dev
 ```
+
+> `Messaging:QueueType` defaultet auf `RabbitMq` und wird von keinem Projekt auf `Debug` zurückgesetzt; `TsiBroker.AppHost` registriert aber keine RabbitMQ-Ressource. Ohne erreichbaren RabbitMQ-Broker (siehe oben) schlägt Publish/Consume fehl — alternativ `Messaging__QueueType=Debug` setzen, um ohne Broker zu arbeiten (dann werden Nachrichten nur geloggt, kein Relay).
 
 ## Services (lokal)
 
@@ -80,9 +85,11 @@ Die ausführliche Dokumentation befindet sich im [Wiki](wiki/Home.md):
 
 ## Bekannte Lücken
 
-Früher Projektstand - vor tieferer Arbeit am Code relevant:
+Der Nachrichten-Relay (RU→Broker→IM und IM→Broker→RU) ist inzwischen End-to-End implementiert (RabbitMQ, per-Partition-Queues, Retry/Dead-Letter, Pause/Resume bei Nichterreichbarkeit — siehe [Business Flow](wiki/Business-Flow.md)). Verbleibende Lücken:
 
-- **Kein Nachrichten-Relay**: `Ru.Api` und `Im.Api` nutzen aktuell `DebugMessagePublisher`, der Nachrichten nur loggt und verwirft. RabbitMQ ist provisioniert, aber nicht angebunden.
+- **Keine mTLS-Authentifizierung des Brokers gegenüber echten IM-Systemen**: `IsbApiClient` sendet aktuell reines HTTPS ohne Client-Zertifikat.
+- **Keine Autorisierungsprüfung auf dem IM→Broker-Pfad**: Jeder IM kann aktuell jede aktive EVU adressieren (kein Äquivalent zu `TsiMessageAuthorizationService`).
+- **Heartbeat-Nachrichten werden nie veröffentlicht**, nur geloggt und echoed — anders als Common-Interface-Nachrichten.
 - **Keine Datenbank**: Stammdaten liegen als JSON-Dateien unter `App_Data/`, geschützt durch einen In-Process-Lock.
 - **Kein `.NET`-Testprojekt** in der Solution.
 - Nur `TsiBroker.ApiService` ist in `infrastructure/docker-compose.yml` containerisiert; `Ru.Api` und `Im.Api` haben noch keinen Docker-Deploy-Pfad.
