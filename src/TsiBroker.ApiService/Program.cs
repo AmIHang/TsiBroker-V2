@@ -82,10 +82,10 @@ builder.Services.AddHostedService<CertificateExpiryMonitor>();
 // deciding whether to pause.
 builder.Services.AddHttpClient<EvuApiClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
 
-// Short timeout so an unreachable IM is detected in seconds, not the 100s HttpClient default —
-// InfrastructureOperatorConsumerCoordinator blocks its one-message-at-a-time partition consumer
-// on this call while deciding whether to pause.
-builder.Services.AddHttpClient<IsbApiClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+// No AddHttpClient<IsbApiClient> here — each IM partner can have its own client certificate for
+// the mandatory 2-way SSL (spec 4.3), so IsbApiClient builds its own HttpClient per outbound call
+// instead of using one shared/typed client (see IsbApiClient.CreateHttpClientAsync).
+builder.Services.AddSingleton<IsbApiClient>();
 
 builder.Services.AddMessagePublisher(builder.Configuration);
 builder.Services.AddMessageConsumer(builder.Configuration);

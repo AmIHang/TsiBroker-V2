@@ -1,5 +1,7 @@
+using System.Net.Http;
 using System.Text;
 using System.Xml.Linq;
+using TsiBroker.Core.Certificates;
 using TsiBroker.Core.Messaging;
 
 namespace TsiBroker.Core.InfrastructureOperators;
@@ -11,9 +13,14 @@ namespace TsiBroker.Core.InfrastructureOperators;
 // builds its own UICMessage envelope — there's no partner-supplied WSDL for a generic "any IM" to
 // generate a client from.
 //
-// TODO: real IMs authenticate the broker via a client certificate (mTLS) — not decided/configured
-// yet, so this client currently sends plain HTTPS with no client identification.
-public class IsbApiClient(HttpClient httpClient)
+// Spec 4.3: SOAP delivery always uses 2-way SSL, and each IM partner can have its own client
+// certificate for the broker to present (TICKET-3, mirroring TICKET-2's inbound direction). A
+// single shared HttpClient can't do this — HttpClientHandler.ClientCertificates is fixed per
+// handler/connection, not selectable per outbound call, and IHttpClientFactory's named/typed
+// clients are wired up once at startup while partners are created and their certificates rotated
+// at runtime (PartnerCertificateProvider). So this client resolves and attaches the right
+// certificate per call instead of once via DI — see CreateHttpClientAsync.
+public class IsbApiClient(PartnerCertificateProvider certificateProvider)
 {
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
     private static readonly XNamespace HeaderNs = "http://uic.cc.org/UICMessage/Header";
@@ -22,6 +29,13 @@ public class IsbApiClient(HttpClient httpClient)
     private static readonly XNamespace Xsd = "http://www.w3.org/2001/XMLSchema";
 
     private const string BrokerAlias = "broker";
+
+    // Matches the timeout AddHttpClient<EvuApiClient> configures via Program.cs — kept here
+    // instead since this client no longer goes through DI's typed-client registration (see class
+    // comment). Short so an unreachable IM is detected in seconds, not the 100s HttpClient
+    // default — InfrastructureOperatorConsumerCoordinator blocks its one-message-at-a-time
+    // partition consumer on this call while deciding whether to pause.
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
     // POST /ci — delivers a TSI message to the IM's Common Interface endpoint, wrapped in the
     // same UICMessage SOAP envelope TsiBroker.Im.Api itself expects (see
@@ -39,6 +53,7 @@ public class IsbApiClient(HttpClient httpClient)
         // explicitly; without it the request fails dispatch with ActionNotSupported.
         content.Headers.TryAddWithoutValidation("SOAPAction", "\"\"");
 
+        using var httpClient = await CreateHttpClientAsync(infrastructureOperator.Id);
         using var response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "ci"), content, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -61,6 +76,7 @@ public class IsbApiClient(HttpClient httpClient)
 
         try
         {
+            using var httpClient = await CreateHttpClientAsync(infrastructureOperator.Id);
             using var response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "heartbeat"), content, cancellationToken);
             return response.IsSuccessStatusCode;
         }
@@ -68,6 +84,23 @@ public class IsbApiClient(HttpClient httpClient)
         {
             return false;
         }
+    }
+
+    // Resolves this IM partner's client certificate (if any — spec 4.3 requires 2-way SSL for
+    // every partner, but not every partner is provisioned yet) and builds a handler/client scoped
+    // to just this call. PartnerCertificateProvider re-reads from disk on every call, so a
+    // certificate uploaded or rotated via the admin API is picked up on the very next delivery
+    // attempt, with no cache to invalidate and no process restart needed.
+    private async Task<HttpClient> CreateHttpClientAsync(Guid infrastructureOperatorId)
+    {
+        var handler = new HttpClientHandler();
+        var clientCertificate = await certificateProvider.GetClientCertificateAsync(infrastructureOperatorId);
+        if (clientCertificate is not null)
+        {
+            handler.ClientCertificates.Add(clientCertificate);
+        }
+
+        return new HttpClient(handler) { Timeout = RequestTimeout };
     }
 
     private static string BuildMessageEnvelope(BrokerMessage message)
