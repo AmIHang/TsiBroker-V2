@@ -78,6 +78,25 @@ if (app.Services.GetRequiredService<IMessagePublisher>() is RabbitMqMessagePubli
     }
 }
 
+// BDV Kundenanbindungen - Verschlüsselung V4.0 4.1 "SOAP-Header" requires partners to send
+// "Content-Type: application/xml; charset=UTF-8" on every /ci and /heartbeat request. CoreWCF's
+// TextMessageEncodingBindingElement (unlike full .NET Framework WCF) has no MediaType property to
+// retarget, and its encoder hardcodes "text/xml" — sending anything else gets rejected before the
+// request reaches WCF at all ("... was not the expected type 'text/xml; charset=utf-8'", HTTP
+// 415). Rewriting the header here, ahead of UseServiceModel's routing, is the only lever
+// available; the SOAP body itself is untouched.
+app.Use(async (context, next) =>
+{
+    if ((context.Request.Path == "/ci" || context.Request.Path == "/heartbeat")
+        && context.Request.ContentType is { } contentType
+        && contentType.StartsWith("application/xml", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Request.ContentType = "text/xml" + contentType["application/xml".Length..];
+    }
+
+    await next();
+});
+
 app.UseServiceModel(serviceBuilder =>
 {
     serviceBuilder.AddService<CommonInterfaceMessageService>();
