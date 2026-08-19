@@ -102,6 +102,10 @@ Implementation: `src/TsiBroker.Im.Api/Heartbeat/HeartbeatMessageService.cs`.
 
 Heartbeat is a pure liveness echo — it has **no** `IMessagePublisher` dependency at all, so heartbeat traffic never becomes a `BrokerMessage` and is never published, unlike Common Interface traffic. This is a deliberate difference in scope (heartbeats aren't business messages), not a bug, but it's worth knowing when reasoning about "does the broker see everything."
 
+### Trigger cadence: no independent periodic heartbeat (decision, 2026-08-19)
+
+The broker → IM direction (Flow 5) only calls `IsbApiClient.CheckHeartbeatAsync` reactively, as a reachability probe on the first delivery failure for a message — there is no background timer that pings each active IM partner's `/heartbeat` independent of message traffic. The spec (Kap. 2.4 "SOAP Heartbeats") only describes the wire format and says the heartbeat is acknowledged by the BDV; it does not state a required cadence. **Decision: the current on-failure-only trigger is treated as sufficient** — no periodic/independent heartbeat job was added. Revisit only if DB InfraGO explicitly requires a standalone keep-alive schedule.
+
 ---
 
 ## Flow 4: Broker → RU (message delivery, retry/pause)
