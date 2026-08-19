@@ -113,13 +113,25 @@ public class IsbApiClient(
             }
 
             var responseXml = await response.Content.ReadAsStringAsync(cancellationToken);
-            return ExtractResponseStatus(responseXml)?.ToUpperInvariant() switch
+            var technicalAck = ExtractTechnicalAck(responseXml);
+            switch (technicalAck.ResponseStatus?.ToUpperInvariant())
             {
-                "ACK" => DeliveryOutcome.Acknowledged,
-                "NACK" => DeliveryOutcome.NegativeAcknowledged,
-                // Spec 2.3.2 step 2b: any other (or unparseable) response — discard, don't retry.
-                _ => DeliveryOutcome.InvalidResponse,
-            };
+                case "ACK":
+                    return DeliveryOutcome.Acknowledged;
+                case "NACK":
+                    // Spec 2.3.2 step 2a: a NACK is still a completed send — only logged here for
+                    // analysis, not retried (see InfrastructureOperatorConsumerCoordinator).
+                    logger.LogWarning(
+                        "IM {InfrastructureOperatorName} returned NACK for message {MessageId} (AckIdentifier={AckIdentifier}, MessageReference={MessageReference})",
+                        infrastructureOperator.Name,
+                        message.Id,
+                        technicalAck.AckIdentifier,
+                        technicalAck.MessageReference);
+                    return DeliveryOutcome.NegativeAcknowledged;
+                default:
+                    // Spec 2.3.2 step 2b: any other (or unparseable) response — discard, don't retry.
+                    return DeliveryOutcome.InvalidResponse;
+            }
         }
     }
 
@@ -245,20 +257,27 @@ public class IsbApiClient(
         return envelope.ToString(SaveOptions.DisableFormatting);
     }
 
-    private static string? ExtractResponseStatus(string responseXml)
+    // AckIdentifier/MessageReference are only used for the NACK analysis log above, so a failed
+    // parse just yields nulls (=> InvalidResponse) rather than a separate error path.
+    private static TechnicalAck ExtractTechnicalAck(string responseXml)
     {
         try
         {
-            var document = XDocument.Parse(responseXml);
-            return document.Descendants()
-                .FirstOrDefault(e => e.Name.LocalName == "ResponseStatus")
-                ?.Value.Trim();
+            var elements = XDocument.Parse(responseXml).Descendants().ToList();
+            return new TechnicalAck(
+                elements.FirstOrDefault(e => e.Name.LocalName == "ResponseStatus")?.Value.Trim(),
+                // Sic: "AckIndentifier" is a typo carried over from the partner-supplied schema
+                // (see TechnicalAckFactory.Create), not a mistake here.
+                elements.FirstOrDefault(e => e.Name.LocalName == "AckIndentifier")?.Value.Trim(),
+                elements.FirstOrDefault(e => e.Name.LocalName == "MessageReference")?.Value.Trim());
         }
         catch (System.Xml.XmlException)
         {
-            return null;
+            return new TechnicalAck(null, null, null);
         }
     }
+
+    private readonly record struct TechnicalAck(string? ResponseStatus, string? AckIdentifier, string? MessageReference);
 
     // Uri combining treats a base without a trailing slash as a "file", dropping its last
     // path segment (e.g. "https://im/api" + "ci" => "https://im/ci").

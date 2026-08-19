@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using TsiBroker.Core.Certificates;
@@ -25,6 +26,21 @@ public class IsbApiClientDeliveryOutcomeTests
     [Fact]
     public async Task DeliverMessageAsync_ReceivesNack_ReturnsNegativeAcknowledged() =>
         await RunAsync(BuildResponseEnvelope("NACK"), expected: DeliveryOutcome.NegativeAcknowledged);
+
+    [Fact]
+    public async Task DeliverMessageAsync_ReceivesNack_LogsWarningWithIdentifiers()
+    {
+        var capturingLogger = new CapturingLogger<IsbApiClient>();
+        await RunAsync(
+            BuildResponseEnvelope("NACK", ackIdentifier: "ACK-42", messageReference: "MSG-42"),
+            expected: DeliveryOutcome.NegativeAcknowledged,
+            logger: capturingLogger);
+
+        var entry = Assert.Single(capturingLogger.Entries, e => e.LogLevel == LogLevel.Warning);
+        Assert.Contains("NACK", entry.Message);
+        Assert.Contains("ACK-42", entry.Message);
+        Assert.Contains("MSG-42", entry.Message);
+    }
 
     [Fact]
     public async Task DeliverMessageAsync_ReceivesUnrelatedResponse_ReturnsInvalidResponse() =>
@@ -94,7 +110,7 @@ public class IsbApiClientDeliveryOutcomeTests
         }
     }
 
-    private static async Task RunAsync(string responseXml, DeliveryOutcome expected)
+    private static async Task RunAsync(string responseXml, DeliveryOutcome expected, ILogger<IsbApiClient>? logger = null)
     {
         var dataDirectory = Directory.CreateTempSubdirectory("tsibroker-isb-delivery-outcome-tests").FullName;
         try
@@ -120,7 +136,7 @@ public class IsbApiClientDeliveryOutcomeTests
                 certificateStoreApp.Services.GetRequiredService<PartnerCertificateValidator>(),
                 certificateStoreApp.Services.GetRequiredService<CrlCache>(),
                 Options.Create(new InfrastructureOperatorDeliveryOptions()),
-                NullLogger<IsbApiClient>.Instance);
+                logger ?? NullLogger<IsbApiClient>.Instance);
 
             var message = new BrokerMessage(
                 Id: Guid.NewGuid().ToString(), Sender: "sender", Receiver: "receiver", Content: "<TestMessage/>", CreatedAt: DateTimeOffset.UtcNow);
@@ -142,7 +158,7 @@ public class IsbApiClientDeliveryOutcomeTests
         }
     }
 
-    private static string BuildResponseEnvelope(string responseStatus) =>
+    private static string BuildResponseEnvelope(string responseStatus, string ackIdentifier = "ACK-1", string messageReference = "MSG-1") =>
         $"""
          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
            <soap:Body>
@@ -150,10 +166,26 @@ public class IsbApiClientDeliveryOutcomeTests
                <return>
                  <LI_TechnicalAck>
                    <ResponseStatus>{responseStatus}</ResponseStatus>
+                   <AckIndentifier>{ackIdentifier}</AckIndentifier>
+                   <MessageReference>{messageReference}</MessageReference>
                  </LI_TechnicalAck>
                </return>
              </ns3:UICMessageResponse>
            </soap:Body>
          </soap:Envelope>
          """;
+
+    // Minimal ILogger<T> test double — no FakeLogger package referenced by this project — that
+    // records level + formatted message so a test can assert on what got logged.
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel LogLevel, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
 }
