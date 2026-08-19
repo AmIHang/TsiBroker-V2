@@ -112,12 +112,15 @@ public class IsbApiClient(
         // TICKET-4 (spec 2.3.2 step 1): validate the IM's server certificate against this partner's
         // configured CA/CRL. Same "not every partner is provisioned yet" reasoning as the client
         // certificate above — a partner with no expected server CA configured has this check
-        // skipped entirely, leaving HttpClientHandler's own default (OS trust store) validation in
-        // place, rather than failing every call to a partner nobody has gotten around to
-        // provisioning yet.
+        // skipped entirely (no validation at all, not even the OS default trust-store check),
+        // rather than failing every call to a partner nobody has gotten around to provisioning yet.
         var bundle = await certificateProvider.GetBundleAsync(infrastructureOperator.Id);
         var expectedServerCaCertificate = await certificateProvider.GetExpectedServerCaCertificateAsync(infrastructureOperator.Id);
-        if (expectedServerCaCertificate is not null)
+        if (expectedServerCaCertificate is null)
+        {
+            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+        }
+        else
         {
             // The CRL fetch has to happen up front, before the TLS handshake starts:
             // ServerCertificateCustomValidationCallback below is a synchronous hook, so it can't

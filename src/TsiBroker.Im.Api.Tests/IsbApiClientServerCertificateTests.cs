@@ -55,14 +55,49 @@ public class IsbApiClientServerCertificateTests
         await RunAsync(ca, crlServer.CrlUrl.ToString(), serverCertificate, expectHeartbeat: true);
     }
 
-    // "No expected server CA configured" (a partner not yet provisioned, per
-    // IsbApiClient.CreateHttpClientAsync) isn't covered here as a network test: skipping our custom
-    // ServerCertificateCustomValidationCallback just leaves HttpClientHandler's own default OS
-    // trust store validation in place, so proving the skip took effect — rather than merely
-    // observing a self-signed test certificate getting rejected either way, by us or by the OS —
-    // would need trusting a throwaway CA in the machine's certificate store, which this test suite
-    // deliberately avoids (see IsbApiClientCertificateTests' own class comment for the same
-    // reasoning).
+    [Fact]
+    public async Task CheckHeartbeatAsync_WithNoExpectedServerCaConfigured_AcceptsAnyServerCertificate()
+    {
+        // Spec 2.3.2 step 1's CA/CRL check only applies once a partner has an expected server CA
+        // configured — same "not every partner is provisioned yet" reasoning as the client
+        // certificate side (TICKET-3). IsbApiClient.CreateHttpClientAsync skips validation entirely
+        // for such a partner (not even the OS default trust-store check), rather than failing every
+        // call to a partner nobody has gotten around to provisioning yet — so even a certificate
+        // from a CA nobody configured, that a normal browser would reject outright, is accepted.
+        var untrustedCa = CaCrlTestCertificates.CreateCa("Untrusted CA");
+        var serverCertificate = CaCrlTestCertificates.CreateServerCertificateSignedBy(untrustedCa, "im.example.test", out _);
+
+        var dataDirectory = Directory.CreateTempSubdirectory("tsibroker-isb-server-cert-tests").FullName;
+        try
+        {
+            await using var certificateStoreApp = IsbApiClientCertificateTests.BuildCertificateStoreApp(dataDirectory);
+            var store = certificateStoreApp.Services.GetRequiredService<CertificateBundleStore>();
+
+            await using var server = await ClientCertCapturingServer.StartAsync(serverCertificate);
+
+            var infrastructureOperator = new InfrastructureOperator
+            {
+                Id = Guid.NewGuid(),
+                Name = "Unprovisioned IM",
+                RicsCode = "8010000-IM-NOCA",
+                SystemUrl = server.BaseAddress.ToString(),
+            };
+
+            var bundle = await store.GetOrCreateForOperatorAsync(infrastructureOperator.Id);
+            var (clientPfxBytes, _) = IsbApiClientCertificateTests.CreateClientCertificatePfx();
+            await store.SaveClientCertificateAsync(bundle.Id, clientPfxBytes);
+            // Deliberately no SaveExpectedServerCaCertificateAsync call — this operator has no
+            // expected server CA configured at all.
+
+            var sut = BuildSut(certificateStoreApp);
+
+            Assert.True(await sut.CheckHeartbeatAsync(infrastructureOperator));
+        }
+        finally
+        {
+            TryDelete(dataDirectory);
+        }
+    }
 
     private static async Task RunAsync(
         X509Certificate2 expectedCa,
