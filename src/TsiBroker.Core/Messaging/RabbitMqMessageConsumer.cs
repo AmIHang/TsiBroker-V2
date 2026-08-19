@@ -235,9 +235,18 @@ public sealed class RabbitMqMessageConsumer(
         var content = Encoding.UTF8.GetString(delivery.Body.ToArray());
         var sender = GetHeader(delivery, "Sender");
         var receiver = GetHeader(delivery, "Receiver");
+        var createdAt = ParseCreatedAtHeader(GetHeader(delivery, "CreatedAt"));
 
-        return new BrokerMessage(delivery.BasicProperties.MessageId, sender, receiver, content);
+        return new BrokerMessage(delivery.BasicProperties.MessageId, sender, receiver, content, createdAt);
     }
+
+    // Falls back to "now" for a message published before this header existed (a pre-deploy
+    // message still sitting on the queue) rather than failing it outright — worst case it gets
+    // its own full max-age budget starting from consumption instead of original submission.
+    private static DateTimeOffset ParseCreatedAtHeader(string value) =>
+        DateTimeOffset.TryParse(value, null, System.Globalization.DateTimeStyles.RoundtripKind, out var createdAt)
+            ? createdAt
+            : DateTimeOffset.UtcNow;
 
     private static string GetHeader(BasicDeliverEventArgs delivery, string key)
     {

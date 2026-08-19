@@ -56,6 +56,7 @@ public static class TsiMessageEndpoints
                 Sender: message.Sender,
                 Receiver: message.Recipient,
                 Content: rawXml,
+                CreatedAt: DateTimeOffset.UtcNow,
                 // Groups all messages addressed to this Infrastrukturbetreiber into one
                 // queue, regardless of which RU/RicsCode sent them — see
                 // IMessageConsumer.RunPartitionedAsync.

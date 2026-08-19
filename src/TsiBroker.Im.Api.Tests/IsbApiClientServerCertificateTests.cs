@@ -150,6 +150,7 @@ public class IsbApiClientServerCertificateTests
             certificateStoreApp.Services.GetRequiredService<PartnerCertificateProvider>(),
             certificateStoreApp.Services.GetRequiredService<PartnerCertificateValidator>(),
             certificateStoreApp.Services.GetRequiredService<CrlCache>(),
+            Microsoft.Extensions.Options.Options.Create(new InfrastructureOperatorDeliveryOptions()),
             certificateStoreApp.Services.GetRequiredService<ILogger<IsbApiClient>>());
 
     private static void TryDelete(string dataDirectory)

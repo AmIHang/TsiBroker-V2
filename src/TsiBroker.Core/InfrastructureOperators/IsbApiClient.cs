@@ -2,10 +2,36 @@ using System.Net.Http;
 using System.Text;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using TsiBroker.Core.Certificates;
 using TsiBroker.Core.Messaging;
 
 namespace TsiBroker.Core.InfrastructureOperators;
+
+// Spec 2.3.2 step 2 distinguishes four outcomes of a delivery POST, not just success/failure —
+// InfrastructureOperatorConsumerCoordinator treats each differently (see its HandleMessageAsync).
+public enum DeliveryOutcome
+{
+    // Step 2a: ACK — the IM processed the message successfully.
+    Acknowledged,
+    // Step 2a: NACK — also a completed send as far as transport is concerned; the spec treats
+    // this as "successfully abgeschlossen" and only logs it for analysis, unlike a transport
+    // failure or timeout.
+    NegativeAcknowledged,
+    // Step 2b: a response was received but it's neither ACK nor NACK (or not HTTP-successful) —
+    // the spec says to close the connection and discard the message outright, not retry it.
+    InvalidResponse,
+    // Step 2c: no response within DeliveryTimeout — resend until the message's max age is
+    // reached.
+    TimedOut,
+    // Connection/TLS failure before any response was received (e.g. the IM is unreachable). Not
+    // explicitly covered by spec 2.3.2, which only discusses step 1's CA/CRL handshake failure
+    // (discarded outright) — but a general connectivity failure is exactly what
+    // InfrastructureOperatorReachabilityMonitor's pause/resume mechanism exists to handle, so the
+    // coordinator treats this the same as TimedOut (checks reachability, then resends until max
+    // age) rather than discarding immediately.
+    TransportFailure,
+}
 
 // Outbound SOAP calls from the broker to an Infrastrukturbetreiber's own system
 // (InfrastructureOperator.SystemUrl) — the mirror image of the inbound IM -> broker SOAP contract
@@ -28,6 +54,7 @@ public class IsbApiClient(
     PartnerCertificateProvider certificateProvider,
     PartnerCertificateValidator certificateValidator,
     CrlCache crlCache,
+    IOptions<InfrastructureOperatorDeliveryOptions> deliveryOptions,
     ILogger<IsbApiClient> logger)
 {
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
@@ -41,16 +68,15 @@ public class IsbApiClient(
     // Matches the timeout AddHttpClient<EvuApiClient> configures via Program.cs — kept here
     // instead since this client no longer goes through DI's typed-client registration (see class
     // comment). Short so an unreachable IM is detected in seconds, not the 100s HttpClient
-    // default — InfrastructureOperatorConsumerCoordinator blocks its one-message-at-a-time
-    // partition consumer on this call while deciding whether to pause.
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
+    // default — InfrastructureOperatorReachabilityMonitor/PollAsync blocks on this call.
+    private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(10);
 
     // POST /ci — delivers a TSI message to the IM's Common Interface endpoint, wrapped in the
     // same UICMessage SOAP envelope TsiBroker.Im.Api itself expects (see
-    // CommonInterfaceMessageService.ReceiveAsync). Returns whether the IM acknowledged the
-    // message (HTTP success and an LI_TechnicalAck ResponseStatus of "ACK") — a NACK is treated
-    // by the caller the same as a transport failure (a processing error on the customer's side).
-    public async Task<bool> DeliverMessageAsync(
+    // CommonInterfaceMessageService.ReceiveAsync). Classifies the outcome per spec 2.3.2 step 2 —
+    // see DeliveryOutcome for what each value means and how
+    // InfrastructureOperatorConsumerCoordinator reacts to it.
+    public async Task<DeliveryOutcome> DeliverMessageAsync(
         InfrastructureOperator infrastructureOperator,
         BrokerMessage message,
         CancellationToken cancellationToken = default)
@@ -61,15 +87,40 @@ public class IsbApiClient(
         // explicitly; without it the request fails dispatch with ActionNotSupported.
         content.Headers.TryAddWithoutValidation("SOAPAction", "\"\"");
 
-        using var httpClient = await CreateHttpClientAsync(infrastructureOperator);
-        using var response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "ci"), content, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        using var httpClient = await CreateHttpClientAsync(infrastructureOperator, deliveryOptions.Value.DeliveryTimeout);
+
+        HttpResponseMessage response;
+        try
         {
-            return false;
+            response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "ci"), content, cancellationToken);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // HttpClient.Timeout (DeliveryTimeout) elapsed without a response — spec 2.3.2 step
+            // 2c, not a real cancellation (that would have cancellationToken already signalled).
+            return DeliveryOutcome.TimedOut;
+        }
+        catch (HttpRequestException)
+        {
+            return DeliveryOutcome.TransportFailure;
         }
 
-        var responseXml = await response.Content.ReadAsStringAsync(cancellationToken);
-        return string.Equals(ExtractResponseStatus(responseXml), "ACK", StringComparison.OrdinalIgnoreCase);
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                return DeliveryOutcome.InvalidResponse;
+            }
+
+            var responseXml = await response.Content.ReadAsStringAsync(cancellationToken);
+            return ExtractResponseStatus(responseXml)?.ToUpperInvariant() switch
+            {
+                "ACK" => DeliveryOutcome.Acknowledged,
+                "NACK" => DeliveryOutcome.NegativeAcknowledged,
+                // Spec 2.3.2 step 2b: any other (or unparseable) response — discard, don't retry.
+                _ => DeliveryOutcome.InvalidResponse,
+            };
+        }
     }
 
     // POST /heartbeat — a pure reachability probe using the same UICHBMessage contract
@@ -84,7 +135,7 @@ public class IsbApiClient(
 
         try
         {
-            using var httpClient = await CreateHttpClientAsync(infrastructureOperator);
+            using var httpClient = await CreateHttpClientAsync(infrastructureOperator, HeartbeatTimeout);
             using var response = await httpClient.PostAsync(BuildUri(infrastructureOperator.SystemUrl, "heartbeat"), content, cancellationToken);
             return response.IsSuccessStatusCode;
         }
@@ -100,7 +151,7 @@ public class IsbApiClient(
     // just this call. PartnerCertificateProvider re-reads from disk on every call, so a certificate
     // uploaded or rotated via the admin API is picked up on the very next delivery attempt, with no
     // cache to invalidate and no process restart needed.
-    private async Task<HttpClient> CreateHttpClientAsync(InfrastructureOperator infrastructureOperator)
+    private async Task<HttpClient> CreateHttpClientAsync(InfrastructureOperator infrastructureOperator, TimeSpan timeout)
     {
         var handler = new HttpClientHandler();
         var clientCertificate = await certificateProvider.GetClientCertificateAsync(infrastructureOperator.Id);
@@ -149,7 +200,7 @@ public class IsbApiClient(
             };
         }
 
-        return new HttpClient(handler) { Timeout = RequestTimeout };
+        return new HttpClient(handler) { Timeout = timeout };
     }
 
     private static string BuildMessageEnvelope(BrokerMessage message)

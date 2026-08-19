@@ -115,6 +115,7 @@ public class CommonInterfaceMessageService(
                 Sender: message.Sender,
                 Receiver: message.Recipient,
                 Content: rawXml,
+                CreatedAt: DateTimeOffset.UtcNow,
                 // One queue per EVU, prefixed to keep this direction's partitions distinct from
                 // the ISB-keyed partitions used for the EVU->broker direction (see
                 // EvuDeliveryCoordinator.PartitionKeyFor).

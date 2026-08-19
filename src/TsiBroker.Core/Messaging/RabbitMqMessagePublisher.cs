@@ -72,6 +72,9 @@ public sealed class RabbitMqMessagePublisher(
             {
                 ["Sender"] = message.Sender,
                 ["Receiver"] = message.Receiver,
+                // Round-trip format so RabbitMqMessageConsumer.ToBrokerMessage can parse it back
+                // exactly — see BrokerMessage.CreatedAt.
+                ["CreatedAt"] = message.CreatedAt.ToString("o"),
             },
         };
 

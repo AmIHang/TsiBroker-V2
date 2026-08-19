@@ -144,6 +144,7 @@ public class IsbApiClientCertificateTests
                 provider,
                 certificateStoreApp.Services.GetRequiredService<PartnerCertificateValidator>(),
                 certificateStoreApp.Services.GetRequiredService<CrlCache>(),
+                Microsoft.Extensions.Options.Options.Create(new InfrastructureOperatorDeliveryOptions()),
                 certificateStoreApp.Services.GetRequiredService<ILogger<IsbApiClient>>());
 
             // RequireCertificate on the server side means the handshake itself fails without a

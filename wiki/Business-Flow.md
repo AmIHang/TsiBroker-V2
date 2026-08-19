@@ -177,30 +177,34 @@ sequenceDiagram
     alt not authorized (unknown sender / no assignment / message type not allowed)
         Coord->>Coord: PublishToDeadLetterAsync (error queue), ack
     else authorized
-        Coord->>Isb: DeliverMessageAsync (SOAP UICMessage POST /ci)
-        alt delivered (HTTP 2xx and LI_TechnicalAck ResponseStatus "ACK")
-            Coord->>Coord: ack
-        else delivery failed (transport error, or a "NACK" — a processing error on the IM's side)
-            Coord->>Isb: CheckHeartbeatAsync (SOAP UICHBMessage POST /heartbeat)
-            alt unreachable
-                Coord->>Store: SetQueuePauseStateAsync(paused: true)
-                Coord->>Monitor: StartPolling(InfrastructureOperator)
-                Coord->>Consumer: StopPartitionAsync (async, fire-and-forget)
-                Coord->>Consumer: throw MessagePausedException
-                Note over Consumer: message is nacked with requeue: true —<br/>redelivered once processing resumes
-            else reachable
-                loop up to 2 more attempts, 1 min apart
-                    Coord->>Isb: DeliverMessageAsync
+        loop until acknowledged, discarded, or MaxMessageAge exceeded
+            Coord->>Isb: DeliverMessageAsync (SOAP UICMessage POST /ci)
+            alt Acknowledged or NegativeAcknowledged (spec 2.3.2 step 2a — ACK or NACK)
+                Coord->>Coord: ack (a NACK is only logged, not retried)
+            else InvalidResponse (step 2b — a response that's neither ACK nor NACK)
+                Coord->>Coord: PublishToDeadLetterAsync (error queue), ack — no retry
+            else TimedOut (step 2c — no response within DeliveryTimeout) or TransportFailure
+                alt first failure for this message
+                    Coord->>Isb: CheckHeartbeatAsync (SOAP UICHBMessage POST /heartbeat)
+                    alt unreachable
+                        Coord->>Store: SetQueuePauseStateAsync(paused: true)
+                        Coord->>Monitor: StartPolling(InfrastructureOperator)
+                        Coord->>Consumer: StopPartitionAsync (async, fire-and-forget)
+                        Coord->>Consumer: throw MessagePausedException
+                        Note over Consumer: message is nacked with requeue: true —<br/>redelivered once processing resumes
+                    end
                 end
-                alt still failing
+                alt message age >= MaxMessageAge
                     Coord->>Coord: PublishToDeadLetterAsync (error queue), ack
+                else
+                    Coord->>Coord: wait RetryDelay, then loop
                 end
             end
         end
     end
 ```
 
-Implementation: `src/TsiBroker.ApiService/InfrastructureOperators/InfrastructureOperatorConsumerCoordinator.cs`, `IsbMessageAuthorizationService.cs`, `InfrastructureOperatorReachabilityMonitor.cs`; `src/TsiBroker.Core/InfrastructureOperators/IsbApiClient.cs`. Mirrors Flow 4 (broker → EVU) almost exactly, with the same retry count, retry delay, and backoff schedule.
+Implementation: `src/TsiBroker.ApiService/InfrastructureOperators/InfrastructureOperatorConsumerCoordinator.cs`, `IsbMessageAuthorizationService.cs`, `InfrastructureOperatorReachabilityMonitor.cs`; `src/TsiBroker.Core/InfrastructureOperators/IsbApiClient.cs` (`DeliveryOutcome`, `DeliverMessageAsync`). `DeliveryTimeout`/`MaxMessageAge`/`RetryDelay` are configurable via `InfrastructureOperatorDeliveryOptions` (section `InfrastructureOperatorDelivery`) rather than hardcoded — TICKET-6, spec 2.3.2 step 2c: "Der BDV-Client empfängt innerhalb von 5 Sekunden keine Response. In diesem Fall wird die Nachricht erneut gesendet, bis das maximale Alter der Nachricht erreicht ist." `MaxMessageAge`'s default is a placeholder pending business sign-off — the spec doesn't name a value. Unlike Flow 4 (broker → EVU, still on a fixed attempt count/delay via `RabbitMqOptions`), this direction distinguishes ACK/NACK/invalid-response/timeout outcomes rather than collapsing every failure into one retry path — see `DeliveryOutcome`'s doc comment for the full reasoning, including why a bare transport failure (not explicitly covered by the spec) is still routed through the reachability-pause mechanism rather than discarded outright.
 
 ### Authorization (broker → IM)
 

@@ -87,6 +87,10 @@ builder.Services.AddHttpClient<EvuApiClient>(client => client.Timeout = TimeSpan
 // instead of using one shared/typed client (see IsbApiClient.CreateHttpClientAsync).
 builder.Services.AddSingleton<IsbApiClient>();
 
+builder.Services
+    .AddOptions<InfrastructureOperatorDeliveryOptions>()
+    .Bind(builder.Configuration.GetSection(InfrastructureOperatorDeliveryOptions.SectionName));
+
 builder.Services.AddMessagePublisher(builder.Configuration);
 builder.Services.AddMessageConsumer(builder.Configuration);
 

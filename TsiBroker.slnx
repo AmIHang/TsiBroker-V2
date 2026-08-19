@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
+    <Project Path="src/TsiBroker.ApiService.Tests/TsiBroker.ApiService.Tests.csproj" />
     <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
     <Project Path="src/TsiBroker.Core/TsiBroker.Core.csproj" />
     <Project Path="src/TsiBroker.Ui/TsiBroker.Ui.esproj">
