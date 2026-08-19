@@ -23,6 +23,19 @@ public class CommonInterfaceMessageService(
 {
     public async Task<CommonInterfaceResponse> ReceiveAsync(CommonInterfaceRequest request)
     {
+        // Spec 4.1 "SOAP-Header": the BDV only ever sets "false" for these three, so a sender
+        // claiming true is deviating from spec. Not rejected outright — just logged, since the
+        // fields aren't otherwise acted on.
+        if (request.Compressed is true || request.Encrypted is true || request.Signed is true)
+        {
+            logger.LogWarning(
+                "Inbound CI message {MessageIdentifier} declares non-false SOAP header(s): compressed={Compressed}, encrypted={Encrypted}, signed={Signed}",
+                request.MessageIdentifier,
+                request.Compressed,
+                request.Encrypted,
+                request.Signed);
+        }
+
         // The XmlSerializer-based UICMessage contract types `message` as `object`; its actual
         // runtime shape depends on how the sender wrote the element. Per the BDV
         // Schnittstellenbeschreibung, `message` is xs:anyType carrying the TSI message as a real

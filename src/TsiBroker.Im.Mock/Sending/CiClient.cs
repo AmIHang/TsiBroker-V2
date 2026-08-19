@@ -72,7 +72,12 @@ public class CiClient(HttpClient httpClient, IOptions<CiClientOptions> options)
             new XElement(
                 Soap + "Header",
                 new XElement(HeaderNs + "messageIdentifier", messageIdentifier),
-                new XElement(HeaderNs + "messageLiHost", messageLiHost)),
+                new XElement(HeaderNs + "messageLiHost", messageLiHost),
+                // Spec 4.1 "SOAP-Header": the BDV expects "false" for all three on every outbound
+                // envelope.
+                new XElement(HeaderNs + "compressed", false),
+                new XElement(HeaderNs + "encrypted", false),
+                new XElement(HeaderNs + "signed", false)),
             new XElement(
                 Soap + "Body",
                 new XElement(

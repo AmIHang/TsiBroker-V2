@@ -225,7 +225,12 @@ public class IsbApiClient(
             new XElement(
                 Soap + "Header",
                 new XElement(HeaderNs + "messageIdentifier", message.Id ?? Guid.NewGuid().ToString()),
-                new XElement(HeaderNs + "messageLiHost", BrokerAlias)),
+                new XElement(HeaderNs + "messageLiHost", BrokerAlias),
+                // Spec 4.1 "SOAP-Header": the BDV expects "false" for all three on every outbound
+                // envelope.
+                new XElement(HeaderNs + "compressed", false),
+                new XElement(HeaderNs + "encrypted", false),
+                new XElement(HeaderNs + "signed", false)),
             new XElement(
                 Soap + "Body",
                 new XElement(
@@ -248,6 +253,13 @@ public class IsbApiClient(
             new XAttribute(XNamespace.Xmlns + "s", Soap.NamespaceName),
             new XAttribute(XNamespace.Xmlns + "xsi", Xsi.NamespaceName),
             new XAttribute(XNamespace.Xmlns + "xsd", Xsd.NamespaceName),
+            new XElement(
+                Soap + "Header",
+                // Spec 4.1 "SOAP-Header": the BDV expects "false" for all three on every outbound
+                // envelope, including heartbeats.
+                new XElement(HeaderNs + "compressed", false),
+                new XElement(HeaderNs + "encrypted", false),
+                new XElement(HeaderNs + "signed", false)),
             new XElement(
                 Soap + "Body",
                 new XElement(
