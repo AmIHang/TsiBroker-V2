@@ -81,7 +81,7 @@ public class IsbApiClient(
         BrokerMessage message,
         CancellationToken cancellationToken = default)
     {
-        using var content = new StringContent(BuildMessageEnvelope(message), Encoding.UTF8, "text/xml");
+        using var content = new StringContent(BuildMessageEnvelope(message), Encoding.UTF8, "application/xml");
         // ICommonInterfaceMessageService declares [OperationContract(Action = "")] — the
         // dispatcher matches on the literal (quoted, empty) SOAPAction header, so it must be sent
         // explicitly; without it the request fails dispatch with ActionNotSupported.
@@ -142,7 +142,7 @@ public class IsbApiClient(
         InfrastructureOperator infrastructureOperator,
         CancellationToken cancellationToken = default)
     {
-        using var content = new StringContent(BuildHeartbeatEnvelope(), Encoding.UTF8, "text/xml");
+        using var content = new StringContent(BuildHeartbeatEnvelope(), Encoding.UTF8, "application/xml");
         content.Headers.TryAddWithoutValidation("SOAPAction", "\"\"");
 
         try
