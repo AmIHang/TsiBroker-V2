@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError, apiFetch } from '@/lib/api'
 import MessageLogTable from '@tsibroker/ui-kit/components/MessageLogTable.vue'
 import { useMessages } from '@/composables/useMessages'
+import { extractTag, extractMessageType } from '@/lib/messageXml'
 
 interface SendDefaults {
   targetUrl: string
@@ -218,6 +219,44 @@ async function applyReplyFromQuery() {
   router.replace({ name: 'send', query: {} })
 }
 
+// Reopens the send dialog pre-filled from an already-sent message - handy while iterating on a
+// test, so the whole form doesn't need retyping for each attempt. Reads straight off the
+// message's own XML (rather than re-fetching that type's blank template) so it carries over the
+// exact values that were sent, not just the fields the current template happens to define. Only
+// the MessageIdentifier is refreshed, since resending the same one verbatim could collide with
+// the original.
+function duplicateMessage(message: { content: string }) {
+  const xml = message.content
+  const fields = extractTemplateFields(xml)
+  const newIdentifier = generateMessageIdentifier()
+
+  let result = xml
+  const values: Record<string, string> = {}
+  for (const field of fields) {
+    if (field.tag === 'MessageIdentifier') {
+      values[field.tag] = newIdentifier
+      result = replaceTagContent(result, field.tag, newIdentifier)
+    } else {
+      values[field.tag] = field.placeholder
+    }
+  }
+
+  const detectedType = extractMessageType(xml)
+  if (detectedType && messageTypes.value.includes(detectedType)) {
+    messageType.value = detectedType
+  }
+  const detectedSender = extractTag(xml, 'Sender')
+  if (detectedSender) sender.value = detectedSender
+  const detectedRecipient = extractTag(xml, 'Recipient')
+  if (detectedRecipient) recipient.value = detectedRecipient
+
+  templateFields.value = fields
+  fieldValues.value = values
+  payload.value = applyRicsToPayload(result)
+
+  openSendDialog()
+}
+
 onMounted(async () => {
   await Promise.all([loadSendDefaults(), loadMessageTypes()])
   await applyReplyFromQuery()
@@ -335,7 +374,12 @@ onMounted(async () => {
 
     <section class="card">
       <h2 class="card__title">Sent messages</h2>
-      <MessageLogTable :messages="messages" empty-message="No messages sent yet." />
+      <MessageLogTable
+        :messages="messages"
+        empty-message="No messages sent yet."
+        duplicatable
+        @duplicate="duplicateMessage"
+      />
     </section>
   </div>
 </template>

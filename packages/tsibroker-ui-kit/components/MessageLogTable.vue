@@ -20,12 +20,16 @@ withDefaults(
     // Shows a reply action per row - only received messages have anywhere meaningful to reply
     // to, so callers opt in rather than this being inferred from message direction.
     replyable?: boolean
+    // Shows a duplicate action per row - only sent messages have a send dialog to reopen
+    // pre-filled from, so callers opt in the same way as replyable.
+    duplicatable?: boolean
   }>(),
-  { replyable: false },
+  { replyable: false, duplicatable: false },
 )
 
 const emit = defineEmits<{
   reply: [message: LoggedMessage]
+  duplicate: [message: LoggedMessage]
 }>()
 
 function badgeClassForResult(result: string | null) {
@@ -98,6 +102,25 @@ function toggleExpanded(fileName: string) {
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M9 14l-5-5 5-5M4 9h10a5 5 0 0 1 5 5v2"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                v-if="duplicatable"
+                type="button"
+                class="icon-btn-header"
+                title="Duplicate"
+                aria-label="Duplicate"
+                @click="emit('duplicate', m)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.8" />
+                  <path
+                    d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"
                     stroke="currentColor"
                     stroke-width="1.8"
                     stroke-linecap="round"
