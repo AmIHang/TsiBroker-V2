@@ -35,12 +35,12 @@ async function onLogout() {
     expand-label="Expand menu"
     collapse-label="Collapse menu"
   >
-    <template v-if="auth.username" #sidebar-footer>
+    <template v-if="auth.username" #sidebar-footer="{ collapsed }">
       <div class="sidebar__footer">
         <button
           type="button"
           class="nav-item nav-item--button"
-          :title="`Log out (${auth.username})`"
+          :title="collapsed ? `Log out (${auth.username})` : undefined"
           @click="onLogout"
         >
           <span class="nav-item__icon">
@@ -61,7 +61,7 @@ async function onLogout() {
               />
             </svg>
           </span>
-          <span class="nav-item__label">Log out ({{ auth.username }})</span>
+          <span v-if="!collapsed" class="nav-item__label">Log out ({{ auth.username }})</span>
         </button>
       </div>
     </template>

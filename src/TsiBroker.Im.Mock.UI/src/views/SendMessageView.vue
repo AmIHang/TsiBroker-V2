@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { apiFetch } from '@/lib/api'
+import CopyButton from '@tsibroker/ui-kit/components/CopyButton.vue'
+import MessageLogTable from '@tsibroker/ui-kit/components/MessageLogTable.vue'
+import XmlBlock from '@tsibroker/ui-kit/components/XmlBlock.vue'
 import { useMessages } from '@/composables/useMessages'
 
 interface SendDefaults {
@@ -215,40 +218,20 @@ onMounted(() => {
         <button class="btn btn--primary" :disabled="isSending" @click="send">Send</button>
       </div>
       <div v-if="sendResult">
-        <span class="badge" :class="badgeClassForResult(sendResult.status)">{{ sendResult.status }}</span>
-        <span v-if="sendResult.error" class="status-text">{{ sendResult.error }}</span>
-        <pre v-if="sendResult.responseXml">{{ sendResult.responseXml }}</pre>
+        <div class="copy-row">
+          <span>
+            <span class="badge" :class="badgeClassForResult(sendResult.status)">{{ sendResult.status }}</span>
+            <span v-if="sendResult.error" class="status-text">{{ sendResult.error }}</span>
+          </span>
+          <CopyButton v-if="sendResult.responseXml" :text="sendResult.responseXml" />
+        </div>
+        <XmlBlock v-if="sendResult.responseXml" :content="sendResult.responseXml" />
       </div>
     </section>
 
     <section class="card">
       <h2 class="card__title">Sent messages</h2>
-      <table v-if="messages.length > 0" class="data-table">
-        <thead>
-          <tr>
-            <th>Time (UTC)</th>
-            <th>Id</th>
-            <th>Result</th>
-            <th>Content</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in messages" :key="m.fileName">
-            <td>{{ m.timestamp }}</td>
-            <td>{{ m.messageIdentifier ?? '' }}</td>
-            <td>
-              <span v-if="m.result" class="badge" :class="badgeClassForResult(m.result)">{{ m.result }}</span>
-            </td>
-            <td>
-              <details>
-                <summary>{{ m.fileName }}</summary>
-                <pre>{{ m.content }}</pre>
-              </details>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="empty-state">No messages sent yet.</p>
+      <MessageLogTable :messages="messages" empty-message="No messages sent yet." />
     </section>
   </div>
 </template>
@@ -297,9 +280,5 @@ onMounted(() => {
   line-height: 1.5;
   white-space: pre;
   resize: vertical;
-}
-
-.data-table__row {
-  cursor: default;
 }
 </style>

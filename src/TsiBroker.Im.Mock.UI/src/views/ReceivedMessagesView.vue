@@ -1,11 +1,8 @@
 <script setup lang="ts">
+import MessageLogTable from '@tsibroker/ui-kit/components/MessageLogTable.vue'
 import { useMessages } from '@/composables/useMessages'
 
 const { messages, refresh: loadMessages, reset: resetMessages } = useMessages('Received')
-
-function badgeClassForResult(result: string | null) {
-  return result === 'ACK' ? 'badge--success' : 'badge--danger'
-}
 
 function clearLog() {
   if (confirm('Clear the whole message log (received and sent)? This cannot be undone.')) {
@@ -24,32 +21,7 @@ function clearLog() {
           <button class="btn btn--small btn--danger" @click="clearLog">Clear log</button>
         </div>
       </div>
-      <table v-if="messages.length > 0" class="data-table">
-        <thead>
-          <tr>
-            <th>Time (UTC)</th>
-            <th>Id</th>
-            <th>Result</th>
-            <th>Content</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in messages" :key="m.fileName">
-            <td>{{ m.timestamp }}</td>
-            <td>{{ m.messageIdentifier ?? '' }}</td>
-            <td>
-              <span v-if="m.result" class="badge" :class="badgeClassForResult(m.result)">{{ m.result }}</span>
-            </td>
-            <td>
-              <details>
-                <summary>{{ m.fileName }}</summary>
-                <pre>{{ m.content }}</pre>
-              </details>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="empty-state">No messages received yet.</p>
+      <MessageLogTable :messages="messages" empty-message="No messages received yet." />
     </section>
   </div>
 </template>
@@ -61,10 +33,6 @@ function clearLog() {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-
-.data-table__row {
-  cursor: default;
 }
 
 .actions {
