@@ -21,6 +21,21 @@ public static class ReceiveCiEndpoints
             ResponseConfigStore configStore,
             CancellationToken cancellationToken) =>
         {
+            // BDV Kundenanbindungen - Verschlüsselung V4.0 4.1 "SOAP-Header" requires
+            // "Content-Type: application/xml; charset=UTF-8" on every request. A real BDV server
+            // enforces this (see TsiBroker.Im.Api's own /ci endpoint, which CoreWCF rejects with
+            // 415 for anything else) - mirroring that here so a client-side content-type
+            // regression fails against the mock too, instead of only in production.
+            if (request.ContentType is not { } requestContentType
+                || !requestContentType.StartsWith("application/xml", StringComparison.OrdinalIgnoreCase))
+            {
+                await store.SaveReceivedAsync(string.Empty, null, "UnsupportedMediaType", cancellationToken);
+                return Results.Problem(
+                    title: "Unsupported content type",
+                    detail: $"Expected 'application/xml; charset=UTF-8', got '{request.ContentType}'.",
+                    statusCode: StatusCodes.Status415UnsupportedMediaType);
+            }
+
             using var reader = new StreamReader(request.Body);
             var envelopeXml = await reader.ReadToEndAsync(cancellationToken);
             var rawXml = ExtractMessage(envelopeXml) ?? envelopeXml;

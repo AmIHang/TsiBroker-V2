@@ -67,13 +67,16 @@ The broker reads `MessageHeader` (namespace-agnostic, matched by local element n
 | `MessageHeader/Sender` | yes | Must match one of your RU's registered RICS codes |
 | `MessageHeader/Recipient` | yes | Must match an active Infrastructure Operator's RICS code that your RU has an active assignment for |
 
-**Success response — `202 Accepted`**
+**Success response — `202 Accepted`**, `application/xml`:
 
-```json
-{ "status": "ACK", "messageIdentifier": "<your MessageIdentifier>" }
+```xml
+<MessageResponse>
+  <Status>ACK</Status>
+  <MessageIdentifier><your MessageIdentifier></MessageIdentifier>
+</MessageResponse>
 ```
 
-**Error responses** — RFC 7807 `application/problem+json`, one of:
+**Error responses** — `application/xml`, one of:
 
 | Status | Title | Cause |
 |---|---|---|
@@ -84,6 +87,14 @@ The broker reads `MessageHeader` (namespace-agnostic, matched by local element n
 | 400 | Unknown recipient | `Recipient` doesn't match a known, active Infrastructure Operator |
 | 403 | EVU not authorized for this ISB | No active assignment between your RU and that operator |
 | 403 | Message type not authorized | Your assignment doesn't allow this `MessageType` for that operator |
+
+```xml
+<ProblemDetails>
+  <Status>401</Status>
+  <Title>Missing API key</Title>
+  <Detail>The X-Api-Key header is required.</Detail>
+</ProblemDetails>
+```
 
 See [[Business-Flow]] for the full authorization sequence.
 

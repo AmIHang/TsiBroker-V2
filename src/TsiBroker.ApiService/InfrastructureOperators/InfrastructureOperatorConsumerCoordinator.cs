@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using TsiBroker.Core.InfrastructureOperators;
 using TsiBroker.Core.Messaging;
 
@@ -17,14 +18,9 @@ public class InfrastructureOperatorConsumerCoordinator(
     IsbMessageAuthorizationService authorizationService,
     InfrastructureOperatorStore infrastructureOperatorStore,
     Lazy<InfrastructureOperatorReachabilityMonitor> reachabilityMonitor,
+    IOptions<InfrastructureOperatorDeliveryOptions> deliveryOptions,
     ILogger<InfrastructureOperatorConsumerCoordinator> logger)
 {
-    // On the first delivery failure, the IM's reachability decides what happens next: if
-    // reachable, up to 2 further attempts (1 minute apart); if not, processing pauses instead
-    // of retrying (see InfrastructureOperatorReachabilityMonitor).
-    private const int MaxAttempts = 3;
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(1);
-
     public async Task StartAllActiveAsync(IEnumerable<InfrastructureOperator> infrastructureOperators)
     {
         foreach (var infrastructureOperator in infrastructureOperators)
@@ -71,15 +67,19 @@ public class InfrastructureOperatorConsumerCoordinator(
             return;
         }
 
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        // Spec 2.3.2 step 2 distinguishes what the response to a delivery attempt means (see
+        // DeliveryOutcome) rather than treating every failure alike:
+        //  - Acknowledged/NegativeAcknowledged (2a): done — an ACK and a NACK both count as a
+        //    completed send, a NACK is just logged for analysis, not retried.
+        //  - InvalidResponse (2b): discarded outright, no retry at all.
+        //  - TimedOut/TransportFailure (2c, plus the not-spec'd "IM unreachable" case): resend,
+        //    checking reachability once up front, until the message's max age is reached.
+        var reachabilityChecked = false;
+        while (true)
         {
-            if (attempt > 1)
-            {
-                await Task.Delay(RetryDelay, cancellationToken);
-            }
+            var outcome = await isbApiClient.DeliverMessageAsync(infrastructureOperator, message, cancellationToken);
 
-            var delivered = await TryDeliverAsync(infrastructureOperator, message, cancellationToken);
-            if (delivered)
+            if (outcome is DeliveryOutcome.Acknowledged or DeliveryOutcome.NegativeAcknowledged)
             {
                 if (infrastructureOperator.PauseBackoffStep != 0)
                 {
@@ -89,10 +89,21 @@ public class InfrastructureOperatorConsumerCoordinator(
                 return;
             }
 
-            if (attempt == 1)
+            if (outcome == DeliveryOutcome.InvalidResponse)
+            {
+                logger.LogError(
+                    "IM {InfrastructureOperatorName} returned neither ACK nor NACK for message {MessageId} — moving to error queue",
+                    infrastructureOperator.Name,
+                    message.Id);
+                await publisher.PublishToDeadLetterAsync(partitionKey, message, cancellationToken);
+                return;
+            }
+
+            if (!reachabilityChecked)
             {
                 // First failure: check reachability before spending further attempts — an
                 // unreachable IM pauses processing instead of being retried.
+                reachabilityChecked = true;
                 var reachable = await isbApiClient.CheckHeartbeatAsync(infrastructureOperator, cancellationToken);
                 if (!reachable)
                 {
@@ -112,29 +123,21 @@ public class InfrastructureOperatorConsumerCoordinator(
                     throw new MessagePausedException();
                 }
             }
-        }
 
-        logger.LogError(
-            "Giving up delivering message {MessageId} to IM {InfrastructureOperatorName} after {Attempts} attempts — moving to error queue",
-            message.Id,
-            infrastructureOperator.Name,
-            MaxAttempts);
-        await publisher.PublishToDeadLetterAsync(partitionKey, message, cancellationToken);
-    }
+            var age = DateTimeOffset.UtcNow - message.CreatedAt;
+            if (age >= deliveryOptions.Value.MaxMessageAge)
+            {
+                logger.LogError(
+                    "Giving up delivering message {MessageId} to IM {InfrastructureOperatorName} — exceeded max message age {MaxMessageAge} (last outcome: {Outcome}) — moving to error queue",
+                    message.Id,
+                    infrastructureOperator.Name,
+                    deliveryOptions.Value.MaxMessageAge,
+                    outcome);
+                await publisher.PublishToDeadLetterAsync(partitionKey, message, cancellationToken);
+                return;
+            }
 
-    private async Task<bool> TryDeliverAsync(InfrastructureOperator infrastructureOperator, BrokerMessage message, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await isbApiClient.DeliverMessageAsync(infrastructureOperator, message, cancellationToken);
-        }
-        catch (HttpRequestException)
-        {
-            return false;
-        }
-        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return false;
+            await Task.Delay(deliveryOptions.Value.RetryDelay, cancellationToken);
         }
     }
 }

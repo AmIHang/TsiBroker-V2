@@ -42,6 +42,7 @@
     "infrastructureOperators": "Infrastrukturbetreiber",
     "railwayUndertakings": "Eisenbahnverkehrsunternehmen",
     "railwayUndertakingEdit": "Eisenbahnverkehrsunternehmen bearbeiten",
+    "infrastructureOperatorCertificates": "Zertifikate",
     "queues": "Queues"
   },
   "home": {
@@ -67,7 +68,37 @@
     "deleteError": "Infrastrukturbetreiber konnte nicht gelöscht werden.",
     "confirmDelete": "\"{name}\" wirklich löschen?",
     "empty": "Keine Infrastrukturbetreiber vorhanden.",
-    "statusChangeHint": "Status-Änderung ({status}) wird beim Speichern übernommen."
+    "statusChangeHint": "Status-Änderung ({status}) wird beim Speichern übernommen.",
+    "manageCertificates": "Zertifikate verwalten"
+  },
+  "infrastructureOperatorCertificates": {
+    "loadError": "Zertifikate konnten nicht geladen werden.",
+    "operatorNotFound": "Infrastrukturbetreiber wurde nicht gefunden.",
+    "breadcrumbBack": "← Infrastrukturbetreiber",
+    "clientCertificate": "Eigenes Client-Zertifikat",
+    "clientCertificateHint": "Wird beim Verbindungsaufbau zum System dieses Infrastrukturbetreibers als Client-Zertifikat (mTLS) gesendet.",
+    "serverCaCertificate": "Erwartete Server-CA",
+    "serverCaCertificateHint": "CA-Zertifikat, das das Server-Zertifikat dieses Infrastrukturbetreibers ausgestellt haben muss.",
+    "clientCaCertificate": "Erwartete Client-CA",
+    "clientCaCertificateHint": "CA-Zertifikat, das das Client-Zertifikat dieses Infrastrukturbetreibers bei eingehenden Verbindungen ausgestellt haben muss.",
+    "configured": "Hinterlegt: {fileName}",
+    "notConfigured": "Noch kein Zertifikat hinterlegt.",
+    "upload": "Datei wählen …",
+    "replace": "Ersetzen",
+    "uploading": "Wird hochgeladen …",
+    "uploadError": "Datei konnte nicht hochgeladen werden.",
+    "invalidCertificateError": "Die Datei ist kein gültiges Zertifikat.",
+    "invalidFileError": "Die Datei konnte nicht gelesen werden.",
+    "identityTitle": "Erwartete Identität & Sperrliste",
+    "expectedServerCommonName": "Erwarteter Common Name (Server-Zertifikat)",
+    "expectedClientCommonName": "Erwarteter Common Name (Client-Zertifikat)",
+    "clientCrlUrl": "CRL-URL (für eingehendes Client-Zertifikat)",
+    "serverCrlUrl": "CRL-URL (für ausgehendes Server-Zertifikat)",
+    "saveError": "Änderungen konnten nicht gespeichert werden.",
+    "identitySaved": "Änderungen wurden gespeichert.",
+    "deleteAll": "Alle Zertifikate löschen",
+    "confirmDelete": "Wirklich alle Zertifikate für diesen Infrastrukturbetreiber löschen?",
+    "deleteError": "Zertifikate konnten nicht gelöscht werden."
   },
   "railwayUndertakings": {
     "loadError": "Eisenbahnverkehrsunternehmen konnten nicht geladen werden.",

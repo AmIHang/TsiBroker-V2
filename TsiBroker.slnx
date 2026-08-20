@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TsiBroker.ApiService/TsiBroker.ApiService.csproj" />
+    <Project Path="src/TsiBroker.ApiService.Tests/TsiBroker.ApiService.Tests.csproj" />
     <Project Path="src/TsiBroker.AppHost/TsiBroker.AppHost.csproj" />
     <Project Path="src/TsiBroker.Core/TsiBroker.Core.csproj" />
     <Project Path="src/TsiBroker.Ui/TsiBroker.Ui.esproj">
@@ -10,6 +11,7 @@
   </Folder>
   <Folder Name="/src/Im/">
     <Project Path="src/TsiBroker.Im.Api/TsiBroker.Im.Api.csproj" />
+    <Project Path="src/TsiBroker.Im.Api.Tests/TsiBroker.Im.Api.Tests.csproj" />
     <Project Path="src/TsiBroker.Im.Core/TsiBroker.Im.Core.csproj">
       <Build Solution="Debug|*" Project="false" />
     </Project>

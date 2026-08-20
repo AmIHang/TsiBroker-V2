@@ -232,6 +232,7 @@ onMounted(loadOperators)
           <th>{{ t('common.ricsCode') }}</th>
           <th>{{ t('common.systemUrl') }}</th>
           <th>{{ t('common.status') }}</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -250,6 +251,25 @@ onMounted(loadOperators)
             <span class="status" :class="op.isActive ? 'status--active' : 'status--inactive'">
               {{ op.isActive ? t('common.active') : t('common.inactive') }}
             </span>
+          </td>
+          <td class="data-table__actions">
+            <RouterLink
+              :to="{ name: 'infrastructure-operator-certificates', params: { id: op.id } }"
+              class="icon-btn-header"
+              :aria-label="t('infrastructureOperators.manageCertificates')"
+              :title="t('infrastructureOperators.manageCertificates')"
+              @click.stop
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linejoin="round"
+                />
+                <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </RouterLink>
           </td>
         </tr>
       </tbody>

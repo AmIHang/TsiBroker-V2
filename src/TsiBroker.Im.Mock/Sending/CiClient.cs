@@ -34,7 +34,7 @@ public class CiClient(HttpClient httpClient, IOptions<CiClientOptions> options)
             string.IsNullOrWhiteSpace(messageLiHost) ? "isb-mock" : messageLiHost,
             string.IsNullOrWhiteSpace(senderAlias) ? options.Value.SenderAlias : senderAlias);
 
-        using var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
+        using var content = new StringContent(envelope, Encoding.UTF8, "application/xml");
         // ICommonInterfaceMessageService declares [OperationContract(Action = "")] - CoreWCF's
         // dispatcher matches on the literal (quoted, empty) SOAPAction header, so it must be sent
         // explicitly; without it the request fails dispatch with ActionNotSupported.
@@ -72,7 +72,12 @@ public class CiClient(HttpClient httpClient, IOptions<CiClientOptions> options)
             new XElement(
                 Soap + "Header",
                 new XElement(HeaderNs + "messageIdentifier", messageIdentifier),
-                new XElement(HeaderNs + "messageLiHost", messageLiHost)),
+                new XElement(HeaderNs + "messageLiHost", messageLiHost),
+                // Spec 4.1 "SOAP-Header": the BDV expects "false" for all three on every outbound
+                // envelope.
+                new XElement(HeaderNs + "compressed", false),
+                new XElement(HeaderNs + "encrypted", false),
+                new XElement(HeaderNs + "signed", false)),
             new XElement(
                 Soap + "Body",
                 new XElement(
