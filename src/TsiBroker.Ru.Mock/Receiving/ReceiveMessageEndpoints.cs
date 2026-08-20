@@ -69,11 +69,12 @@ public static class ReceiveMessageEndpoints
     }
 
     // Request is XML, so the response is XML too - mirrors TsiBroker.Ru.Api's own /message (see
-    // the comment there) and infrastructure/evu-endpoints.openapi.yaml.
+    // the comment there, including why the root element is MessageResponse not AckResponse) and
+    // infrastructure/evu-endpoints.openapi.yaml.
     private static IResult XmlAccepted(string status, string? messageIdentifier)
     {
         var xml = new XElement(
-            "AckResponse",
+            "MessageResponse",
             new XElement("Status", status),
             messageIdentifier is null ? null : new XElement("MessageIdentifier", messageIdentifier));
 

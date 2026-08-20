@@ -144,7 +144,7 @@ components:
     AckResponse:
       type: object
       xml:
-        name: AckResponse
+        name: MessageResponse
       required: [Status]
       properties:
         Status:

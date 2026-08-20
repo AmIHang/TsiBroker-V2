@@ -97,11 +97,15 @@ public static class TsiMessageEndpoints
 
     // Request is XML (the raw TAF/TAP-TSI payload), so the response is XML too, rather than
     // switching formats mid-contract - see wiki/External-API-Guide.md#post-message and
-    // infrastructure/evu-endpoints.openapi.yaml, which this mirrors.
+    // infrastructure/evu-endpoints.openapi.yaml, which this mirrors. Root element name is
+    // MessageResponse, not the more descriptive AckResponse, because real EVU clients (e.g.
+    // CommunityOperations.Interfaces' TsiBrokerClientService.SendMessage) deserialize with a bare
+    // XmlSerializer against a MessageResponse-named class with no [XmlRoot] override, so
+    // XmlSerializer defaults to matching on the class/root name.
     private static IResult XmlAccepted(string status, string? messageIdentifier)
     {
         var xml = new XElement(
-            "AckResponse",
+            "MessageResponse",
             new XElement("Status", status),
             messageIdentifier is null ? null : new XElement("MessageIdentifier", messageIdentifier));
 

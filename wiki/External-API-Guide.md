@@ -70,10 +70,10 @@ The broker reads `MessageHeader` (namespace-agnostic, matched by local element n
 **Success response — `202 Accepted`**, `application/xml`:
 
 ```xml
-<AckResponse>
+<MessageResponse>
   <Status>ACK</Status>
   <MessageIdentifier><your MessageIdentifier></MessageIdentifier>
-</AckResponse>
+</MessageResponse>
 ```
 
 **Error responses** — `application/xml`, one of:
