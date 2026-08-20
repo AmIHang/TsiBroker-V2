@@ -14,7 +14,7 @@ public static class ReceiveConfigUpdateEndpoints
 {
     public static void MapReceiveConfigUpdateEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/config/update", async (
+        app.MapPost("/config/update", async (
             MockMessageStore store,
             ResponseConfigStore configStore,
             CancellationToken cancellationToken) =>

@@ -13,7 +13,7 @@ public class EvuApiClient(HttpClient httpClient)
     public Task<HttpResponseMessage> TriggerConfigUpdateAsync(
         RailwayUndertaking railwayUndertaking,
         CancellationToken cancellationToken = default) =>
-        SendAsync(HttpMethod.Get, railwayUndertaking, "config/update", cancellationToken);
+        SendAsync(HttpMethod.Post, railwayUndertaking, "config/update", cancellationToken);
 
     // POST /message — delivers the raw TSI XML content to the EVU's own system. See
     // infrastructure/evu-endpoints.openapi.yaml for the documented contract.

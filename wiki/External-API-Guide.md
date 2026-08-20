@@ -2,7 +2,7 @@
 
 This guide is for developers of external systems — Railway Undertaking (RU/EVU) systems and Infrastructure Manager (IM/ISB) systems — integrating with TsiBroker. It covers both APIs: the REST API for RUs and the SOAP API for IMs.
 
-> **Before you integrate:** as of today, TsiBroker validates and authorizes incoming messages but does **not** relay them to the other side yet (`IMessagePublisher` only logs). See [[Business-Flow]] for the exact current state. This guide documents the contracts as they exist; the delivery half is still to come. The one exception is `GET /config/update` (see [Broker → RU: endpoints your system must implement](#broker--ru-endpoints-your-system-must-implement)), which TsiBroker already calls today.
+> **Before you integrate:** as of today, TsiBroker validates and authorizes incoming messages but does **not** relay them to the other side yet (`IMessagePublisher` only logs). See [[Business-Flow]] for the exact current state. This guide documents the contracts as they exist; the delivery half is still to come. The one exception is `POST /config/update` (see [Broker → RU: endpoints your system must implement](#broker--ru-endpoints-your-system-must-implement)), which TsiBroker already calls today.
 
 ## Table of Contents
 
@@ -135,7 +135,7 @@ The full machine-readable contract lives in [`infrastructure/evu-endpoints.opena
 
 | Route | Status | Purpose |
 |---|---|---|
-| `GET /config/update` | **Live today** | TsiBroker calls this after an admin triggers a config refresh for your RU (e.g. after editing RICS codes or ISB assignments) via `POST /railway-undertakings/{id}/trigger-config-update` (`TsiBroker.ApiService`). No request body; no response body is read — only the HTTP status matters (any 2xx = success). Treat it as "something about your TsiBroker config changed, go re-fetch it." |
+| `POST /config/update` | **Live today** | TsiBroker calls this after an admin triggers a config refresh for your RU (e.g. after editing RICS codes or ISB assignments) via `POST /railway-undertakings/{id}/trigger-config-update` (`TsiBroker.ApiService`). No request body; no response body is read — only the HTTP status matters (any 2xx = success). Treat it as "something about your TsiBroker config changed, go re-fetch it." |
 | `POST /message` | **Not yet called** — documents the planned contract | The mirror image of your own `POST /message` (see above): TsiBroker would deliver a TAF/TAP-TSI message addressed to you here, `MessageHeader/Sender`/`Recipient` swapped relative to your outbound calls. Not wired up yet (see the note at the top of this guide and [[Business-Flow]]), but `TsiBroker.Ru.Mock` already implements the receiving side so you can build and test against it in advance. |
 
 **Test double:** `TsiBroker.Ru.Mock` (`src/TsiBroker.Ru.Mock`, console at `TsiBroker.Ru.Mock.UI`) implements this exact contract, so you can point a TsiBroker-side test client at it during development instead of standing up your own RU system first. Its Response Settings page lets you switch its replies between `Ack`/`Nack`/`HttpError`/`Unauthorized`/`Forbidden` to exercise your error handling, and its Received Messages log shows every call it got, including `/config/update` pings.

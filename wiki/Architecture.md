@@ -127,7 +127,7 @@ A test double for a real Infrastructure Manager system — plays both directions
 
 ### TsiBroker.Ru.Mock / TsiBroker.Ru.Mock.UI
 
-A test double for a real Railway Undertaking system — plays both directions of the RU REST contract (sending to `TsiBroker.Ru.Api`'s `/message` today; already implementing the receiving side, `POST /message` and `GET /config/update`, for when the broker→RU relay exists — see [[External-API-Guide]]). `TsiBroker.Ru.Mock.UI` is its Vue 3 frontend (Response Settings, Received Messages log), sharing chrome/styles with `TsiBroker.Ui` via `@tsibroker/ui-kit` — see [[Frontend-Architecture]].
+A test double for a real Railway Undertaking system — plays both directions of the RU REST contract (sending to `TsiBroker.Ru.Api`'s `/message` today; already implementing the receiving side, `POST /message` and `POST /config/update`, for when the broker→RU relay exists — see [[External-API-Guide]]). `TsiBroker.Ru.Mock.UI` is its Vue 3 frontend (Response Settings, Received Messages log), sharing chrome/styles with `TsiBroker.Ui` via `@tsibroker/ui-kit` — see [[Frontend-Architecture]].
 
 ### TsiBroker.AppHost
 

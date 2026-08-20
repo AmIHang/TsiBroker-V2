@@ -18,7 +18,7 @@ info:
     `ApiKeyBrokerToEvu` (generated per `RailwayUndertaking` record, see wiki/Data-Model.md) - the mirror
     image of the `ApiKeyEvuToBroker` key RUs use to call TsiBroker.Ru.Api.
 
-    **Status:** `GET /config/update` is called today (see `TsiBroker.Core/RailwayUndertakings/EvuApiClient.cs`,
+    **Status:** `POST /config/update` is called today (see `TsiBroker.Core/RailwayUndertakings/EvuApiClient.cs`,
     triggered by the admin UI's "trigger config update" action). `POST /message` documents the target
     contract for broker -> EVU message delivery, which TsiBroker does not implement yet (see
     wiki/External-API-Guide.md and wiki/Business-Flow.md) - `TsiBroker.Ru.Mock` already implements the
@@ -34,7 +34,7 @@ security:
   - ApiKeyAuth: []
 paths:
   /config/update:
-    get:
+    post:
       operationId: configUpdate
       summary: Notify the EVU that its broker-side configuration changed
       description: |
