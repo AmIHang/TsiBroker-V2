@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using TsiBroker.Ru.Mock.Storage;
 
 namespace TsiBroker.Ru.Mock.Receiving;
@@ -34,7 +35,7 @@ public static class ReceiveMessageEndpoints
             if (config.Mode == MockResponseMode.HttpError)
             {
                 await store.SaveReceivedAsync(rawXml, messageIdentifier, "HttpError", cancellationToken);
-                return Results.Problem(
+                return XmlProblem(
                     title: "Simulated EVU failure",
                     detail: "The mock is currently configured to fail every incoming message.",
                     statusCode: StatusCodes.Status500InternalServerError);
@@ -43,7 +44,7 @@ public static class ReceiveMessageEndpoints
             if (config.Mode == MockResponseMode.Unauthorized)
             {
                 await store.SaveReceivedAsync(rawXml, messageIdentifier, "Unauthorized", cancellationToken);
-                return Results.Problem(
+                return XmlProblem(
                     title: "Simulated invalid API key",
                     detail: "The mock is currently configured to reject every incoming message as if the "
                         + "broker presented an invalid or missing API key.",
@@ -53,7 +54,7 @@ public static class ReceiveMessageEndpoints
             if (config.Mode == MockResponseMode.Forbidden)
             {
                 await store.SaveReceivedAsync(rawXml, messageIdentifier, "Forbidden", cancellationToken);
-                return Results.Problem(
+                return XmlProblem(
                     title: "Simulated missing permissions",
                     detail: "The mock is currently configured to reject every incoming message as not "
                         + "authorized (message type not allowed for this EVU/ISB assignment).",
@@ -63,7 +64,33 @@ public static class ReceiveMessageEndpoints
             var status = config.Mode == MockResponseMode.Nack ? "NACK" : "ACK";
             await store.SaveReceivedAsync(rawXml, messageIdentifier, status, cancellationToken);
 
-            return Results.Accepted(value: new { status, messageIdentifier });
+            return XmlAccepted(status, messageIdentifier);
         });
+    }
+
+    // Request is XML, so the response is XML too - mirrors TsiBroker.Ru.Api's own /message (see
+    // the comment there) and infrastructure/evu-endpoints.openapi.yaml.
+    private static IResult XmlAccepted(string status, string? messageIdentifier)
+    {
+        var xml = new XElement(
+            "AckResponse",
+            new XElement("Status", status),
+            messageIdentifier is null ? null : new XElement("MessageIdentifier", messageIdentifier));
+
+        return Results.Text(
+            xml.ToString(SaveOptions.DisableFormatting),
+            "application/xml",
+            statusCode: StatusCodes.Status202Accepted);
+    }
+
+    private static IResult XmlProblem(string title, string detail, int statusCode)
+    {
+        var xml = new XElement(
+            "ProblemDetails",
+            new XElement("Status", statusCode),
+            new XElement("Title", title),
+            new XElement("Detail", detail));
+
+        return Results.Text(xml.ToString(SaveOptions.DisableFormatting), "application/xml", statusCode: statusCode);
     }
 }

@@ -91,25 +91,25 @@ paths:
         "202":
           description: Accepted - the EVU has taken receipt of the message.
           content:
-            application/json:
+            application/xml:
               schema:
                 $ref: "#/components/schemas/AckResponse"
         "401":
           description: Missing or invalid `X-Api-Key`.
           content:
-            application/problem+json:
+            application/xml:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
         "403":
           description: The presented key is valid but not authorized for this message/sender/recipient.
           content:
-            application/problem+json:
+            application/xml:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
         "400":
           description: Malformed XML or missing required `MessageHeader` fields.
           content:
-            application/problem+json:
+            application/xml:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
   /health:
@@ -143,24 +143,26 @@ components:
         (see wiki/External-API-Guide.md#post-message), just with Sender/Recipient swapped.
     AckResponse:
       type: object
-      required: [status]
+      xml:
+        name: AckResponse
+      required: [Status]
       properties:
-        status:
+        Status:
           type: string
           enum: [ACK]
-        messageIdentifier:
+        MessageIdentifier:
           type: string
           nullable: true
           description: Echoed back from the request's `MessageHeader/MessageReference/MessageIdentifier`.
     ProblemDetails:
       type: object
-      description: RFC 9457 problem details.
+      xml:
+        name: ProblemDetails
+      required: [Status]
       properties:
-        type:
-          type: string
-        title:
-          type: string
-        status:
+        Status:
           type: integer
-        detail:
+        Title:
+          type: string
+        Detail:
           type: string

@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using TsiBroker.Core.Messaging;
 using TsiBroker.Core.RailwayUndertakings;
 
@@ -16,7 +17,7 @@ public static class TsiMessageEndpoints
             if (!request.Headers.TryGetValue(ApiKeyHeader.Name, out var apiKeyValues)
                 || string.IsNullOrWhiteSpace(apiKeyValues.ToString()))
             {
-                return Results.Problem(
+                return XmlProblem(
                     title: "Missing API key",
                     detail: $"The {ApiKeyHeader.Name} header is required.",
                     statusCode: StatusCodes.Status401Unauthorized);
@@ -29,7 +30,7 @@ public static class TsiMessageEndpoints
 
             if (!IncomingTsiMessageParser.TryParse(rawXml, out var message, out var parseError))
             {
-                return Results.Problem(
+                return XmlProblem(
                     title: "Invalid message",
                     detail: parseError,
                     statusCode: StatusCodes.Status400BadRequest);
@@ -65,32 +66,59 @@ public static class TsiMessageEndpoints
 
             await publisher.PublishAsync(brokerMessage);
 
-            return Results.Accepted(value: new { status = "ACK", messageIdentifier = message.MessageIdentifier });
+            return XmlAccepted(status: "ACK", messageIdentifier: message.MessageIdentifier);
         });
     }
 
     private static IResult ToProblemResult(TsiMessageAuthorizationFailureReason reason) => reason switch
     {
-        TsiMessageAuthorizationFailureReason.InvalidApiKey => Results.Problem(
+        TsiMessageAuthorizationFailureReason.InvalidApiKey => XmlProblem(
             title: "Invalid API key",
             detail: "No active EVU was found for the supplied API key.",
             statusCode: StatusCodes.Status401Unauthorized),
-        TsiMessageAuthorizationFailureReason.SenderMismatch => Results.Problem(
+        TsiMessageAuthorizationFailureReason.SenderMismatch => XmlProblem(
             title: "Sender mismatch",
             detail: "The message Sender does not match a RICS code of the authenticated EVU.",
             statusCode: StatusCodes.Status403Forbidden),
-        TsiMessageAuthorizationFailureReason.UnknownRecipient => Results.Problem(
+        TsiMessageAuthorizationFailureReason.UnknownRecipient => XmlProblem(
             title: "Unknown recipient",
             detail: "The message Recipient does not match a known, active infrastructure operator.",
             statusCode: StatusCodes.Status400BadRequest),
-        TsiMessageAuthorizationFailureReason.NoIsbAssignment => Results.Problem(
+        TsiMessageAuthorizationFailureReason.NoIsbAssignment => XmlProblem(
             title: "EVU not authorized for this ISB",
             detail: "The authenticated EVU has no active assignment for the message recipient.",
             statusCode: StatusCodes.Status403Forbidden),
-        TsiMessageAuthorizationFailureReason.MessageTypeNotAllowed => Results.Problem(
+        TsiMessageAuthorizationFailureReason.MessageTypeNotAllowed => XmlProblem(
             title: "Message type not authorized",
             detail: "The authenticated EVU is not authorized to send this message type to this recipient.",
             statusCode: StatusCodes.Status403Forbidden),
-        _ => Results.Problem(statusCode: StatusCodes.Status403Forbidden),
+        _ => XmlProblem(title: null, detail: null, statusCode: StatusCodes.Status403Forbidden),
     };
+
+    // Request is XML (the raw TAF/TAP-TSI payload), so the response is XML too, rather than
+    // switching formats mid-contract - see wiki/External-API-Guide.md#post-message and
+    // infrastructure/evu-endpoints.openapi.yaml, which this mirrors.
+    private static IResult XmlAccepted(string status, string? messageIdentifier)
+    {
+        var xml = new XElement(
+            "AckResponse",
+            new XElement("Status", status),
+            messageIdentifier is null ? null : new XElement("MessageIdentifier", messageIdentifier));
+
+        return Results.Text(
+            xml.ToString(SaveOptions.DisableFormatting),
+            "application/xml",
+            statusCode: StatusCodes.Status202Accepted);
+    }
+
+    private static IResult XmlProblem(string? title, string? detail, int statusCode)
+    {
+        var xml = new XElement(
+            "ProblemDetails",
+            new XElement("Status", statusCode),
+            title is null ? null : new XElement("Title", title),
+            detail is null ? null : new XElement("Detail", detail));
+
+        return Results.Text(xml.ToString(SaveOptions.DisableFormatting), "application/xml", statusCode: statusCode);
+    }
 }
