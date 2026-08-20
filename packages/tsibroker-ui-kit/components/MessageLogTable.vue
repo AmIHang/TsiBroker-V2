@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useClipboard } from '../composables/useClipboard'
+import CopyButton from './CopyButton.vue'
 import XmlBlock from './XmlBlock.vue'
 
 interface LoggedMessage {
@@ -9,6 +10,7 @@ interface LoggedMessage {
   messageIdentifier: string | null
   result: string | null
   content: string
+  responseContent: string | null
 }
 
 defineProps<{
@@ -98,7 +100,19 @@ function toggleExpanded(fileName: string) {
         </tr>
         <tr v-if="expandedFiles.has(m.fileName)" class="message-log__xml-row">
           <td colspan="5">
-            <XmlBlock :content="m.content" />
+            <div class="message-log__xml-grid">
+              <div class="message-log__xml-col">
+                <span class="message-log__xml-label">Request</span>
+                <XmlBlock :content="m.content" />
+              </div>
+              <div v-if="m.responseContent" class="message-log__xml-col">
+                <div class="copy-row">
+                  <span class="message-log__xml-label">Response</span>
+                  <CopyButton :text="m.responseContent" />
+                </div>
+                <XmlBlock :content="m.responseContent" />
+              </div>
+            </div>
           </td>
         </tr>
       </template>
@@ -154,6 +168,27 @@ td {
 
   &__toggle--open svg {
     transform: rotate(90deg);
+  }
+
+  // auto-fit + minmax rather than a fixed 2-column layout: side by side once there's room for
+  // both at a readable width, stacked below that (narrow viewport, or a sidebar squeezing the
+  // table) - matches the same responsive pattern used for .fields-grid.
+  &__xml-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 0.75rem;
+  }
+
+  &__xml-col {
+    min-width: 0;
+  }
+
+  &__xml-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0.7;
   }
 }
 </style>

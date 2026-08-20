@@ -36,6 +36,7 @@ public static class SendMessageEndpoints
                 request.Payload,
                 request.MessageIdentifier,
                 result.Status,
+                result.ResponseBody,
                 cancellationToken);
 
             return Results.Ok(result);

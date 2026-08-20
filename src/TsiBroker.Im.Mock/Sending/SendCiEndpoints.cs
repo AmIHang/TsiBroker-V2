@@ -38,6 +38,7 @@ public static class SendCiEndpoints
                 request.Payload,
                 request.MessageIdentifier,
                 result.Status,
+                result.ResponseXml,
                 cancellationToken);
 
             return Results.Ok(result);

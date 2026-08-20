@@ -1,22 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { apiFetch } from '@/lib/api'
-import CopyButton from '@tsibroker/ui-kit/components/CopyButton.vue'
+import { ApiError, apiFetch } from '@/lib/api'
 import MessageLogTable from '@tsibroker/ui-kit/components/MessageLogTable.vue'
-import XmlBlock from '@tsibroker/ui-kit/components/XmlBlock.vue'
 import { useMessages } from '@/composables/useMessages'
 
 interface SendDefaults {
   targetUrl: string
   senderRics: string
   apiKey: string
-}
-
-interface SendResult {
-  success: boolean
-  status: string
-  responseBody: string | null
-  error: string | null
 }
 
 interface TemplateField {
@@ -36,12 +27,42 @@ const apiKey = ref('')
 const payload = ref('')
 const messageTypes = ref<string[]>([])
 const messageType = ref('')
-const sendResult = ref<SendResult | null>(null)
 const isSending = ref(false)
 const templateFields = ref<TemplateField[]>([])
 const fieldValues = ref<Record<string, string>>({})
 
+const showForm = ref(false)
+const dialogRef = ref<HTMLDialogElement | null>(null)
+const formError = ref('')
+const showPreview = ref(false)
+const previewDialogRef = ref<HTMLDialogElement | null>(null)
+
 const { messages, refresh: loadMessages } = useMessages('Sent')
+
+watch(showForm, (value) => {
+  if (value) {
+    dialogRef.value?.showModal()
+  } else {
+    dialogRef.value?.close()
+  }
+})
+
+// Stacks on top of the send dialog (native <dialog> supports nested showModal() calls) rather
+// than replacing its content, so the field-grid edits and the raw payload stay on the same
+// underlying `payload` ref and neither view needs to sync into the other on open/close.
+watch(showPreview, (value) => {
+  if (value) {
+    previewDialogRef.value?.showModal()
+  } else {
+    previewDialogRef.value?.close()
+  }
+})
+
+function openSendDialog() {
+  formError.value = ''
+  showPreview.value = false
+  showForm.value = true
+}
 
 async function loadSendDefaults() {
   const res = await apiFetch('/api/send/defaults')
@@ -138,15 +159,12 @@ function updateField(tag: string, value: string) {
   payload.value = replaceTagContent(payload.value, tag, value || field?.placeholder || '')
 }
 
-function badgeClassForResult(result: string | null) {
-  return result === 'ACK' ? 'badge--success' : 'badge--danger'
-}
-
 async function send() {
   payload.value = applyRicsToPayload(payload.value)
+  formError.value = ''
   isSending.value = true
   try {
-    const res = await apiFetch('/api/send', {
+    await apiFetch('/api/send', {
       method: 'POST',
       body: JSON.stringify({
         payload: payload.value,
@@ -154,10 +172,15 @@ async function send() {
         apiKey: apiKey.value || null,
       }),
     })
-    sendResult.value = await res.json()
+    // The broker's response (ACK/NACK, or the mock API's own send failure) is now logged
+    // alongside the sent message, so closing here and letting the list pick it up is enough -
+    // no need to keep the dialog open just to show the result.
+    showForm.value = false
+    loadMessages()
+  } catch (err) {
+    formError.value = err instanceof ApiError ? 'Send failed: ' + (err.status === 400 ? 'invalid payload.' : `HTTP ${err.status}.`) : 'Send failed.'
   } finally {
     isSending.value = false
-    loadMessages()
   }
 }
 
@@ -171,76 +194,118 @@ onMounted(() => {
 
 <template>
   <div class="send">
-    <section class="card">
-      <h2 class="card__title">Send a message (Mock &rarr; Broker, /message)</h2>
-      <div class="row">
-        <label class="field">
-          <span class="field__label">Sender (RICS - EVU)</span>
-          <input v-model="sender" />
-        </label>
-        <label class="field">
-          <span class="field__label">Recipient (RICS - ISB)</span>
-          <input v-model="recipient" />
-        </label>
-      </div>
-      <div class="row">
-        <label class="field">
-          <span class="field__label">Target URL</span>
-          <input v-model="targetUrl" />
-        </label>
-        <label class="field">
-          <span class="field__label">API Key (X-Api-Key)</span>
-          <input v-model="apiKey" />
-        </label>
-      </div>
-      <div class="row row--type">
-        <label class="field field--type">
-          <span class="field__label">Message type</span>
-          <select v-model="messageType">
-            <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
-          </select>
-        </label>
-        <button
-          class="icon-btn-header reset-btn"
-          type="button"
-          title="Reset to template"
-          aria-label="Reset to template"
-          @click="loadTemplate"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M20 4v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
-      <div v-if="templateFields.length > 0" class="fields-grid">
-        <label v-for="field in templateFields" :key="field.tag" class="field">
-          <span class="field__label">{{ field.label }}</span>
-          <input
-            :value="fieldValues[field.tag]"
-            :placeholder="field.placeholder.startsWith('REPLACE-WITH') ? field.placeholder : ''"
-            @input="updateField(field.tag, ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </div>
-      <label class="field">
-        <span class="field__label">Payload</span>
-        <textarea v-model="payload" class="payload" placeholder="Message XML"></textarea>
-      </label>
-      <div class="toolbar">
-        <button class="btn btn--primary" :disabled="isSending" @click="send">Send</button>
-      </div>
-      <div v-if="sendResult">
-        <div class="copy-row">
-          <span>
-            <span class="badge" :class="badgeClassForResult(sendResult.status)">{{ sendResult.status }}</span>
-            <span v-if="sendResult.error" class="status-text">{{ sendResult.error }}</span>
-          </span>
-          <CopyButton v-if="sendResult.responseBody" :text="sendResult.responseBody" />
+    <div class="toolbar">
+      <button type="button" class="btn btn--primary" @click="openSendDialog">+ New message</button>
+    </div>
+
+    <dialog ref="dialogRef" class="modal" @close="showForm = false" @cancel="showForm = false">
+      <form class="modal__form modal__form--lg" @submit.prevent="send">
+        <div class="modal__header">
+          <div class="modal__header-actions">
+            <h2 class="modal__title">Send a message (Mock &rarr; Broker, /message)</h2>
+            <button
+              type="button"
+              class="icon-btn-header"
+              title="Edit payload"
+              aria-label="Edit payload"
+              @click="showPreview = true"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M8 6l-5 6 5 6M16 6l5 6-5 6"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <button type="button" class="modal__close" aria-label="Close" @click="showForm = false">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
         </div>
-        <XmlBlock v-if="sendResult.responseBody" :content="sendResult.responseBody" />
+
+        <div class="row">
+          <label class="field">
+            <span class="field__label">Sender (RICS - EVU)</span>
+            <input v-model="sender" />
+          </label>
+          <label class="field">
+            <span class="field__label">Recipient (RICS - ISB)</span>
+            <input v-model="recipient" />
+          </label>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span class="field__label">Target URL</span>
+            <input v-model="targetUrl" />
+          </label>
+          <label class="field">
+            <span class="field__label">API Key (X-Api-Key)</span>
+            <input v-model="apiKey" />
+          </label>
+        </div>
+        <div class="row row--type">
+          <label class="field field--type">
+            <span class="field__label">Message type</span>
+            <select v-model="messageType">
+              <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
+            </select>
+          </label>
+          <button
+            class="icon-btn-header reset-btn"
+            type="button"
+            title="Reset to template"
+            aria-label="Reset to template"
+            @click="loadTemplate"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M20 4v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <div v-if="templateFields.length > 0" class="fields-grid">
+          <label v-for="field in templateFields" :key="field.tag" class="field">
+            <span class="field__label">{{ field.label }}</span>
+            <input
+              :value="fieldValues[field.tag]"
+              :placeholder="field.placeholder.startsWith('REPLACE-WITH') ? field.placeholder : ''"
+              @input="updateField(field.tag, ($event.target as HTMLInputElement).value)"
+            />
+          </label>
+        </div>
+        <p v-if="formError" class="error">{{ formError }}</p>
+
+        <div class="modal__actions">
+          <button type="button" class="btn" @click="showForm = false">Cancel</button>
+          <button type="submit" class="btn btn--primary" :disabled="isSending">Send</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog ref="previewDialogRef" class="modal" @close="showPreview = false" @cancel="showPreview = false">
+      <div class="modal__form modal__form--lg">
+        <div class="modal__header">
+          <h2 class="modal__title">Payload</h2>
+          <button type="button" class="modal__close" aria-label="Close" @click="showPreview = false">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+        <label class="field">
+          <span class="field__label">Message XML</span>
+          <textarea v-model="payload" class="payload" placeholder="Message XML"></textarea>
+        </label>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--primary" @click="showPreview = false">Done</button>
+        </div>
       </div>
-    </section>
+    </dialog>
 
     <section class="card">
       <h2 class="card__title">Sent messages</h2>
@@ -250,18 +315,12 @@ onMounted(() => {
 </template>
 
 <style scoped lang="less">
-// Shared building blocks (.card*, .field*, .toolbar, .btn*, .data-table*, .badge*,
-// .empty-state) come from src/assets/styles — only this view's own layout lives here.
+// Shared building blocks (.card*, .field*, .toolbar, .btn*, .modal*, .data-table*, .badge*,
+// .empty-state, .error) come from src/assets/styles — only this view's own layout lives here.
 .send {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-
-.status-text {
-  font-size: 0.85rem;
-  opacity: 0.75;
-  margin-left: 0.6rem;
 }
 
 .row--type {
@@ -284,7 +343,7 @@ onMounted(() => {
 }
 
 .payload {
-  min-height: 12rem;
+  min-height: 16rem;
   padding: 0.85rem;
   border-radius: 10px;
   background: var(--color-background-mute);

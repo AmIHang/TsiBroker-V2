@@ -53,7 +53,7 @@ public class OutboxWatcher(
                 var messageIdentifier = Path.GetFileNameWithoutExtension(filePath);
 
                 var result = await client.SendAsync(payload, cancellationToken: cancellationToken);
-                await store.SaveSentAsync(payload, messageIdentifier, result.Status, cancellationToken);
+                await store.SaveSentAsync(payload, messageIdentifier, result.Status, result.ResponseBody, cancellationToken);
 
                 File.Delete(filePath);
             }

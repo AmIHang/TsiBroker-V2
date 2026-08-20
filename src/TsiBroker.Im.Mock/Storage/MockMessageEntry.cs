@@ -15,4 +15,5 @@ public record MockMessageEntry(
     DateTimeOffset Timestamp,
     string? MessageIdentifier,
     string? Result,
-    string Content);
+    string Content,
+    string? ResponseContent);

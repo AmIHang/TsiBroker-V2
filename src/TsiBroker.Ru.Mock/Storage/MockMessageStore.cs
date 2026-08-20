@@ -61,16 +61,20 @@ public class MockMessageStore
         string result,
         CancellationToken cancellationToken = default)
     {
-        await SaveAsync(InDirectory, content, messageIdentifier, result, cancellationToken);
+        await SaveAsync(InDirectory, content, messageIdentifier, result, responseContent: null, cancellationToken);
     }
 
+    // responseContent is the broker's raw response to this sent message - captured here since
+    // RuClient only returns it to the caller otherwise, and the UI's send dialog closes right
+    // after sending rather than displaying it inline.
     public async Task SaveSentAsync(
         string content,
         string? messageIdentifier,
         string result,
+        string? responseContent,
         CancellationToken cancellationToken = default)
     {
-        await SaveAsync(SentDirectory, content, messageIdentifier, result, cancellationToken);
+        await SaveAsync(SentDirectory, content, messageIdentifier, result, responseContent, cancellationToken);
     }
 
     public IReadOnlyList<MockMessageEntry> List()
@@ -86,6 +90,7 @@ public class MockMessageStore
         string content,
         string? messageIdentifier,
         string result,
+        string? responseContent,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(directory);
@@ -93,7 +98,7 @@ public class MockMessageStore
         await File.WriteAllTextAsync(Path.Combine(directory, fileName), content, cancellationToken);
         await File.WriteAllTextAsync(
             Path.Combine(directory, fileName + MetaFileSuffix),
-            JsonSerializer.Serialize(new MessageMeta(messageIdentifier, result)),
+            JsonSerializer.Serialize(new MessageMeta(messageIdentifier, result, responseContent)),
             cancellationToken);
     }
 
@@ -113,7 +118,8 @@ public class MockMessageStore
                 Timestamp: File.GetLastWriteTimeUtc(filePath),
                 MessageIdentifier: meta?.MessageIdentifier,
                 Result: meta?.Result,
-                Content: File.ReadAllText(filePath));
+                Content: File.ReadAllText(filePath),
+                ResponseContent: meta?.ResponseContent);
         }
     }
 
@@ -148,5 +154,5 @@ public class MockMessageStore
         return new string(chars);
     }
 
-    private record MessageMeta(string? MessageIdentifier, string Result);
+    private record MessageMeta(string? MessageIdentifier, string Result, string? ResponseContent = null);
 }

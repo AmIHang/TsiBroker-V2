@@ -55,7 +55,7 @@ public class OutboxWatcher(
                     payload,
                     messageIdentifier: messageIdentifier,
                     cancellationToken: cancellationToken);
-                await store.SaveSentAsync(payload, messageIdentifier, result.Status, cancellationToken);
+                await store.SaveSentAsync(payload, messageIdentifier, result.Status, result.ResponseXml, cancellationToken);
 
                 File.Delete(filePath);
             }

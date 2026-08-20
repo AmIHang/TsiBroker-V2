@@ -8,6 +8,7 @@ export interface MockMessage {
   messageIdentifier: string | null
   result: string | null
   content: string
+  responseContent: string | null
 }
 
 // Polls the shared /api/messages log and keeps only the given direction - used by both
