@@ -22,7 +22,7 @@ const router = createRouter({
       path: '/',
       name: 'send',
       component: SendMessageView,
-      meta: { title: 'Send message' },
+      meta: { title: 'Sent messages' },
     },
     {
       path: '/received',

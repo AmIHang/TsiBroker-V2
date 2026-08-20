@@ -15,7 +15,7 @@ const auth = useAuthStore()
 const router = useRouter()
 
 const navItems = [
-  { to: '/', label: 'Send message', icon: IconSend },
+  { to: '/', label: 'Sent messages', icon: IconSend },
   { to: '/received', label: 'Received messages', icon: IconInbox },
   { to: '/settings', label: 'Response settings', icon: IconSettings },
   { to: '/whoami', label: 'WhoAmI', icon: IconWhoAmI },
