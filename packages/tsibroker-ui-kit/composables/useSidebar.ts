@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
-const collapsed = ref(localStorage.getItem('sidebar-collapsed') === '1')
+// Collapsed by default - only an explicit "0" (the user expanded it before) opts back out.
+const collapsed = ref(localStorage.getItem('sidebar-collapsed') !== '0')
 
 export function useSidebar() {
   function toggle() {
