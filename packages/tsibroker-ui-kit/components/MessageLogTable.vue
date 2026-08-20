@@ -13,9 +13,19 @@ interface LoggedMessage {
   responseContent: string | null
 }
 
-defineProps<{
-  messages: LoggedMessage[]
-  emptyMessage: string
+withDefaults(
+  defineProps<{
+    messages: LoggedMessage[]
+    emptyMessage: string
+    // Shows a reply action per row - only received messages have anywhere meaningful to reply
+    // to, so callers opt in rather than this being inferred from message direction.
+    replyable?: boolean
+  }>(),
+  { replyable: false },
+)
+
+const emit = defineEmits<{
+  reply: [message: LoggedMessage]
 }>()
 
 function badgeClassForResult(result: string | null) {
@@ -77,6 +87,24 @@ function toggleExpanded(fileName: string) {
             display and break it out of the row's shared height (and border-bottom position) -
             so the flex layout goes on an inner div instead of the cell itself. -->
             <div class="data-table__actions">
+              <button
+                v-if="replyable"
+                type="button"
+                class="icon-btn-header"
+                title="Reply"
+                aria-label="Reply"
+                @click="emit('reply', m)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M9 14l-5-5 5-5M4 9h10a5 5 0 0 1 5 5v2"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
               <button
                 type="button"
                 class="icon-btn-header message-log__toggle"

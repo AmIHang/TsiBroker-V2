@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ApiError, apiFetch } from '@/lib/api'
 import MessageLogTable from '@tsibroker/ui-kit/components/MessageLogTable.vue'
 import { useMessages } from '@/composables/useMessages'
@@ -36,6 +37,8 @@ const showPreview = ref(false)
 const previewDialogRef = ref<HTMLDialogElement | null>(null)
 
 const { messages, refresh: loadMessages } = useMessages('Sent')
+const route = useRoute()
+const router = useRouter()
 
 watch(showForm, (value) => {
   if (value) {
@@ -74,6 +77,7 @@ async function loadMessageTypes() {
   messageTypes.value = await res.json()
   if (!messageType.value && messageTypes.value.length > 0) {
     messageType.value = messageTypes.value[0]!
+    await loadTemplate()
   }
 }
 
@@ -177,11 +181,46 @@ async function send() {
   }
 }
 
-watch(messageType, () => loadTemplate())
+// Prefills a reply to a received message (see ReceivedMessagesView's reply action): the query
+// carries the original message's Sender/Recipient (swapped - we're replying, so we're now the
+// recipient's sender) plus whatever body fields it could pull out, applied only where the
+// chosen template actually has a matching field, since not every message type carries all of
+// them. Consumed once and stripped from the URL so a refresh doesn't reapply it.
+async function applyReplyFromQuery() {
+  const query = route.query
+  const hasReplyData = ['replySender', 'replyRecipient', 'replyTrainNumber', 'replyStartDate', 'replyLocationCode'].some(
+    (key) => typeof query[key] === 'string',
+  )
+  if (!hasReplyData) return
 
-onMounted(() => {
-  loadSendDefaults()
-  loadMessageTypes()
+  openSendDialog()
+
+  if (typeof query.replyMessageType === 'string' && messageTypes.value.includes(query.replyMessageType)) {
+    messageType.value = query.replyMessageType
+  }
+  await loadTemplate()
+
+  if (typeof query.replySender === 'string') sender.value = query.replySender
+  if (typeof query.replyRecipient === 'string') recipient.value = query.replyRecipient
+  payload.value = applyRicsToPayload(payload.value)
+
+  const bodyFieldOverrides: Record<string, string | undefined> = {
+    OperationalTrainNumber: typeof query.replyTrainNumber === 'string' ? query.replyTrainNumber : undefined,
+    StartDate: typeof query.replyStartDate === 'string' ? query.replyStartDate : undefined,
+    PrimaryLocationCode: typeof query.replyLocationCode === 'string' ? query.replyLocationCode : undefined,
+  }
+  for (const [tag, value] of Object.entries(bodyFieldOverrides)) {
+    if (value !== undefined && templateFields.value.some((f) => f.tag === tag)) {
+      updateField(tag, value)
+    }
+  }
+
+  router.replace({ name: 'send', query: {} })
+}
+
+onMounted(async () => {
+  await Promise.all([loadSendDefaults(), loadMessageTypes()])
+  await applyReplyFromQuery()
 })
 </script>
 
@@ -238,7 +277,7 @@ onMounted(() => {
         <div class="row row--type">
           <label class="field field--type">
             <span class="field__label">Message type</span>
-            <select v-model="messageType">
+            <select v-model="messageType" @change="loadTemplate">
               <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
             </select>
           </label>
