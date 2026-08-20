@@ -4,8 +4,10 @@ namespace TsiBroker.Ru.Mock.Sending;
 /// Starter templates for the message types this mock initially supports sending, so testers
 /// don't have to hand-write TAF/TAP XML for the common cases. Simplified - not the full/official
 /// TAF/TAP schemas, just enough structure (a MessageHeader the broker's routing understands) to
-/// be a useful, editable starting point. Message type names match what the broker's routing
-/// expects verbatim (see TsiMessageAuthorizationService - AllowedMessageTypesEvuToBroker).
+/// be a useful, editable starting point. Dictionary keys and the payload's root element both use
+/// the official TAF/TAP element name; MessageHeader/MessageReference/MessageType instead carries
+/// the official TAF/TAP numeric message type code, which is what the broker's routing matches
+/// against (see TsiMessageAuthorizationService - AllowedMessageTypesEvuToBroker).
 /// </summary>
 public static class MessageTemplates
 {
@@ -19,7 +21,7 @@ public static class MessageTemplates
         <TrainCompositionMessage>
           <MessageHeader>
             <MessageReference>
-              <MessageType>TrainCompositionMessage</MessageType>
+              <MessageType>3003</MessageType>
               <MessageIdentifier>REPLACE-WITH-UNIQUE-ID</MessageIdentifier>
             </MessageReference>
             <Sender>REPLACE-WITH-EVU-RICS</Sender>
@@ -45,7 +47,7 @@ public static class MessageTemplates
         <TrainReadyMessage>
           <MessageHeader>
             <MessageReference>
-              <MessageType>TrainReadyMessage</MessageType>
+              <MessageType>4500</MessageType>
               <MessageIdentifier>REPLACE-WITH-UNIQUE-ID</MessageIdentifier>
             </MessageReference>
             <Sender>REPLACE-WITH-EVU-RICS</Sender>
