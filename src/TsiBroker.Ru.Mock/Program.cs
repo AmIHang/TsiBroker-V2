@@ -72,8 +72,6 @@ builder.Services.AddHostedService<OutboxWatcher>();
 
 var app = builder.Build();
 
-app.Services.GetRequiredService<MockMessageStore>().ResetOnStartup();
-
 app.UseCors(UiCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();

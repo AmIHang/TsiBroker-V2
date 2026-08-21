@@ -11,7 +11,7 @@ public static class MessagesEndpoints
 
         app.MapPost("/api/messages/reset", (MockMessageStore store) =>
         {
-            store.ResetOnStartup();
+            store.Clear();
             return Results.NoContent();
         }).RequireAuthorization();
     }

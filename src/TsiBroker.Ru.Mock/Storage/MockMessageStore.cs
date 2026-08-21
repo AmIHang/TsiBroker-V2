@@ -6,9 +6,9 @@ namespace TsiBroker.Ru.Mock.Storage;
 
 /// <summary>
 /// File-based log of messages the mock has seen (In/Sent). Purely a test aid - content is
-/// written as plain files so it can be inspected/copied by hand, and In/Sent are wiped on every
-/// startup since this history never needs to survive a restart. Out is deliberately excluded
-/// from that wipe: it holds files a user dropped in that may not have been picked up yet.
+/// written as plain files so it can be inspected/copied by hand. In/Sent persist across
+/// restarts and are only wiped when the user hits "Clear log" (see Clear()). Out is deliberately
+/// excluded from that wipe: it holds files a user dropped in that may not have been picked up yet.
 /// </summary>
 public class MockMessageStore
 {
@@ -29,22 +29,17 @@ public class MockMessageStore
     public string OutDirectory { get; }
     public string SentDirectory { get; }
 
-    public void ResetOnStartup()
-    {
-        DeleteAppDataExceptOut();
-        Directory.CreateDirectory(InDirectory);
-        Directory.CreateDirectory(OutDirectory);
-        Directory.CreateDirectory(SentDirectory);
-    }
-
     /// <summary>
-    /// Deletes everything under App_Data except Out/ (see class remarks for why). Callers are
-    /// expected to recreate the wiped subdirectories afterward.
+    /// Deletes everything under App_Data except Out/ (see class remarks for why), then recreates
+    /// In/Sent so a subsequent List() or file-system browse sees empty directories rather than
+    /// missing ones. Only called from the "Clear log" endpoint - never on startup.
     /// </summary>
-    public void DeleteAppDataExceptOut()
+    public void Clear()
     {
         DeleteDirectory(InDirectory);
         DeleteDirectory(SentDirectory);
+        Directory.CreateDirectory(InDirectory);
+        Directory.CreateDirectory(SentDirectory);
     }
 
     private static void DeleteDirectory(string directory)
