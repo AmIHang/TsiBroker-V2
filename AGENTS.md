@@ -45,14 +45,24 @@ Before every commit, check whether the `wiki/` folder needs updating:
 - Frontend changes → `wiki/Frontend-Architecture.md`
 - Data model changes → `wiki/Data-Model.md`
 
-### 2. Language Convention
+### 2. Handbook Maintenance (MANDATORY)
+
+`docs/handbooks/` contains German-language end-user manuals (Handbücher) for the three UIs, aimed at operators/testers rather than developers — keep them in sync with the actual screens, not just with the wiki:
+
+- `docs/handbooks/Broker.md` — admin UI (`TsiBroker.Ui`)
+- `docs/handbooks/Infra-Mock.md` — IM/ISB mock UI (`TsiBroker.Im.Mock.UI`)
+- `docs/handbooks/EVU-Mock.md` — RU/EVU mock UI (`TsiBroker.Ru.Mock.UI`)
+
+Before every commit that changes a view/screen, field, button, dialog, or workflow in any of these three frontends, update the matching handbook — new screens/fields/buttons, renamed labels, changed validation or save behavior, removed features, etc. Written in German; for the two mock UIs (no i18n in the app) quote the actual English on-screen label in quotes alongside the German explanation, matching the existing style in those files.
+
+### 3. Language Convention
 
 - All code, comments, documentation: **English**
 - Commit messages: **English** (conventional commits)
 - Exception: user-facing UI text is localized (`src/TsiBroker.Ui/src/locales/de.json`, `en.json`)
 - User communication: **German** (the user speaks German)
 
-### 3. Git
+### 4. Git
 
 - Never push to a remote unless explicitly asked.
 - Commit or push only when requested; branch first if on the default branch (`main`).
