@@ -65,12 +65,13 @@ npm run lint         # oxlint + eslint --fix
 npm run test:unit    # vitest
 npm run build        # type-check + vite build
 
-# Container-Stack (api, ui, rabbitmq)
+# .NET-Tests
+dotnet test TsiBroker.slnx
+
+# Container-Stack (api, ui, rabbitmq; im-mock/ru-mock über --profile)
 cd infrastructure
 podman compose --env-file .env.example up -d --build
 ```
-
-> Es existiert aktuell kein `.NET`-Testprojekt in der Solution.
 
 ## Dokumentation
 
@@ -83,13 +84,17 @@ Die ausführliche Dokumentation befindet sich im [Wiki](wiki/Home.md):
 - [Business Flow](wiki/Business-Flow.md) - End-to-End-Nachrichtenfluss (CI, Heartbeat), Autorisierungsregeln
 - [External API Guide](wiki/External-API-Guide.md) - Integrationsleitfaden für RU (REST) und IM (SOAP)
 
+Für Administratoren/Tester gibt es außerdem End-User-Handbücher unter [`docs/handbooks/`](docs/handbooks/):
+
+- [Broker.md](docs/handbooks/Broker.md) - Admin-Oberfläche (`TsiBroker.Ui`)
+- [EVU-Mock.md](docs/handbooks/EVU-Mock.md) - EVU/RU-Mock-Testanwendung (`TsiBroker.Ru.Mock.UI`)
+- [Infra-Mock.md](docs/handbooks/Infra-Mock.md) - ISB/IM-Mock-Testanwendung (`TsiBroker.Im.Mock.UI`)
+
 ## Bekannte Lücken
 
 Der Nachrichten-Relay (RU→Broker→IM und IM→Broker→RU) ist inzwischen End-to-End implementiert (RabbitMQ, per-Partition-Queues, Retry/Dead-Letter, Pause/Resume bei Nichterreichbarkeit — siehe [Business Flow](wiki/Business-Flow.md)). Verbleibende Lücken:
 
-- **Keine mTLS-Authentifizierung des Brokers gegenüber echten IM-Systemen**: `IsbApiClient` sendet aktuell reines HTTPS ohne Client-Zertifikat.
 - **Keine Autorisierungsprüfung auf dem IM→Broker-Pfad**: Jeder IM kann aktuell jede aktive EVU adressieren (kein Äquivalent zu `TsiMessageAuthorizationService`).
 - **Heartbeat-Nachrichten werden nie veröffentlicht**, nur geloggt und echoed — anders als Common-Interface-Nachrichten.
 - **Keine Datenbank**: Stammdaten liegen als JSON-Dateien unter `App_Data/`, geschützt durch einen In-Process-Lock.
-- **Kein `.NET`-Testprojekt** in der Solution.
-- Nur `TsiBroker.ApiService` ist in `infrastructure/docker-compose.yml` containerisiert; `Ru.Api` und `Im.Api` haben noch keinen Docker-Deploy-Pfad.
+- Nur `TsiBroker.ApiService`, `TsiBroker.Ui`, `TsiBroker.Im.Mock` und `TsiBroker.Ru.Mock` sind in `infrastructure/docker-compose.yml` containerisiert; `Ru.Api` und `Im.Api` (die eigentlichen partnerseitigen Endpunkte) haben noch keinen Docker-Deploy-Pfad.

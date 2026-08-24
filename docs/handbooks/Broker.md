@@ -42,7 +42,7 @@ Nach der Anmeldung sehen Sie das Standard-Layout mit Seitenleiste (links) und Ko
 | **Infrastrukturbetreiber** | Verwaltung der ISB-Stammdaten |
 | **Queues** | Überwachung der Zustellwarteschlangen |
 
-**Fußbereich der Seitenleiste:** Klick auf Ihren Benutzernamen öffnet ein Menü mit Sprachumschalter (Deutsch/Englisch) und dem Button **„Logout"**, mit dem Sie sich abmelden.
+**Fußbereich der Seitenleiste:** Klick auf Ihren Benutzernamen öffnet ein Menü mit Sprachumschalter (Deutsch/Englisch) und dem Button **„Logout ({Benutzername})"**, mit dem Sie sich abmelden.
 
 ## 3. Startseite
 

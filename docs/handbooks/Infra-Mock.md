@@ -58,19 +58,17 @@ Diese Seite (Startseite nach dem Login) dient dazu, eine Testnachricht **vom Moc
 - **„Recipient (RICS)"** – RICS-Code des Empfängers (Freitext).
 - **„Target URL"** – Zieladresse, an die gesendet wird; standardmäßig die `/ci`-Adresse des echten Brokers. Kann bei Bedarf auf eine andere Broker-Instanz umgestellt werden.
 - **„Message type"** – Auswahlliste der verfügbaren Nachrichtenvorlagen:
-  - `ChangeOfTrackMessage`
-  - `DelayCauseMessageService`
-  - `TrainRunningForcecastMessage`
+  - `ChangeofTrackMessage`
+  - `TrainDelayCauseMessage`
+  - `TrainRunningForecastMessage`
   - `TrainRunningInformationMessage`
   - `TrainRunningInterruptionMessage`
   
   Ein Wechsel des Nachrichtentyps lädt automatisch die passende Vorlage. Über das Symbol **„Reset to template"** (Kreispfeil) wird die Vorlage erneut geladen und alle Eingaben verworfen.
 
-**Automatisch erzeugte Eingabefelder:** Für den gewählten Nachrichtentyp erzeugt die Anwendung passende Eingabefelder aus der zugrunde liegenden XML-Vorlage (z. B. „Operational Train Number", „Start Date", „Primary Location Code" – abhängig vom Nachrichtentyp). Felder, die noch nicht ausgefüllt sind, zeigen einen grauen Platzhaltertext, der mit `REPLACE-WITH...` beginnt.
+**Automatisch erzeugte Eingabefelder:** Für den gewählten Nachrichtentyp erzeugt die Anwendung passende Eingabefelder aus der zugrunde liegenden XML-Vorlage. Die Vorlagen folgen dem vollständigen offiziellen ERA-TAF/TSI-Schema, daher sind das je nach Nachrichtentyp gut 15–20 Felder (z. B. „Operational Train Number", „Start Date", „Location Primary Code", „Message Status", „Transferee IM" u. v. m.). Bis auf die Message Identifier sind alle Felder bereits mit plausiblen Beispielwerten (passend zu den in `App_Data` hinterlegten Testdaten) vorbelegt, sodass eine Nachricht auch unverändert gesendet werden kann; Sie können die Werte bei Bedarf für Ihren Testfall anpassen.
 
-> **Wichtig:** Wird ein solches Feld nicht ausgefüllt, wird der Platzhaltertext (z. B. wörtlich `REPLACE-WITH-TRAIN-NUMBER`) unverändert in die gesendete Nachricht übernommen. Der Broker wird eine solche Nachricht in der Regel als ungültig zurückweisen. Füllen Sie daher alle grau markierten Felder mit sinnvollen Testwerten.
-
-Das Feld für die **Message Identifier** wird automatisch mit einer eindeutigen Kennung vorbelegt (Format `MOCK-...`) und muss normalerweise nicht angepasst werden.
+Das Feld für die **Message Identifier** ist das einzige, das noch einen Platzhaltertext (`REPLACE-WITH-UNIQUE-ID`) trägt – es wird beim Laden der Vorlage automatisch mit einer eindeutigen Kennung vorbelegt (Format `MOCK-...`) und muss normalerweise nicht angepasst werden.
 
 **Rohdaten bearbeiten:** Über das Stift-Symbol **„Edit payload"** im Dialogkopf öffnen Sie ein weiteres Fenster **„Payload"** mit einem Textfeld **„Message XML"**, in dem Sie die komplette XML-Nachricht frei bearbeiten können (z. B. um bewusst fehlerhafte Nachrichten für Testzwecke zu erzeugen). Änderungen hier und im Eingabeformular werden automatisch synchronisiert. Mit **„Done"** schließen Sie dieses Fenster wieder.
 
@@ -99,7 +97,7 @@ Kartentitel: **„Received messages (Broker → Mock, /ci)"**.
 
 Tabelle mit denselben Spalten wie bei „Sent messages" (Time, Id, Result, File). Result-Badge grün bei `ACK`, rot bei `NACK` und weiteren Fehlerfällen.
 
-- **„Reply"** (nur hier verfügbar): Öffnet den Sende-Dialog auf der Seite „Sent messages", vorbefüllt mit den Daten dieser empfangenen Nachricht (Sender und Empfänger vertauscht, relevante Felder wie Zugnummer/Datum/Ortscode übernommen). So lässt sich schnell eine Antwort auf eine empfangene Nachricht erstellen.
+- **„Reply"** (nur hier verfügbar): Öffnet den Sende-Dialog auf der Seite „Sent messages", vorbefüllt mit den Daten dieser empfangenen Nachricht (Sender und Empfänger vertauscht, Zugnummer und Datum übernommen). So lässt sich schnell eine Antwort auf eine empfangene Nachricht erstellen. Der Ortscode wird derzeit **nicht** zuverlässig übernommen – bitte bei Bedarf manuell nachtragen.
 
 Der Mock beantwortet jede eingehende Nachricht automatisch entsprechend der Einstellung auf der Seite „Response settings" (siehe Kapitel 5).
 

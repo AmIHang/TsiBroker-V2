@@ -67,11 +67,9 @@ Diese Seite (Startseite nach dem Login) dient dazu, eine Testnachricht **vom Moc
   
   Ein Wechsel des Nachrichtentyps lädt automatisch die passende Vorlage. Über das Symbol **„Reset to template"** (Kreispfeil) wird die Vorlage erneut geladen und alle Eingaben verworfen.
 
-**Automatisch erzeugte Eingabefelder:** Für den gewählten Nachrichtentyp erzeugt die Anwendung passende Eingabefelder aus der zugrunde liegenden XML-Vorlage, z. B. „Operational Train Number", „Start Date", „Primary Location Code", „Total Length", „Total Gross Weight", „Number Of Wagons" bzw. „Ready Timestamp" (abhängig vom Nachrichtentyp). Felder, die noch nicht ausgefüllt sind, zeigen einen grauen Platzhaltertext, der mit `REPLACE-WITH...` beginnt.
+**Automatisch erzeugte Eingabefelder:** Für den gewählten Nachrichtentyp erzeugt die Anwendung passende Eingabefelder aus der zugrunde liegenden XML-Vorlage. Die Vorlagen folgen dem vollständigen offiziellen ERA-TAF/TSI-Schema, daher können das je nach Nachrichtentyp gut 20 Felder sein, z. B. „Operational Train Number", „Start Date", „Location Primary Code", „Responsible RU", „Loco Number" bzw. „Train Contact Details" (abhängig vom Nachrichtentyp – TrainCompositionMessage enthält u. a. Lok- und Wagendaten, TrainReadyMessage u. a. Standort und Bereitschaftsstatus des Zuges). Bis auf die Message Identifier sind alle Felder bereits mit plausiblen Beispielwerten (passend zu den in `App_Data` hinterlegten Testdaten) vorbelegt, sodass eine Nachricht auch unverändert gesendet werden kann; Sie können die Werte bei Bedarf für Ihren Testfall anpassen.
 
-> **Wichtig:** Wird ein solches Feld nicht ausgefüllt, wird der Platzhaltertext (z. B. wörtlich `REPLACE-WITH-TRAIN-NUMBER`) unverändert in die gesendete Nachricht übernommen. Der Broker wird eine solche Nachricht in der Regel als ungültig zurückweisen. Füllen Sie daher alle grau markierten Felder mit sinnvollen Testwerten.
-
-Das Feld für die **Message Identifier** wird automatisch mit einer eindeutigen Kennung vorbelegt (Format `MOCK-...`) und muss normalerweise nicht angepasst werden.
+Das Feld für die **Message Identifier** ist das einzige, das noch einen Platzhaltertext (`REPLACE-WITH-UNIQUE-ID`) trägt – es wird beim Laden der Vorlage automatisch mit einer eindeutigen Kennung vorbelegt (Format `MOCK-...`) und muss normalerweise nicht angepasst werden.
 
 **Rohdaten bearbeiten:** Über das Stift-Symbol **„Edit payload"** im Dialogkopf öffnen Sie ein weiteres Fenster **„Payload"** mit einem Textfeld **„Message XML"**, in dem Sie die komplette XML-Nachricht frei bearbeiten können. Änderungen hier und im Eingabeformular werden automatisch synchronisiert. Mit **„Done"** schließen Sie dieses Fenster wieder.
 
