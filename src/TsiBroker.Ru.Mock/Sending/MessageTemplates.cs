@@ -16,7 +16,13 @@ namespace TsiBroker.Ru.Mock.Sending;
 /// Dictionary keys and the payload's root element both use the official TAF/TAP element name;
 /// MessageHeader/MessageReference/MessageType carries the official numeric message type code,
 /// which is what the broker's routing matches against (see TsiMessageAuthorizationService -
-/// AllowedMessageTypesEvuToBroker).
+/// AllowedMessageTypesEvuToBroker). Fields are pre-filled with plausible sample data (matching
+/// the RICS codes actually configured in App_Data - see infrastructure-operators.json and
+/// railway-undertakings.json - so a send-without-editing round-trips through the broker's own
+/// authorization checks) rather than "REPLACE-WITH-..." placeholders, so a tester isn't forced
+/// to fill in every field before sending; only MessageIdentifier keeps its REPLACE-WITH token,
+/// since SendMessageView.vue's loadTemplate() specifically detects that to auto-generate a
+/// fresh unique id instead of reusing a fixed sample value that would collide across sends.
 /// </summary>
 public static class MessageTemplates
 {
@@ -35,67 +41,67 @@ public static class MessageTemplates
               <MessageIdentifier>REPLACE-WITH-UNIQUE-ID</MessageIdentifier>
               <MessageDateTime>2026-08-07T10:00:00Z</MessageDateTime>
             </MessageReference>
-            <Sender>REPLACE-WITH-EVU-RICS</Sender>
-            <Recipient>REPLACE-WITH-ISB-RICS</Recipient>
+            <Sender>3395</Sender>
+            <Recipient>0081</Recipient>
           </MessageHeader>
           <MessageStatus>1</MessageStatus>
           <TransportOperationalIdentifiers>
             <ObjectType>TR</ObjectType>
-            <Company>REPLACE-WITH-COMPANY-RICS</Company>
-            <Core>REPLACE-WITH-TRAIN-NUMBER</Core>
-            <Variant>REPLACE-WITH-VARIANT</Variant>
+            <Company>3395</Company>
+            <Core>43521</Core>
+            <Variant>00</Variant>
             <TimetableYear>2026</TimetableYear>
             <StartDate>2026-08-07</StartDate>
           </TransportOperationalIdentifiers>
           <OperationalTrainNumberIdentifier>
-            <OperationalTrainNumber>REPLACE-WITH-TRAIN-NUMBER</OperationalTrainNumber>
+            <OperationalTrainNumber>43521</OperationalTrainNumber>
           </OperationalTrainNumberIdentifier>
           <ReferenceOTN>
             <OperationalTrainNumberIdentifier>
-              <OperationalTrainNumber>REPLACE-WITH-TRAIN-NUMBER</OperationalTrainNumber>
+              <OperationalTrainNumber>43521</OperationalTrainNumber>
             </OperationalTrainNumberIdentifier>
           </ReferenceOTN>
           <TransferPoint>
-            <CountryCodeISO>REPLACE-WITH-COUNTRY-CODE</CountryCodeISO>
-            <LocationPrimaryCode>REPLACE-WITH-LOCATION-CODE</LocationPrimaryCode>
-            <PrimaryLocationName>REPLACE-WITH-LOCATION-NAME</PrimaryLocationName>
+            <CountryCodeISO>AT</CountryCodeISO>
+            <LocationPrimaryCode>01194</LocationPrimaryCode>
+            <PrimaryLocationName>Wien Hbf</PrimaryLocationName>
           </TransferPoint>
-          <TransfereeIM>REPLACE-WITH-TRANSFEREE-IM</TransfereeIM>
+          <TransfereeIM>0081</TransfereeIM>
           <TrainCompositionJourneySection>
             <JourneySection>
               <JourneySectionOrigin>
-                <CountryCodeISO>REPLACE-WITH-COUNTRY-CODE</CountryCodeISO>
-                <LocationPrimaryCode>REPLACE-WITH-LOCATION-CODE</LocationPrimaryCode>
-                <PrimaryLocationName>REPLACE-WITH-ORIGIN-NAME</PrimaryLocationName>
+                <CountryCodeISO>AT</CountryCodeISO>
+                <LocationPrimaryCode>01194</LocationPrimaryCode>
+                <PrimaryLocationName>Wien Hbf</PrimaryLocationName>
               </JourneySectionOrigin>
               <JourneySectionDestination>
-                <CountryCodeISO>REPLACE-WITH-COUNTRY-CODE</CountryCodeISO>
-                <LocationPrimaryCode>REPLACE-WITH-LOCATION-CODE</LocationPrimaryCode>
-                <PrimaryLocationName>REPLACE-WITH-DESTINATION-NAME</PrimaryLocationName>
+                <CountryCodeISO>AT</CountryCodeISO>
+                <LocationPrimaryCode>01313</LocationPrimaryCode>
+                <PrimaryLocationName>Salzburg Hbf</PrimaryLocationName>
               </JourneySectionDestination>
               <ResponsibilityActualSection>
-                <ResponsibleRU>REPLACE-WITH-RESPONSIBLE-RU-RICS</ResponsibleRU>
-                <ResponsibleIM>REPLACE-WITH-RESPONSIBLE-IM-RICS</ResponsibleIM>
+                <ResponsibleRU>3395</ResponsibleRU>
+                <ResponsibleIM>0081</ResponsibleIM>
               </ResponsibilityActualSection>
               <ResponsibilityNextSection>
-                <ResponsibleRU>REPLACE-WITH-RESPONSIBLE-RU-RICS</ResponsibleRU>
-                <ResponsibleIM>REPLACE-WITH-RESPONSIBLE-IM-RICS</ResponsibleIM>
+                <ResponsibleRU>3395</ResponsibleRU>
+                <ResponsibleIM>0081</ResponsibleIM>
               </ResponsibilityNextSection>
             </JourneySection>
             <LocoIdent>
               <TractionType>00</TractionType>
               <LocoTypeNumber>
-                <TypeCode1>REPLACE-WITH-TYPE-CODE-1</TypeCode1>
-                <TypeCode2>REPLACE-WITH-TYPE-CODE-2</TypeCode2>
-                <CountryCode>REPLACE-WITH-COUNTRY-CODE</CountryCode>
-                <SeriesNumber>REPLACE-WITH-SERIES-NUMBER</SeriesNumber>
-                <SerialNumber>REPLACE-WITH-SERIAL-NUMBER</SerialNumber>
-                <ControlDigit>REPLACE-WITH-CONTROL-DIGIT</ControlDigit>
+                <TypeCode1>94</TypeCode1>
+                <TypeCode2>80</TypeCode2>
+                <CountryCode>81</CountryCode>
+                <SeriesNumber>1116</SeriesNumber>
+                <SerialNumber>234</SerialNumber>
+                <ControlDigit>5</ControlDigit>
               </LocoTypeNumber>
-              <LocoNumber>REPLACE-WITH-LOCO-NUMBER</LocoNumber>
+              <LocoNumber>1116 234-5</LocoNumber>
             </LocoIdent>
             <WagonData>
-              <WagonNumberFreight>REPLACE-WITH-WAGON-NUMBER</WagonNumberFreight>
+              <WagonNumberFreight>4576 123-4</WagonNumberFreight>
               <WagonTrainPosition>1</WagonTrainPosition>
             </WagonData>
           </TrainCompositionJourneySection>
@@ -111,43 +117,43 @@ public static class MessageTemplates
               <MessageIdentifier>REPLACE-WITH-UNIQUE-ID</MessageIdentifier>
               <MessageDateTime>2026-08-07T10:00:00Z</MessageDateTime>
             </MessageReference>
-            <Sender>REPLACE-WITH-EVU-RICS</Sender>
-            <Recipient>REPLACE-WITH-ISB-RICS</Recipient>
+            <Sender>3395</Sender>
+            <Recipient>0081</Recipient>
           </MessageHeader>
           <MessageStatus>1</MessageStatus>
           <TransportOperationalIdentifiers>
             <ObjectType>TR</ObjectType>
-            <Company>REPLACE-WITH-COMPANY-RICS</Company>
-            <Core>REPLACE-WITH-TRAIN-NUMBER</Core>
-            <Variant>REPLACE-WITH-VARIANT</Variant>
+            <Company>3395</Company>
+            <Core>43521</Core>
+            <Variant>00</Variant>
             <TimetableYear>2026</TimetableYear>
             <StartDate>2026-08-07</StartDate>
           </TransportOperationalIdentifiers>
           <OperationalTrainNumberIdentifier>
-            <OperationalTrainNumber>REPLACE-WITH-TRAIN-NUMBER</OperationalTrainNumber>
+            <OperationalTrainNumber>43521</OperationalTrainNumber>
           </OperationalTrainNumberIdentifier>
           <ReferenceOTN>
             <OperationalTrainNumberIdentifier>
-              <OperationalTrainNumber>REPLACE-WITH-TRAIN-NUMBER</OperationalTrainNumber>
+              <OperationalTrainNumber>43521</OperationalTrainNumber>
             </OperationalTrainNumberIdentifier>
           </ReferenceOTN>
-          <ResponsibleRU>REPLACE-WITH-RESPONSIBLE-RU-RICS</ResponsibleRU>
-          <TrainContactDetails>REPLACE-WITH-CONTACT-DETAILS</TrainContactDetails>
+          <ResponsibleRU>3395</ResponsibleRU>
+          <TrainContactDetails>+43 664 1234567</TrainContactDetails>
           <TrainLocation>
-            <CountryCodeISO>REPLACE-WITH-COUNTRY-CODE</CountryCodeISO>
-            <LocationPrimaryCode>REPLACE-WITH-LOCATION-CODE</LocationPrimaryCode>
-            <PrimaryLocationName>REPLACE-WITH-LOCATION-NAME</PrimaryLocationName>
+            <CountryCodeISO>AT</CountryCodeISO>
+            <LocationPrimaryCode>01194</LocationPrimaryCode>
+            <PrimaryLocationName>Wien Hbf</PrimaryLocationName>
           </TrainLocation>
           <TrainReadyStatus>
             <TrainReady>1</TrainReady>
-            <TrainNotReadyDescription>REPLACE-WITH-NOT-READY-DESCRIPTION</TrainNotReadyDescription>
+            <TrainNotReadyDescription>-</TrainNotReadyDescription>
           </TrainReadyStatus>
           <TransferPoint>
-            <CountryCodeISO>REPLACE-WITH-COUNTRY-CODE</CountryCodeISO>
-            <LocationPrimaryCode>REPLACE-WITH-LOCATION-CODE</LocationPrimaryCode>
-            <PrimaryLocationName>REPLACE-WITH-LOCATION-NAME</PrimaryLocationName>
+            <CountryCodeISO>AT</CountryCodeISO>
+            <LocationPrimaryCode>01194</LocationPrimaryCode>
+            <PrimaryLocationName>Wien Hbf</PrimaryLocationName>
           </TransferPoint>
-          <TransfereeIM>REPLACE-WITH-TRANSFEREE-IM</TransfereeIM>
+          <TransfereeIM>0081</TransfereeIM>
         </TrainReadyMessage>
         """;
 }
