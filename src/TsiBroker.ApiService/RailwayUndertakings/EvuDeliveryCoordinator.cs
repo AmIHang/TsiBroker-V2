@@ -77,6 +77,11 @@ public class EvuDeliveryCoordinator(
             return;
         }
 
+        // A rejection (EVU processed the message and responded with a non-2xx status) is treated
+        // very differently from a transport failure (no response at all): it's a per-message,
+        // application-level failure, not a sign the EVU is down, so it goes straight to the error
+        // queue below — no retry, no reachability check, and critically, no queue pause. Only a
+        // TransportFailure ever reaches the reachability check/pause logic further down.
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             if (attempt > 1)
@@ -84,14 +89,24 @@ public class EvuDeliveryCoordinator(
                 await Task.Delay(RetryDelay, cancellationToken);
             }
 
-            var delivered = await TryDeliverAsync(railwayUndertaking, message, cancellationToken);
-            if (delivered)
+            var outcome = await evuApiClient.DeliverMessageAsync(railwayUndertaking, message, cancellationToken);
+            if (outcome == EvuDeliveryOutcome.Delivered)
             {
                 if (railwayUndertaking.PauseBackoffStep != 0)
                 {
                     await railwayUndertakingStore.SetQueuePauseStateAsync(railwayUndertaking.Id, false, null, 0);
                 }
 
+                return;
+            }
+
+            if (outcome == EvuDeliveryOutcome.Rejected)
+            {
+                logger.LogError(
+                    "EVU {RailwayUndertakingName} rejected message {MessageId} — moving to error queue",
+                    railwayUndertaking.Name,
+                    message.Id);
+                await publisher.PublishToDeadLetterAsync(partitionKey, message, cancellationToken);
                 return;
             }
 
@@ -126,22 +141,5 @@ public class EvuDeliveryCoordinator(
             railwayUndertaking.Name,
             MaxAttempts);
         await publisher.PublishToDeadLetterAsync(partitionKey, message, cancellationToken);
-    }
-
-    private async Task<bool> TryDeliverAsync(RailwayUndertaking railwayUndertaking, BrokerMessage message, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var response = await evuApiClient.DeliverMessageAsync(railwayUndertaking, message, cancellationToken);
-            return response.IsSuccessStatusCode;
-        }
-        catch (HttpRequestException)
-        {
-            return false;
-        }
-        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return false;
-        }
     }
 }
