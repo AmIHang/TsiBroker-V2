@@ -159,6 +159,23 @@ function updateField(tag: string, value: string) {
   payload.value = replaceTagContent(payload.value, tag, value || field?.placeholder || '')
 }
 
+// Switching the message type dropdown loads the new template's structure, but shouldn't throw
+// away values (train number, date, location, ...) the tester already entered for fields that
+// exist under the same tag name in both message types - that's what the separate "Reset to
+// template" button is for. MessageIdentifier is excluded since it must stay a freshly generated,
+// unique id rather than carrying over the previous message's.
+async function onMessageTypeChange() {
+  const previousValues = { ...fieldValues.value }
+  await loadTemplate()
+  for (const field of templateFields.value) {
+    if (field.tag === 'MessageIdentifier') continue
+    const previous = previousValues[field.tag]
+    if (previous) {
+      updateField(field.tag, previous)
+    }
+  }
+}
+
 async function send() {
   payload.value = applyRicsToPayload(payload.value)
   formError.value = ''
@@ -184,7 +201,7 @@ async function send() {
   }
 }
 
-watch(messageType, () => loadTemplate())
+watch(messageType, () => onMessageTypeChange())
 
 onMounted(() => {
   loadSendDefaults()
