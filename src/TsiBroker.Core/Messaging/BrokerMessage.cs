@@ -1,5 +1,17 @@
 namespace TsiBroker.Core.Messaging;
 
+// Message types with special handling shared across the authorization services
+// (TsiMessageAuthorizationService, IsbMessageAuthorizationService, EvuMessageAuthorizationService).
+public static class TafTsiMessageType
+{
+    // ErrorMessage: sent by the receiver to report that a previously received message failed
+    // processing. Always authorized regardless of an assignment's AllowedMessageTypes* list -
+    // gating it the same as any other type would mean a partner that's had a message type's
+    // permission revoked (or never had it) can't even be told a message of that type failed,
+    // including for messages sent back when the permission was still in place.
+    public const string ErrorMessage = "9000";
+}
+
 public record BrokerMessage(
     string? Id,
     string Sender,

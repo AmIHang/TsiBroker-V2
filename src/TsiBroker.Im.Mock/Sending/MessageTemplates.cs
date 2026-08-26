@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 namespace TsiBroker.Im.Mock.Sending;
 
 /// <summary>
@@ -34,7 +36,24 @@ public static class MessageTemplates
         ["TrainRunningForecastMessage"] = TrainRunningForecastMessage,
         ["TrainRunningInformationMessage"] = TrainRunningInformationMessage,
         ["TrainRunningInterruptionMessage"] = TrainRunningInterruptionMessage,
+        ["ErrorMessage"] = ErrorMessage,
     };
+
+    // The numeric MessageType (spec code, e.g. "4504") paired with each template's key (the TAF/TAP
+    // element name, e.g. "ChangeofTrackMessage") - lets the send form's message type picker show
+    // "4504 - ChangeofTrackMessage" rather than just the element name, and sort by the numeric
+    // code rather than alphabetically. Reads the number straight out of the template XML
+    // (MessageHeader/MessageReference/MessageType) rather than hand-duplicating it here, so the
+    // two can't drift apart.
+    public record TemplateSummary(string Key, string MessageType);
+
+    public static readonly IReadOnlyList<TemplateSummary> Summaries = ByMessageType
+        .Select(kv => new TemplateSummary(kv.Key, ExtractMessageTypeCode(kv.Value)))
+        .OrderBy(s => int.TryParse(s.MessageType, out var code) ? code : int.MaxValue)
+        .ToList();
+
+    private static string ExtractMessageTypeCode(string xml) =>
+        XDocument.Parse(xml).Descendants().First(e => e.Name.LocalName == "MessageType").Value;
 
     private const string ChangeOfTrackMessage = """
         <ChangeofTrackMessage xmlns="http://www.era.europa.eu/schemes/TAFTSI/3.4">
@@ -310,5 +329,46 @@ public static class MessageTemplates
           </TransferPoint>
           <TransfereeIM>0081</TransfereeIM>
         </TrainRunningInterruptionMessage>
+        """;
+
+    private const string ErrorMessage = """
+        <ErrorMessage xmlns="http://www.era.europa.eu/schemes/TAFTSI/3.4">
+          <MessageHeader>
+            <MessageReference>
+              <MessageType>9000</MessageType>
+              <MessageTypeVersion>3.4</MessageTypeVersion>
+              <MessageIdentifier>REPLACE-WITH-UNIQUE-ID</MessageIdentifier>
+              <MessageDateTime>2026-08-07T10:00:00Z</MessageDateTime>
+            </MessageReference>
+            <Sender>0081</Sender>
+            <Recipient>3395</Recipient>
+          </MessageHeader>
+          <MessageStatus>1</MessageStatus>
+          <AdministrativeContactInformation>
+            <Name>TsiBroker Im.Mock Support</Name>
+          </AdministrativeContactInformation>
+          <ErrorCauseReference>
+            <MessageReference>
+              <MessageType>4500</MessageType>
+              <MessageTypeVersion>3.4</MessageTypeVersion>
+              <MessageIdentifier>SAMPLE-ORIGINAL-MESSAGE-ID</MessageIdentifier>
+              <MessageDateTime>2026-08-07T09:55:00Z</MessageDateTime>
+            </MessageReference>
+          </ErrorCauseReference>
+          <Error>
+            <TypeOfError>2</TypeOfError>
+            <Severity>2</Severity>
+            <ErrorCode>5001</ErrorCode>
+            <FreeTextField>Message could not be processed in the backend system.</FreeTextField>
+          </Error>
+          <TransportOperationalIdentifiers>
+            <ObjectType>TR</ObjectType>
+            <Company>0081</Company>
+            <Core>43521</Core>
+            <Variant>00</Variant>
+            <TimetableYear>2026</TimetableYear>
+            <StartDate>2026-08-07</StartDate>
+          </TransportOperationalIdentifiers>
+        </ErrorMessage>
         """;
 }

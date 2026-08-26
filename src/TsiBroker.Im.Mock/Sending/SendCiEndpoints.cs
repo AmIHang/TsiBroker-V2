@@ -44,8 +44,7 @@ public static class SendCiEndpoints
             return Results.Ok(result);
         });
 
-        group.MapGet("/templates", () =>
-            Results.Ok(MessageTemplates.ByMessageType.Keys.OrderBy(k => k, StringComparer.Ordinal)));
+        group.MapGet("/templates", () => Results.Ok(MessageTemplates.Summaries));
 
         group.MapGet("/templates/{messageType}", (string messageType) =>
             MessageTemplates.ByMessageType.TryGetValue(messageType, out var xml)

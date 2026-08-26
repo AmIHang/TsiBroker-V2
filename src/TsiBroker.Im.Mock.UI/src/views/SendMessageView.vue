@@ -17,6 +17,11 @@ interface TemplateField {
   placeholder: string
 }
 
+interface TemplateSummary {
+  key: string
+  messageType: string
+}
+
 // Header/envelope tags that already have dedicated inputs (Sender/Recipient) or
 // are fixed by the message type itself, so they're excluded from the generated field list.
 const NON_FIELD_TAGS = new Set(['MessageType', 'Sender', 'Recipient'])
@@ -25,11 +30,13 @@ const sender = ref('')
 const recipient = ref('')
 const targetUrl = ref('')
 const payload = ref('')
-const messageTypes = ref<string[]>([])
+const messageTypes = ref<TemplateSummary[]>([])
 const messageType = ref('')
 const isSending = ref(false)
 const templateFields = ref<TemplateField[]>([])
 const fieldValues = ref<Record<string, string>>({})
+
+const replyErrorCause = ref<{ messageType: string; messageTypeVersion: string; messageIdentifier: string; messageDateTime: string } | null>(null)
 
 const showForm = ref(false)
 const dialogRef = ref<HTMLDialogElement | null>(null)
@@ -63,6 +70,7 @@ watch(showPreview, (value) => {
 function openSendDialog() {
   formError.value = ''
   showPreview.value = false
+  replyErrorCause.value = null
   showForm.value = true
 }
 
@@ -77,7 +85,7 @@ async function loadMessageTypes() {
   const res = await apiFetch('/api/send/templates')
   messageTypes.value = await res.json()
   if (!messageType.value && messageTypes.value.length > 0) {
-    messageType.value = messageTypes.value[0]!
+    messageType.value = messageTypes.value[0]!.key
     await loadTemplate()
   }
 }
@@ -103,6 +111,24 @@ function humanizeTag(tag: string): string {
 function replaceTagContent(xml: string, tag: string, value: string): string {
   const regex = new RegExp(`(<${tag}>)[^<]*(</${tag}>)`)
   return xml.replace(regex, (_, open, close) => open + value + close)
+}
+
+// ErrorMessage's ErrorCauseReference/MessageReference reuses the same tag names
+// (MessageType/MessageTypeVersion/MessageIdentifier/MessageDateTime) as the message's own
+// envelope, so it can't go through the generic single-occurrence field editor above without
+// clobbering - or being clobbered by - the envelope's own values. Filled here by a block-scoped
+// substitution instead, from the message this reply is answering (see replyErrorCause, set in
+// applyReplyFromQuery).
+function applyErrorCauseReference(xml: string): string {
+  if (!replyErrorCause.value || !xml.includes('<ErrorCauseReference>')) return xml
+  const { messageType, messageTypeVersion, messageIdentifier, messageDateTime } = replyErrorCause.value
+  return xml.replace(/<ErrorCauseReference>[\s\S]*?<\/ErrorCauseReference>/, (block) =>
+    block
+      .replace(/(<MessageType>)[^<]*(<\/MessageType>)/, (_, o, c) => o + messageType + c)
+      .replace(/(<MessageTypeVersion>)[^<]*(<\/MessageTypeVersion>)/, (_, o, c) => o + messageTypeVersion + c)
+      .replace(/(<MessageIdentifier>)[^<]*(<\/MessageIdentifier>)/, (_, o, c) => o + messageIdentifier + c)
+      .replace(/(<MessageDateTime>)[^<]*(<\/MessageDateTime>)/, (_, o, c) => o + messageDateTime + c),
+  )
 }
 
 function generateMessageIdentifier(): string {
@@ -152,7 +178,7 @@ async function loadTemplate() {
 
   templateFields.value = fields
   fieldValues.value = values
-  payload.value = applyRicsToPayload(result)
+  payload.value = applyErrorCauseReference(applyRicsToPayload(result))
 }
 
 function updateField(tag: string, value: string) {
@@ -206,15 +232,28 @@ async function send() {
 // them. Consumed once and stripped from the URL so a refresh doesn't reapply it.
 async function applyReplyFromQuery() {
   const query = route.query
-  const hasReplyData = ['replySender', 'replyRecipient', 'replyTrainNumber', 'replyStartDate', 'replyLocationCode'].some(
-    (key) => typeof query[key] === 'string',
-  )
+  const hasReplyData = [
+    'replySender',
+    'replyRecipient',
+    'replyTrainNumber',
+    'replyStartDate',
+    'replyLocationCode',
+    'replyErrorCauseMessageType',
+  ].some((key) => typeof query[key] === 'string')
   if (!hasReplyData) return
 
   openSendDialog()
 
-  if (typeof query.replyMessageType === 'string' && messageTypes.value.includes(query.replyMessageType)) {
+  if (typeof query.replyMessageType === 'string' && messageTypes.value.some((t) => t.key === query.replyMessageType)) {
     messageType.value = query.replyMessageType
+  }
+  if (typeof query.replyErrorCauseMessageType === 'string') {
+    replyErrorCause.value = {
+      messageType: query.replyErrorCauseMessageType,
+      messageTypeVersion: typeof query.replyErrorCauseMessageTypeVersion === 'string' ? query.replyErrorCauseMessageTypeVersion : '',
+      messageIdentifier: typeof query.replyErrorCauseMessageIdentifier === 'string' ? query.replyErrorCauseMessageIdentifier : '',
+      messageDateTime: typeof query.replyErrorCauseMessageDateTime === 'string' ? query.replyErrorCauseMessageDateTime : '',
+    }
   }
   await loadTemplate()
 
@@ -259,7 +298,7 @@ function duplicateMessage(message: { content: string }) {
   }
 
   const detectedType = extractMessageType(xml)
-  if (detectedType && messageTypes.value.includes(detectedType)) {
+  if (detectedType && messageTypes.value.some((t) => t.key === detectedType)) {
     messageType.value = detectedType
   }
   const detectedSender = extractTag(xml, 'Sender')
@@ -334,7 +373,7 @@ onMounted(async () => {
           <label class="field field--type">
             <span class="field__label">Message type</span>
             <select v-model="messageType" @change="onMessageTypeChange">
-              <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
+              <option v-for="type in messageTypes" :key="type.key" :value="type.key">{{ type.messageType }} - {{ type.key }}</option>
             </select>
           </label>
           <button

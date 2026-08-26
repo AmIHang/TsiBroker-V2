@@ -51,8 +51,9 @@ public class IsbMessageAuthorizationService(RailwayUndertakingStore railwayUnder
             return IsbMessageAuthorizationResult.Failure(IsbMessageAuthorizationFailureReason.NoIsbAssignment);
         }
 
-        var messageTypeAllowed = assignment.AllowedMessageTypesEvuToBroker.Any(type =>
-            type == AllowAllMessageTypes || string.Equals(type, message.MessageType, StringComparison.OrdinalIgnoreCase));
+        var messageTypeAllowed = message.MessageType == TafTsiMessageType.ErrorMessage
+            || assignment.AllowedMessageTypesEvuToBroker.Any(type =>
+                type == AllowAllMessageTypes || string.Equals(type, message.MessageType, StringComparison.OrdinalIgnoreCase));
         if (!messageTypeAllowed)
         {
             return IsbMessageAuthorizationResult.Failure(IsbMessageAuthorizationFailureReason.MessageTypeNotAllowed);

@@ -37,6 +37,19 @@ function replyTo(message: { content: string }) {
   const messageType = extractMessageType(xml)
   if (messageType) query.replyMessageType = messageType
 
+  // If the reply turns into an ErrorMessage (MessageType 9000), its ErrorCauseReference should
+  // point back at this original message rather than at generic sample data - carried separately
+  // from replyMessageType above, since that's the numeric MessageReference/MessageType of the
+  // original (e.g. "4500"), not the root element name used to pick the reply's own template.
+  const originalNumericType = extractTag(xml, 'MessageType')
+  if (originalNumericType) query.replyErrorCauseMessageType = originalNumericType
+  const originalTypeVersion = extractTag(xml, 'MessageTypeVersion')
+  if (originalTypeVersion) query.replyErrorCauseMessageTypeVersion = originalTypeVersion
+  const originalIdentifier = extractTag(xml, 'MessageIdentifier')
+  if (originalIdentifier) query.replyErrorCauseMessageIdentifier = originalIdentifier
+  const originalDateTime = extractTag(xml, 'MessageDateTime')
+  if (originalDateTime) query.replyErrorCauseMessageDateTime = originalDateTime
+
   router.push({ name: 'send', query })
 }
 </script>

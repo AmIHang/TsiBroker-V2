@@ -76,8 +76,9 @@ public class TsiMessageAuthorizationService(
             return TsiMessageAuthorizationResult.Failure(TsiMessageAuthorizationFailureReason.NoIsbAssignment);
         }
 
-        var messageTypeAllowed = assignment.AllowedMessageTypesEvuToBroker.Any(type =>
-            type == AllowAllMessageTypes || string.Equals(type, message.MessageType, StringComparison.OrdinalIgnoreCase));
+        var messageTypeAllowed = message.MessageType == TafTsiMessageType.ErrorMessage
+            || assignment.AllowedMessageTypesEvuToBroker.Any(type =>
+                type == AllowAllMessageTypes || string.Equals(type, message.MessageType, StringComparison.OrdinalIgnoreCase));
         if (!messageTypeAllowed)
         {
             return TsiMessageAuthorizationResult.Failure(TsiMessageAuthorizationFailureReason.MessageTypeNotAllowed);

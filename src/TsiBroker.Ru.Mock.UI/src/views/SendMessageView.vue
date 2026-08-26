@@ -16,6 +16,11 @@ interface TemplateField {
   placeholder: string
 }
 
+interface TemplateSummary {
+  key: string
+  messageType: string
+}
+
 // Header/envelope tags that already have dedicated inputs (Sender/Recipient) or
 // are fixed by the message type itself, so they're excluded from the generated field list.
 const NON_FIELD_TAGS = new Set(['MessageType', 'Sender', 'Recipient'])
@@ -25,7 +30,7 @@ const recipient = ref('')
 const targetUrl = ref('')
 const apiKey = ref('')
 const payload = ref('')
-const messageTypes = ref<string[]>([])
+const messageTypes = ref<TemplateSummary[]>([])
 const messageType = ref('')
 const isSending = ref(false)
 const templateFields = ref<TemplateField[]>([])
@@ -76,7 +81,7 @@ async function loadMessageTypes() {
   const res = await apiFetch('/api/send/templates')
   messageTypes.value = await res.json()
   if (!messageType.value && messageTypes.value.length > 0) {
-    messageType.value = messageTypes.value[0]!
+    messageType.value = messageTypes.value[0]!.key
   }
 }
 
@@ -269,7 +274,7 @@ onMounted(() => {
           <label class="field field--type">
             <span class="field__label">Message type</span>
             <select v-model="messageType">
-              <option v-for="type in messageTypes" :key="type" :value="type">{{ type }}</option>
+              <option v-for="type in messageTypes" :key="type.key" :value="type.key">{{ type.messageType }} - {{ type.key }}</option>
             </select>
           </label>
           <button

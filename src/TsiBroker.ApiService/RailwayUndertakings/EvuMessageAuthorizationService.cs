@@ -48,8 +48,9 @@ public class EvuMessageAuthorizationService(InfrastructureOperatorStore infrastr
             return EvuMessageAuthorizationResult.Failure(EvuMessageAuthorizationFailureReason.NoIsbAssignment);
         }
 
-        var messageTypeAllowed = assignment.AllowedMessageTypesBrokerToEvu.Any(type =>
-            type == AllowAllMessageTypes || string.Equals(type, message.MessageType, StringComparison.OrdinalIgnoreCase));
+        var messageTypeAllowed = message.MessageType == TafTsiMessageType.ErrorMessage
+            || assignment.AllowedMessageTypesBrokerToEvu.Any(type =>
+                type == AllowAllMessageTypes || string.Equals(type, message.MessageType, StringComparison.OrdinalIgnoreCase));
         if (!messageTypeAllowed)
         {
             return EvuMessageAuthorizationResult.Failure(EvuMessageAuthorizationFailureReason.MessageTypeNotAllowed);
