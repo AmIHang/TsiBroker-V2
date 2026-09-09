@@ -33,12 +33,16 @@ const { collapsed } = useSidebar()
 
 <style scoped lang="less">
 .app-shell {
-  min-height: 100vh;
+  // Locked to the viewport (rather than min-height: 100vh, which lets the whole window
+  // scroll): the topbar/sidebar stay put and each view's own content area is the scroll
+  // container, so a long list scrolls inside itself instead of the page.
+  height: 100vh;
+  overflow: hidden;
 
   &__main {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100vh;
     margin-left: var(--sidebar-width-expanded);
     transition: margin-left 0.18s ease;
   }
@@ -49,6 +53,8 @@ const { collapsed } = useSidebar()
 
   &__content {
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     padding: 1.75rem;
     background: var(--color-content-bg);
     // Content area always uses the light-mode palette, matching the sidebar/topbar

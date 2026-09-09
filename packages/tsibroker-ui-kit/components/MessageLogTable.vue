@@ -23,8 +23,11 @@ withDefaults(
     // Shows a duplicate action per row - only sent messages have a send dialog to reopen
     // pre-filled from, so callers opt in the same way as replyable.
     duplicatable?: boolean
+    // Shows a copy button next to the expanded Response XML. On by default; callers that have
+    // no use for copying the response (e.g. the sent-messages log) opt out.
+    responseCopyable?: boolean
   }>(),
-  { replyable: false, duplicatable: false },
+  { replyable: false, duplicatable: false, responseCopyable: true },
 )
 
 const emit = defineEmits<{
@@ -159,7 +162,7 @@ function toggleExpanded(fileName: string) {
               <div v-if="m.responseContent" class="message-log__xml-col">
                 <div class="copy-row">
                   <span class="message-log__xml-label">Response</span>
-                  <CopyButton :text="m.responseContent" />
+                  <CopyButton v-if="responseCopyable" :text="m.responseContent" />
                 </div>
                 <XmlBlock :content="m.responseContent" />
               </div>

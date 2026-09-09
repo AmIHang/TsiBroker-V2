@@ -40,6 +40,11 @@ const replyErrorCause = ref<{ messageType: string; messageTypeVersion: string; m
 
 const showForm = ref(false)
 const dialogRef = ref<HTMLDialogElement | null>(null)
+const uploadInput = ref<HTMLInputElement | null>(null)
+const isUploading = ref(false)
+const uploadStatus = ref('')
+const uploadError = ref('')
+
 const formError = ref('')
 const showPreview = ref(false)
 const previewDialogRef = ref<HTMLDialogElement | null>(null)
@@ -225,6 +230,57 @@ async function send() {
   }
 }
 
+function triggerUpload() {
+  uploadStatus.value = ''
+  uploadError.value = ''
+  uploadInput.value?.click()
+}
+
+// Sends one or more picked .xml files straight to the broker, each verbatim as its own message -
+// no template/field editing in between. Handy for replaying a captured message or a hand-authored
+// payload without pasting it into the dialog. The target URL falls back to the same default the
+// send dialog uses; MessageIdentifier is pulled from the XML only so the sent log lists it.
+async function onFilesSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  input.value = ''
+  if (files.length === 0) return
+
+  uploadStatus.value = ''
+  uploadError.value = ''
+  isUploading.value = true
+  let sent = 0
+  const failures: string[] = []
+  try {
+    for (const file of files) {
+      const payloadXml = (await file.text()).trim()
+      if (!payloadXml) {
+        failures.push(`${file.name}: empty file`)
+        continue
+      }
+      try {
+        await apiFetch('/api/send', {
+          method: 'POST',
+          body: JSON.stringify({
+            payload: payloadXml,
+            targetUrl: targetUrl.value || null,
+            messageIdentifier: extractTag(payloadXml, 'MessageIdentifier'),
+          }),
+        })
+        sent++
+      } catch (err) {
+        failures.push(`${file.name}: ${err instanceof ApiError ? (err.status === 400 ? 'invalid payload' : `HTTP ${err.status}`) : 'send failed'}`)
+      }
+    }
+  } finally {
+    isUploading.value = false
+    loadMessages()
+  }
+
+  uploadStatus.value = sent > 0 ? `Sent ${sent} message${sent === 1 ? '' : 's'}.` : ''
+  uploadError.value = failures.join(' · ')
+}
+
 // Prefills a reply to a received message (see ReceivedMessagesView's reply action): the query
 // carries the original message's Sender/Recipient (swapped - we're replying, so we're now the
 // recipient's sender) plus whatever body fields it could pull out, applied only where the
@@ -323,6 +379,19 @@ onMounted(async () => {
   <div class="send">
     <div class="toolbar">
       <button type="button" class="btn btn--primary" @click="openSendDialog">+ New message</button>
+      <button type="button" class="btn btn--primary" :disabled="isUploading" @click="triggerUpload">
+        {{ isUploading ? 'Uploading…' : 'Upload XML' }}
+      </button>
+      <input
+        ref="uploadInput"
+        type="file"
+        class="upload-input"
+        accept=".xml,text/xml,application/xml"
+        multiple
+        @change="onFilesSelected"
+      />
+      <span v-if="uploadStatus" class="upload-msg">{{ uploadStatus }}</span>
+      <span v-if="uploadError" class="upload-msg upload-msg--error">{{ uploadError }}</span>
     </div>
 
     <dialog ref="dialogRef" class="modal" @close="showForm = false" @cancel="showForm = false">
@@ -428,14 +497,17 @@ onMounted(async () => {
       </div>
     </dialog>
 
-    <section class="card">
+    <section class="card sent-card">
       <h2 class="card__title">Sent messages</h2>
-      <MessageLogTable
-        :messages="messages"
-        empty-message="No messages sent yet."
-        duplicatable
-        @duplicate="duplicateMessage"
-      />
+      <div class="sent-list">
+        <MessageLogTable
+          :messages="messages"
+          empty-message="No messages sent yet."
+          duplicatable
+          :response-copyable="false"
+          @duplicate="duplicateMessage"
+        />
+      </div>
     </section>
   </div>
 </template>
@@ -443,10 +515,42 @@ onMounted(async () => {
 <style scoped lang="less">
 // Shared building blocks (.card*, .field*, .toolbar, .btn*, .modal*, .data-table*, .badge*,
 // .empty-state, .error) come from src/assets/styles — only this view's own layout lives here.
+// Fills the shell's content area (which is itself locked to the viewport height) so the sent
+// list can flex into whatever space is left and scroll on its own, rather than the whole page
+// scrolling once the log gets long.
 .send {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.sent-card {
+  flex: 1;
+  min-height: 0;
+}
+
+// .toolbar (from the ui-kit) is a gapless flex row built for a single button - this view puts
+// several controls plus status text in it, so space and vertically centre them here.
+.toolbar {
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.upload-input {
+  display: none;
+}
+
+.upload-msg {
+  font-size: 0.85rem;
+  opacity: 0.8;
+
+  &--error {
+    color: var(--color-danger);
+    opacity: 1;
+  }
 }
 
 .row--type {
@@ -466,6 +570,23 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1rem;
+}
+
+// Flexes to fill the card and scrolls inside itself once the log gets long, so the page itself
+// never grows a scrollbar (toolbar and "+ New message" button stay put).
+.sent-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+
+  // Header row stays visible while scrolling. .data-table th has no background of its own, so
+  // give it the card's - otherwise rows show through as they pass underneath.
+  :deep(.data-table thead th) {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-background);
+  }
 }
 
 .payload {
