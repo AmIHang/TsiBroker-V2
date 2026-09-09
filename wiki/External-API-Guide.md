@@ -22,6 +22,8 @@ This guide is for developers of external systems — Railway Undertaking (RU/EVU
 
 Base project: `TsiBroker.Ru.Api`. Local dev: `http://localhost:5290` / `https://localhost:7263`.
 
+The full machine-readable contract lives in [`infrastructure/broker-ru-endpoints.openapi.yaml`](../infrastructure/broker-ru-endpoints.openapi.yaml) — the mirror image of [`infrastructure/evu-endpoints.openapi.yaml`](../infrastructure/evu-endpoints.openapi.yaml) (the endpoints your system must implement, see [below](#broker--ru-endpoints-your-system-must-implement)). **Keep it and this section in sync.**
+
 ### RU Authentication
 
 Every request must carry the RU's inbound API key in the `X-Api-Key` header:

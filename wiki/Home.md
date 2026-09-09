@@ -16,6 +16,7 @@ TsiBroker relays TAF/TAP-TSI messages â€” Common Interface (CI) and Heartbeat â€
 | [[External-API-Guide]] | Integration guide for RU (REST) and IM (SOAP) systems connecting to the broker |
 | [[Frontend-Architecture]] | Vue 3 admin UI structure |
 | [[Backend-Best-Practices]] | Backend coding conventions |
+| [[Configuration]] | All settable environment variables / config keys per service |
 
 ---
 

@@ -4,6 +4,9 @@ using TsiBroker.Core.RailwayUndertakings;
 
 namespace TsiBroker.Ru.Api.Messages;
 
+// The RU-facing contract this and WhoAmIEndpoints expose is documented in
+// infrastructure/broker-ru-endpoints.openapi.yaml and wiki/External-API-Guide.md - keep all three
+// in sync when a route/status/response shape changes here.
 public static class TsiMessageEndpoints
 {
     public static void MapTsiMessageEndpoints(this IEndpointRouteBuilder app)

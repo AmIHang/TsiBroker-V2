@@ -1,0 +1,277 @@
+# Contract TsiBroker (the broker) exposes to Railway Undertaking (RU/EVU) systems - the endpoints
+# an EVU *calls*, as opposed to the ones it must *implement* (those live in
+# infrastructure/evu-endpoints.openapi.yaml). This is the machine-readable form of the "RU API (REST)"
+# section of wiki/External-API-Guide.md.
+#
+# Source of truth: src/TsiBroker.Ru.Api (Program.cs wires up the routes; Messages/TsiMessageEndpoints.cs
+# and WhoAmI/WhoAmIEndpoints.cs hold the behaviour). Keep this file, wiki/External-API-Guide.md and
+# src/TsiBroker.Ru.Api/TsiBroker.Ru.Api.postman_collection.json in sync when a route/behaviour changes.
+#
+# TsiBroker.Ru.Mock (src/TsiBroker.Ru.Mock) is the EVU-side test double for the *other* direction and
+# does not implement this contract - point a real EVU client at TsiBroker.Ru.Api itself.
+openapi: 3.1.0
+info:
+  title: TsiBroker - RU-facing REST API
+  version: "1.0"
+  description: |
+    Endpoints TsiBroker exposes for Railway Undertaking (RU/EVU) systems to call, hosted by the
+    `TsiBroker.Ru.Api` project. Used by an EVU to submit outbound TAF/TAP-TSI messages addressed to an
+    Infrastructure Manager (`POST /message`) and to inspect what its record is currently authorized to
+    do (`GET /whoami`).
+
+    **Authentication:** every business call carries the `X-Api-Key` header set to the RU's
+    `ApiKeyEvuToBroker` - a random 40-character string generated per `RailwayUndertaking` record by a
+    TsiBroker admin (see wiki/Data-Model.md). This is the mirror image of the `ApiKeyBrokerToEvu` key
+    TsiBroker uses to call the EVU (see infrastructure/evu-endpoints.openapi.yaml). There is no
+    self-service key creation and no rotation grace period - regenerating a key invalidates the old one
+    immediately.
+
+    **Status:** `POST /message` authenticates and authorizes the message and enqueues it on the broker,
+    but TsiBroker does not relay it onward to the Infrastructure Manager yet (`IMessagePublisher` only
+    logs today - see wiki/Business-Flow.md). The request/response contract below is stable regardless.
+
+    **Payload format:** `POST /message` takes and returns raw XML (`application/xml`); the broker never
+    switches formats mid-contract, so even errors come back as XML `<ProblemDetails>`. `GET /whoami`
+    also returns XML.
+servers:
+  - url: "https://localhost:7263"
+    description: Local development (HTTPS).
+  - url: "http://localhost:5290"
+    description: Local development (HTTP).
+security:
+  - ApiKeyAuth: []
+paths:
+  /message:
+    post:
+      operationId: submitMessage
+      summary: Submit a TAF/TAP-TSI message addressed to an Infrastructure Manager
+      description: |
+        Submit a raw TAF/TAP-TSI XML document to the broker for delivery to an Infrastructure Manager
+        (IM/ISB). The broker parses `MessageHeader` (namespace-agnostic, matched by local element name)
+        as the **first child element of the document root**, authorizes the message against the
+        authenticated RU's configuration, and - on success - enqueues it as a `BrokerMessage`
+        (partitioned per recipient Infrastructure Operator).
+
+        Required header fields:
+          - `MessageHeader/MessageReference/MessageType` - the TAF/TAP message type; must be allowed by
+            the RU's active `IsbAssignment` for the recipient (or the assignment must allow `"*"`).
+          - `MessageHeader/Sender` - must match one of the authenticated RU's registered RICS codes.
+          - `MessageHeader/Recipient` - must match an active Infrastructure Operator's RICS code that
+            the RU has an active assignment for.
+
+        Optional:
+          - `MessageHeader/MessageReference/MessageIdentifier` - echoed back in the response and used as
+            `BrokerMessage.Id`.
+
+        Side effect: an authenticated call from an RU whose outbound queue is currently paused is taken
+        as evidence the RU is back online and clears the pause (same as `GET /whoami`).
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/TafTapMessage"
+            example: |
+              <?xml version="1.0"?>
+              <TrainCompositionMessage xmlns="http://www.era.europa.eu/schemes/TAFTSI/3.4">
+                <MessageHeader>
+                  <MessageReference>
+                    <MessageType>3003</MessageType>
+                    <MessageTypeVersion>3.4</MessageTypeVersion>
+                    <MessageIdentifier>MSG-1</MessageIdentifier>
+                    <MessageDateTime>2026-07-31T10:00:00</MessageDateTime>
+                  </MessageReference>
+                  <Sender>1181</Sender>
+                  <Recipient>1184</Recipient>
+                </MessageHeader>
+              </TrainCompositionMessage>
+      responses:
+        "202":
+          description: |
+            Accepted - the message passed authorization and was enqueued on the broker. Root element is
+            `MessageResponse` (not `AckResponse`) to match bare-`XmlSerializer` EVU clients.
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example: |
+                <MessageResponse><Status>ACK</Status><MessageIdentifier>MSG-1</MessageIdentifier></MessageResponse>
+        "400":
+          description: |
+            Bad request. `Title` is one of:
+              - `Invalid message` - body is not well-formed XML, or `MessageHeader` / a required field
+                (`MessageReference/MessageType`, `Sender`, `Recipient`) is missing.
+              - `Unknown recipient` - `Recipient` does not match a known, active Infrastructure Operator.
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example: |
+                <ProblemDetails><Status>400</Status><Title>Invalid message</Title><Detail>Request body is not well-formed XML: ...</Detail></ProblemDetails>
+        "401":
+          description: |
+            Unauthorized. `Title` is one of:
+              - `Missing API key` - the `X-Api-Key` header is absent or blank.
+              - `Invalid API key` - no active RU was found for the supplied key.
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example: |
+                <ProblemDetails><Status>401</Status><Title>Missing API key</Title><Detail>The X-Api-Key header is required.</Detail></ProblemDetails>
+        "403":
+          description: |
+            Forbidden - the key is valid but the message is not authorized. `Title` is one of:
+              - `Sender mismatch` - `Sender` does not match a RICS code of the authenticated RU.
+              - `EVU not authorized for this ISB` - the RU has no active assignment for the recipient.
+              - `Message type not authorized` - the assignment does not allow this `MessageType` for
+                that recipient.
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example: |
+                <ProblemDetails><Status>403</Status><Title>Sender mismatch</Title><Detail>The message Sender does not match a RICS code of the authenticated EVU.</Detail></ProblemDetails>
+  /whoami:
+    get:
+      operationId: whoAmI
+      summary: Report what the authenticated RU is currently authorized to do
+      description: |
+        Self-service check of the calling RU's admin-configured identity and permissions, without
+        submitting a real message. `Permissions` is a flat list: for every active `IsbAssignment` to an
+        active Infrastructure Operator, one `Permission` per RU RICS code x `AllowedMessageTypesEvuToBroker`
+        entry (`Sender` = RU RICS code, `Receiver` = operator RICS code), plus one per RU RICS code x
+        `AllowedMessageTypesBrokerToEvu` entry (`Sender`/`Receiver` swapped).
+
+        **Always returns `200 OK`.** If the `X-Api-Key` header is missing, invalid, or belongs to an
+        inactive RU, the response is a placeholder with `Name` = `<unknown>` and empty `RicsCodes` /
+        `Permissions` rather than a `401`. Detect an unusable key by checking whether `Name` is
+        `<unknown>`, not by the HTTP status.
+
+        Side effect: a valid key belonging to an RU whose outbound queue is paused clears the pause
+        (same as `POST /message`).
+      security:
+        - ApiKeyAuth: []
+        - {}
+      responses:
+        "200":
+          description: The RU's identity and permission list (or the `<unknown>` placeholder).
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/RailwayUndertaking"
+              example: |
+                <RailwayUndertaking>
+                  <Name>Example Rail</Name>
+                  <RicsCodes>
+                    <RicsCode>1181</RicsCode>
+                  </RicsCodes>
+                  <Permissions>
+                    <Permission Sender="1181" Receiver="1184" MessageType="3003" />
+                    <Permission Sender="1184" Receiver="1181" MessageType="3004" />
+                  </Permissions>
+                </RailwayUndertaking>
+  /:
+    get:
+      operationId: root
+      summary: Liveness probe
+      description: Returns the fixed text `TsiBroker.Ru.Api running`. No authentication, no request body.
+      security: []
+      responses:
+        "200":
+          description: The service is up.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: TsiBroker.Ru.Api running
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: The RU's `ApiKeyEvuToBroker`.
+  schemas:
+    TafTapMessage:
+      type: string
+      description: |
+        Raw TAF/TAP-TSI XML document. `MessageHeader` (namespace-agnostic, matched by local element
+        name) must be the first child of the document root:
+        `MessageHeader/MessageReference/MessageType` (required),
+        `MessageHeader/MessageReference/MessageIdentifier` (optional),
+        `MessageHeader/Sender` (required), `MessageHeader/Recipient` (required) - the mirror image of
+        infrastructure/evu-endpoints.openapi.yaml's `TafTapMessage`, with Sender/Recipient in the
+        EVU -> broker direction.
+    MessageResponse:
+      type: object
+      xml:
+        name: MessageResponse
+      required: [Status]
+      properties:
+        Status:
+          type: string
+          enum: [ACK]
+        MessageIdentifier:
+          type: string
+          nullable: true
+          description: Echoed back from the request's `MessageHeader/MessageReference/MessageIdentifier`; omitted if the request had none.
+    RailwayUndertaking:
+      type: object
+      xml:
+        name: RailwayUndertaking
+      required: [Name, RicsCodes, Permissions]
+      properties:
+        Name:
+          type: string
+          description: The RU's name, or `<unknown>` if the key is missing/invalid/inactive.
+        RicsCodes:
+          type: array
+          xml:
+            wrapped: true
+            name: RicsCodes
+          items:
+            type: string
+            xml:
+              name: RicsCode
+        Permissions:
+          type: array
+          xml:
+            wrapped: true
+            name: Permissions
+          items:
+            $ref: "#/components/schemas/Permission"
+    Permission:
+      type: object
+      xml:
+        name: Permission
+      description: One allowed `(Sender, Receiver, MessageType)` combination. All three are XML attributes.
+      required: [Sender, Receiver, MessageType]
+      properties:
+        Sender:
+          type: string
+          xml:
+            attribute: true
+        Receiver:
+          type: string
+          xml:
+            attribute: true
+        MessageType:
+          type: string
+          xml:
+            attribute: true
+    ProblemDetails:
+      type: object
+      xml:
+        name: ProblemDetails
+      required: [Status]
+      properties:
+        Status:
+          type: integer
+          description: Repeats the HTTP status code.
+        Title:
+          type: string
+        Detail:
+          type: string
